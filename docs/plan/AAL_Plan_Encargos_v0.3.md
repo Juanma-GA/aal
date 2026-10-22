@@ -3,6 +3,14 @@
 **Versión 0.3 · 22-oct-2026** · Repo: `github.com/Juanma-GA/aal` · Cliente: em&e group · Marco: AACF 2.0.x (ATEXIS)
 Referencia de patrones de implementación: `Juanma-GA/brdp-manager`, rama `v2-multiproyecto` (misma persona, mismo flujo con CC).
 
+**Cambios en v0.3 (rev. 4):** D18, rama de trabajo única con etiqueta por encargo; el repo es público (ver D13).
+
+**Cambios en v0.3 (rev. 3):** E01 crea la entidad `material` mínima (CUF: NOC, nombre, P/N, NCAGE, baja lógica), porque los roles se asignan por material; E11 la completa (subcategorías, configuración normalizada, copia de CUF).
+
+**Cambios en v0.3 (rev. 2):** D17, entorno corporativo (Zscaler) y Windows, aplicado en E00.
+
+**Cambios en v0.3 (rev. 1):** una CONFUNFIS por CUF; "Crear CUF a partir de otro" para variantes; marca de CUF montado con enlace a su propia CONFUNFIS; maestro de artículos único y común a todos los CUF.
+
 **Cambios en v0.3:**
 - Stack = plantilla AACF `web-app` (React 18 + TS + Vite, Tailwind + shadcn/ui, Zustand + React Query, FastAPI + SQLAlchemy 2 async + Alembic, PostgreSQL 16), como mejora sobre brdp-manager.
 - La NT 10/17 de 2017 es la referencia válida.
@@ -35,7 +43,10 @@ Referencia de patrones de implementación: `Juanma-GA/brdp-manager`, rama `v2-mu
 | D9 | i18n | react-i18next con `es` poblado (RNF-05), nunca tokens crudos (HR21). | C |
 | D10 | Concurrencia | Bloqueo optimista (`version`, 409) y UI optimista (HR20). | C |
 | D11 | Cambios y revisión | Auditoría de toda mutación desde E00/E01. Baselines de CONFUNFIS y CIL con flujo **Borrador → En revisión → Revisado** (el Revisor aprueba; adelanto de RF-33). Tocar algo ya baselined exige motivo y referencia de autorización (S3000L cap. 4). | C |
-| D12 | Contenedor raíz | **Material (CUF principal)** = "proyecto" de brdp-manager. Cada variante de CUF lleva su propia CONFUNFIS (DEL v02). | C |
+| D12 | Contenedor raíz | **Material = CUF**, equivalente al "proyecto" de brdp-manager: **una CONFUNFIS por CUF**, con su CIL y sus baselines. Cada variante es un CUF distinto (otro NOC) con su propia CONFUNFIS (DEL v02); "Crear CUF a partir de otro" copia CONFUNFIS, partes y productos funcionales. Un CUF montado (NT §9.1.12) es una fila de la CONFUNFIS de la plataforma, marcada y con enlace a su propia CONFUNFIS si existe como material. Los sistemas de sistemas (Anexo III §6) son una sola CONFUNFIS. | C |
+| D16 | Artículos | **Maestro de artículos único y común a todos los CUF** (un NOC tiene un único juego de datos básicos en SIGLE). Clave: NOC/NPC o, si no hay, P/N + NCAGE. Vista "dónde se usa" (CUF y posiciones). Puede editarlo un analista con al menos un CUF donde se use; queda auditado y se avisa si afecta a CUF con baseline. | C |
+| D17 | Entorno corporativo y Windows | Se aplican las propuestas de mejora al AACF de brdp-manager (18/10/2026): funcionamiento detrás de la inspección SSL de Zscaler sin desactivar nunca la verificación (npm `cafile` / `NODE_EXTRA_CA_CERTS`; Python `SSL_CERT_FILE` con certificados públicos + corporativo, en el entorno del servicio y no en `.env`); Windows como entorno de desarrollo (portabilidad comprobada por tests, UTF-8, LF, PowerShell sin `>` para volcados y contraseñas con `Read-Host`); lockfiles uv `--universal` con hashes, `npm ci` y nunca `npm audit fix --force`. Se monta en E00. | C |
+| D18 | Ramas | **Rama de trabajo única** (`claude/new-session-bl3tt3`, rama por defecto del repo), sin PR: Claude Code hace commit y push directamente. Cada encargo cerrado con la CI en verde lleva su etiqueta anotada `eNN`, que es el punto de vuelta atrás. Desviación consciente de G5 del AACF (sin revisión por PR), mitigada con la CI en cada push y con las etiquetas. | C |
 | D13 | Datos sensibles | Los ficheros reales (NT "USO OFICIAL", CONFUNFIS con NOC reales) van a `private/`, ignorado por git. Los tests y la demo usan datos **sintéticos** con la misma forma y anomalías. Los `verify-*` que necesitan ficheros reales salen con código 2 ("NOT RUN"), como los de Navantia en brdp-manager. | C |
 | D14 | Datos de demo | Script `seed_demo` con un material sintético completo (CUF tipo vehículo de ruedas, unas 150 posiciones con alternativos, CS alternativos, partes, productos funcionales y algunas anomalías intencionadas para enseñar el validador). La demo nunca depende de ficheros del cliente. | C |
 | D15 | Tablas SIGLE de referencia | D106, D107, D112, D113, D114, D155 y POL se versionan en el repo como semilla JSON, extraída por script del Excel de campos. Son tablas de codificación OTAN/SIGLE, no contenido "USO OFICIAL"; si prefieres no subirlas, el script lee el Excel desde `private/`. | P |
@@ -143,9 +154,9 @@ aal/
 - `sns_position` (sns, nombre, descripción, nivel declarado, nivel derivado del código, padre derivado).
 - `subcategory_sns` (N:M) y `sns_extra_name` (filas de nivel "ELEMENTO" y nombres alternativos).
 
-**Materiales:** `material` (NOC, nombre, P/N, NCAGE del CUF; versión de catálogo), `material_subcategory_link` y `sns_request` (solicitud de SNS nuevo a JIMALE).
+**Materiales:** `material` (= CUF: NOC, nombre, P/N, NCAGE; versión de catálogo; `copied_from_material_id` si se creó a partir de otro), `material_subcategory_link` y `sns_request` (solicitud de SNS nuevo a JIMALE). En `physical_position`, si el artículo de una fila es a su vez el CUF de otro material, ese enlace se obtiene por el NOC (o P/N + NCAGE) del CUF, sin duplicar datos.
 
-**RF-04:** `article`: NOC (13, opcional hasta catalogarse), P/N, NCAGE (5), nombre y origen del nombre (coloquial / aprobado / comercial), y los 30 campos del Fichero Carga con su código PRISMA, su número de campo de la guía MAR06, tipo, longitud y tabla de referencia. Control de vida con hasta 3 pares código/cantidad (D114), como permite SIGLE; el Fichero Carga exporta el primero y la decisión queda anotada. Unicidad por NOC (o NPC provisional) si existe, y siempre por (P/N, NCAGE).
+**RF-04:** `article` (**global**, no cuelga de ningún material, D16): NOC (13, opcional hasta catalogarse), P/N, NCAGE (5), nombre y origen del nombre (coloquial / aprobado / comercial), y los 30 campos del Fichero Carga con su código PRISMA, su número de campo de la guía MAR06, tipo, longitud y tabla de referencia. Control de vida con hasta 3 pares código/cantidad (D114), como permite SIGLE; el Fichero Carga exporta el primero y la decisión queda anotada. Unicidad por NOC (o NPC provisional) si existe, y siempre por (P/N, NCAGE).
 
 **RF-02:**
 - `physical_position` (material, sns, co, al, qty, article_id, función, ct_sigle, cs_sns, cs_co, cs_al, `version`). Es un grafo: una misma pieza puede tener varias filas, una por cada CS alternativo.
@@ -207,14 +218,14 @@ Medido sobre el ejemplo real (714 filas); el fixture sintético reproduce las mi
 
 ## 7. Encargos y hitos de demo
 
-Cada encargo se trabaja en su propia rama y se integra por PR. CC sigue el golden path AACF (checklist → implementación → `code-reviewer`) y las reglas de cierre de `CLAUDE.md`. El texto completo de cada encargo se entrega aparte (`docs/encargos/Exx.md`); aquí va el resumen.
+Todos los encargos se trabajan en la rama única (D18) y se cierran con una etiqueta `eNN`. CC sigue el golden path AACF (checklist → implementación → `code-reviewer`) y las reglas de cierre de `CLAUDE.md`. El texto completo de cada encargo se entrega aparte (`docs/encargos/Exx.md`); aquí va el resumen.
 
 ### Base (necesaria para cualquier demo)
 
 | Encargo | Contenido | Verificación clave |
 |---|---|---|
-| **E00** Arranque | Repo, `AGENTS.md`, `CLAUDE.md`, `aacf/`, docs del plan, backend mínimo con BD + Alembic + `audit_log` + `app_parameter`, frontend mínimo con i18n y marca, `run-checks.mjs`, BD de tests, CI | `npm run check:all` en verde; `verify-health` |
-| **E01** Usuarios, roles y Settings | JWT RS256 + refresh en cookie HttpOnly, `create_admin_user`, `user_material_role`, Settings → Usuarios y asignaciones, Auditoría; dependencias de permiso por material | tests de seguridad (rol × material); `verify-settings-users` |
+| **E00** Arranque | Entorno Zscaler + Windows (D17), repo, `AGENTS.md`, `CLAUDE.md`, `aacf/`, docs del plan, backend mínimo con BD + Alembic + `audit_log` + `app_parameter`, frontend mínimo con i18n y marca, `run-checks.mjs`, BD de tests, CI | `npm run check:all` en verde; `verify-health` |
+| **E01** Usuarios, roles y Settings | JWT RS256 + refresh en cookie HttpOnly, `create_admin_user`, **entidad `material` mínima**, `user_material_role`, catálogo de roles y permisos sembrado (matriz de solo lectura), Settings → Usuarios y asignaciones, Materiales, Auditoría; dependencias de permiso por material | tests de seguridad (rol × material); `verify-settings-users` |
 | **E02** Shell y módulos | Layout con sidebar PALI desde `module_catalog`, fichas de módulos planificados, selector de material, Panel vacío con estado real | `verify-navigation` |
 | **E03** Tablas de referencia y Excel | `reference_table` editable con semilla completa: niveles, categorías del Anexo I, M101, escalones, operatividad, criticidad, N/A/E, **D106, D107, D112, D113, D114 (temporales / no temporales), D155 y POL** (D15); motor `io_excel` analyze → apply con informe | recuentos de cada tabla; round-trip |
 
@@ -223,9 +234,9 @@ Cada encargo se trabaja en su propia rama y se integra por PR. CC sigue el golde
 | Encargo | Contenido | Verificación clave |
 |---|---|---|
 | **E10** RF-01 | Importador CONF_FUN (Anexo II) con versión, diff y avisos CN; árbol por categoría y subcategoría; búsqueda; detalle; exportación | fixture: recuentos y avisos esperados; fichero real en `private/` → 19 CN-001 |
-| **E11** Materiales | Alta de CUF, subcategorías, configuración normalizada del CUF (unión), solicitud de SNS, asignación de usuarios | caso LMV Lince (NT §8.1) |
-| **E12** RF-04 Artículos | Maestro con los 30 campos del Fichero Carga (ayuda en línea con la definición MAR06 de cada campo), unicidad, regla de denominación, reglas AR-001…AR-008, rejilla masiva, importación y exportación en formato Fichero Carga | exportación idéntica a la plantilla; tests de cada regla AR |
-| **E13** RF-02 núcleo | Posiciones, rejilla Anexo XI, árbol funcional y árbol físico (grafo con CS alternativos), asistentes CO/AL, cantidad total derivada, multifunción, CUF montado / sistemas de sistemas | ejemplos de NT §9.1.6–9.1.8 (pistón × segmentos = 18, láser 3 × 2…) |
+| **E11** Materiales | Completa la entidad `material` de E01: subcategorías, configuración normalizada del CUF (unión), solicitud de SNS, asignación de usuarios; **"Crear CUF a partir de otro"** (variantes) | caso LMV Lince (NT §8.1); la copia es independiente del original |
+| **E12** RF-04 Artículos | **Maestro único para todos los CUF** (D16) con vista "dónde se usa" y aviso de impacto en CUF con baseline; maestro con los 30 campos del Fichero Carga (ayuda en línea con la definición MAR06 de cada campo), unicidad, regla de denominación, reglas AR-001…AR-008, rejilla masiva, importación y exportación en formato Fichero Carga | exportación idéntica a la plantilla; tests de cada regla AR |
+| **E13** RF-02 núcleo | Posiciones, rejilla Anexo XI, árbol funcional y árbol físico (grafo con CS alternativos), asistentes CO/AL, cantidad total derivada, multifunción, sistemas de sistemas, **CUF montado marcado con enlace a su CONFUNFIS** | ejemplos de NT §9.1.6–9.1.8 (pistón × segmentos = 18, láser 3 × 2…) |
 | **E14** RF-02 complementos | Tabla de partes, productos funcionales, incompatibilidades | ejemplos bomba de agua y keroseno |
 | **E15** Anexo XI + datos de demo | Importación y exportación del libro CONFUNFIS (cabecera de dos filas) con round-trip exacto; plantilla vacía para subcontratistas; **`seed_demo`** (D14) | round-trip celda a celda; demo sembrada en un comando |
 
@@ -270,6 +281,6 @@ Cada línea es un encargo futuro; hasta entonces es una ficha en `module_catalog
 ## 9. Preguntas abiertas
 
 1. **CONFUNFIS física:** ¿la elabora el contratista partiendo de la normalizada que da el Ejército? (contradicción entre DEL v02 y RF-02). No bloquea: la app permite crearla e importarla.
-2. **Repositorio:** ¿`aal` es privado? Con D13 los ficheros reales nunca se suben, pero el plan cita contenido de la NT.
+2. **Repositorio:** `aal` es **público**. Se recomienda pasarlo a privado (ENS, RNF-04): expone la copia del AACF, con la IP interna del MCP, y el plan, que cita la NT "USO OFICIAL".
 3. **Marca:** ¿confirmas el tema em&e (D8)?
 4. **Tablas SIGLE en el repo (D15):** ¿se pueden versionar?

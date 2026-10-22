@@ -21,15 +21,30 @@ mezclar ficheros de versiones distintas).
 
 **Desviaciones documentadas** (detalle en `AGENTS.md`): autenticación propia JWT RS256 en lugar de
 Keycloak, con SSO + MFA corporativo que integra IT al final sin tocar la autorización (D4); HR11
-opcional (D6); stack de la plantilla AACF `web-app` (no el de brdp-manager), con Zustand solo para
+opcional (D6); rama única sin PR, en lugar de G5 (D18); stack de la plantilla AACF `web-app` (no el de brdp-manager), con Zustand solo para
 estado de UI global, nunca persistido en el navegador, y el estado de servidor siempre con React Query.
 
-**Reglas de dominio**: la NT 10/17 manda sobre la S3000L · SNS de 6 caracteres alfanuméricos · clave
-de posición física = SNS + CO + AL, más el CS (SNS_CS + CO_CS + AL_CS) · QTY es por unidad del conjunto
-superior · la estructura física es un grafo, no un árbol.
+**Reglas de dominio**: la NT 10/17 manda sobre la S3000L · material = CUF, con una CONFUNFIS por CUF
+(D12) · SNS de 6 caracteres alfanuméricos · clave de posición física = SNS + CO + AL, más el CS
+(SNS_CS + CO_CS + AL_CS) · QTY es por unidad del conjunto superior · la estructura física es un grafo,
+no un árbol · maestro de artículos único y común a todos los CUF, con clave NOC/NPC o, si no hay,
+P/N + NCAGE (D16).
+
+**Entorno (D17)**: funciona detrás de Zscaler sin desactivar nunca la verificación de certificados y
+en Windows como entorno de desarrollo: ver "Red corporativa y Windows".
 
 **D13**: los ficheros reales del cliente van solo a `private/` (ignorado); los tests usan fixtures
 sintéticos; un `verify-*` que necesite ficheros reales sale con código 2 ("NOT RUN").
+
+## Rama de trabajo única y etiquetas (D18)
+
+- Todo el trabajo va a una sola rama, `claude/new-session-bl3tt3` (la rama por defecto del repo):
+  Claude Code hace commit y push directamente, **sin PR**. Si el entorno asigna otra rama, se parte
+  de esta y al terminar se integra en ella con fast-forward.
+- Cada encargo cerrado con la CI en verde lleva su **etiqueta anotada `eNN`** (`e00`, `e01`…) en su
+  último commit: es el punto de vuelta atrás.
+- Es una desviación consciente de G5 del AACF (sin revisión por PR), mitigada con la CI en cada push
+  y con las etiquetas.
 
 ## Cómo levantar el entorno
 
@@ -139,7 +154,9 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
 
 (Adaptadas de brdp-manager, "Reglas de cierre de cada encargo".)
 
-1. Cada encargo en su rama, integrado por PR a `main`; nunca push directo a `main` (AACF G5).
+1. Rama de trabajo única (D18, ver arriba): commit y push en `claude/new-session-bl3tt3`, sin PR. Al
+   cerrar el encargo **con la CI en verde en el último push**, etiqueta anotada `eNN` en ese commit
+   (`git tag -a eNN -m "…"` y `git push origin eNN`).
 2. Siempre: `npm run check`.
 3. `npm run test:backend` si el encargo toca `backend/` (código, migraciones o tests). Una vez, al
    final. Tras una migración nueva, `npm run test:db:create` pone al día `aal_test`.

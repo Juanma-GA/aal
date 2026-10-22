@@ -1,8 +1,10 @@
 # Marca
 
-`eme-group-logo.png` es **provisional**: el logo oficial de em&e group no
-llegó con el encargo E00, así que este es un logotipo de texto neutro
-(grafito) con el mismo nombre de fichero. Para poner el oficial basta con
-sustituir el fichero (PNG con fondo transparente, unos 120 px de alto);
-la cabecera (`src/layouts/AppHeader.tsx`) y el favicon (`index.html`) lo
-toman de aquí.
+`eme-group-logo.png` es el **logo oficial** de em&e group (249 × 95 px, PNG
+con transparencia), entregado con el encargo E01. La cabecera
+(`src/layouts/AppHeader.tsx`) y el favicon (`index.html`) lo toman de aquí;
+para cambiarlo basta con sustituir el fichero manteniendo el nombre.
+
+El logo es grafito sobre transparente: en modo oscuro la cabecera lo pone
+sobre una superficie clara (token `--logo-surface` de
+`src/styles/globals.css`) para que siga siendo legible.

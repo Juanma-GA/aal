@@ -50,10 +50,24 @@ modelo de datos, reglas NT, encargos). Cada encargo tal como se entregó: [`docs
 ## Reglas de dominio
 
 - La NT 10/17 manda sobre la S3000L.
+- Material = CUF: el contenedor de todo, con **una CONFUNFIS por CUF** (D12); cada variante es otro CUF.
 - SNS de 6 caracteres alfanuméricos.
 - Clave de posición física = SNS + CO + AL, más el CS (SNS_CS + CO_CS + AL_CS).
 - QTY es por unidad del conjunto superior.
 - La estructura física es un grafo, no un árbol.
+- **Maestro de artículos único y común a todos los CUF** (D16): un NOC tiene un único juego de datos
+  básicos; clave NOC/NPC o, si no hay, P/N + NCAGE.
+
+## Entorno corporativo y Windows (D17)
+
+Funciona detrás de la inspección SSL de Zscaler **sin desactivar nunca la verificación de
+certificados**, y con Windows como entorno de desarrollo (portabilidad vigilada por tests, UTF-8, LF,
+PowerShell sin `>` para volcados, secretos nunca como argumento). Detalle en `CLAUDE.md` ("Red
+corporativa y Windows") y [`docs/instalacion/`](docs/instalacion/README.md).
+
+4. **Rama de trabajo única sin PR (D18)** en lugar de G5 (agentes solo en ramas con PR revisado):
+   commit y push directos a `claude/new-session-bl3tt3`, CI en cada push y una etiqueta anotada `eNN`
+   por encargo cerrado en verde como punto de vuelta atrás.
 
 ## Datos reales del cliente (D13)
 
