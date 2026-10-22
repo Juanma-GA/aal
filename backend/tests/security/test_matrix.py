@@ -120,7 +120,6 @@ async def test_only_the_admin_manages_materials_users_and_audit(client, world):
             await client.patch(f"/api/materials/{material_a.id}", json={"version": 1, "name": "x"}, headers=h),
             await client.post("/api/materials", json={"name": "x"}, headers=h),
             await client.delete(f"/api/materials/{material_a.id}?confirm=true", headers=h),
-            await client.get(f"/api/materials/{material_a.id}/members", headers=h),
             await client.get("/api/users", headers=h),
             await client.get("/api/audit", headers=h),
             await client.get("/api/parameters", headers=h),

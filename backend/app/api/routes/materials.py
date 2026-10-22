@@ -4,8 +4,9 @@
   each with their role and permissions on it.
 - GET /{material_id} needs material.ver on it; a material the user is not
   in is a 404 (require_material_permission).
-- Creating, editing and deleting a material, and its members, are admin
-  only. Edits carry the version they read (D10); a delete or the removal of
+- Its team (members) and recent activity: material.ver on it.
+- Creating, editing and deleting a material, and assigning its members,
+  are admin only. Edits carry the version they read (D10); a delete or the removal of
   a member needs ?confirm=true (HR9).
 """
 
@@ -21,9 +22,10 @@ from app.api.deps import current_user, material_not_found, require_admin, requir
 from app.api.routes.users import confirmation_required, user_not_found, version_conflict
 from app.core.errors import error_detail
 from app.db.base import get_db
-from app.models import Material, Role, User, UserMaterialRole
-from app.schemas.materials import MaterialCreate, MaterialOut, MaterialUpdate, MemberAssign, MemberOut
+from app.models import AuditLog, Material, Role, User, UserMaterialRole
+from app.schemas.materials import ActivityEntry, MaterialCreate, MaterialOut, MaterialUpdate, MemberAssign, MemberOut
 from app.services import audit
+from app.services.parameters import get_parameter
 from app.services.permissions import MaterialAccess, accessible_materials, material_access
 from app.services.snapshots import client_ip, material_snapshot
 
@@ -176,23 +178,50 @@ async def delete_material(
 # ── Members ──────────────────────────────────────────────────────────────
 
 
-@router.get("/{material_id}/members", response_model=list[MemberOut])
+@router.get("/{material_id}/members", response_model=list[MemberOut], response_model_exclude_none=True)
 async def list_members(
-    material_id: uuid.UUID, _admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)
+    access: MaterialAccess = Depends(require_material_permission("material.ver")),
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> list[MemberOut]:
-    await _active_material(db, material_id)
+    """The material's team: anyone who may see the material sees each
+    member's name and role (the Panel); only an admin also gets their id,
+    email and assignment date (to manage them)."""
     rows = (
         await db.execute(
             select(UserMaterialRole, User)
             .join(User, User.id == UserMaterialRole.user_id)
-            .where(UserMaterialRole.material_id == material_id, User.deleted_at.is_(None))
+            .where(UserMaterialRole.material_id == access.material.id, User.deleted_at.is_(None))
             .order_by(User.display_name, User.email)
         )
     ).all()
-    return [
-        MemberOut(user_id=u.id, email=u.email, display_name=u.display_name, role=r.role_code, assigned_at=r.assigned_at)
-        for r, u in rows
-    ]
+    if user.is_admin:
+        return [
+            MemberOut(user_id=u.id, email=u.email, display_name=u.display_name, role=r.role_code, assigned_at=r.assigned_at)
+            for r, u in rows
+        ]
+    return [MemberOut(display_name=u.display_name, role=r.role_code) for r, u in rows]
+
+
+@router.get("/{material_id}/activity", response_model=list[ActivityEntry])
+async def material_activity(
+    access: MaterialAccess = Depends(require_material_permission("material.ver")),
+    db: AsyncSession = Depends(get_db),
+) -> list[ActivityEntry]:
+    """The latest actions recorded on this material (parameter
+    panel.activity_items): who, what and when -- never the data before and
+    after, which only the global audit log (admin) shows."""
+    limit = (await get_parameter(db, "panel"))["activity_items"]
+    rows = (
+        await db.execute(
+            select(AuditLog.created_at, AuditLog.action, AuditLog.entity_type, User.display_name)
+            .outerjoin(User, User.id == AuditLog.user_id)
+            .where(AuditLog.material_id == access.material.id)
+            .order_by(AuditLog.created_at.desc(), AuditLog.id)
+            .limit(limit)
+        )
+    ).all()
+    return [ActivityEntry(created_at=c, action=a, entity_type=e, user_name=n) for c, a, e, n in rows]
 
 
 def _member_audit(db, request, admin, material, user, action, before_role, after_role) -> None:

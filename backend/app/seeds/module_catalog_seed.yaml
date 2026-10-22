@@ -1,0 +1,928 @@
+# Catálogo de módulos del PALI (E02): grupos y módulos con los textos de la
+# especificación de requisitos del cliente. Lo carga
+# app/services/module_catalog.py (la migración 0003 y
+# scripts/load_module_catalog.py). Al recargar se añaden los módulos nuevos y
+# se actualizan los textos, pero nunca se pisan el estado ni la ruta de un
+# módulo que ya existe (los cambia un admin en Ajustes -> Módulos).
+#
+# Cambios sobre el fichero entregado con E02: estados iniciales de E02 §2.1
+# (panel "disponible" con su ruta; materiales "en_desarrollo") y la clave
+# opcional `ruta` (solo en los disponibles: plantilla de URL, con
+# :materialId para las páginas de un material).
+version: 1
+fuente: Especificación de requisitos PALI (em&e) + plan AAL v0.3
+grupos:
+- codigo: inicio
+  nombre: Inicio
+  orden: 1
+- codigo: base
+  nombre: Base común
+  orden: 2
+- codigo: paal
+  nombre: PAAL — Análisis de Apoyo Logístico
+  orden: 3
+- codigo: pramt
+  nombre: PRAMT — Fiabilidad, disponibilidad, mantenibilidad y testabilidad
+  orden: 4
+- codigo: pman
+  nombre: PMAN — Mantenimiento
+  orden: 5
+- codigo: paba
+  nombre: PABA — Abastecimiento
+  orden: 6
+- codigo: otros
+  nombre: Otros planes del PALI
+  orden: 7
+- codigo: sigle
+  nombre: Entregas SIGLE
+  orden: 8
+- codigo: transversal
+  nombre: Transversal
+  orden: 9
+modulos:
+- codigo: panel
+  grupo: inicio
+  nombre: Panel del material
+  orden: 1
+  fase: '1'
+  estado: disponible
+  ruta: /materiales/:materialId
+  encargo: E02/E20
+  objetivo: 'Vista general del material activo: datos del CUF, equipo, avance de los módulos y actividad reciente.'
+  requisitos: []
+  entradas:
+  - Material activo
+  salidas:
+  - Resumen de avance
+  entregable: null
+  depende_de: []
+- codigo: catalogo-normalizado
+  grupo: base
+  nombre: Configuración funcional normalizada
+  orden: 2
+  fase: '1'
+  estado: planificado
+  encargo: E10
+  objetivo: Mantener el catálogo de posiciones funcionales SNS por categoría y subcategoría de material (NT 10/17 §8, Anexo
+    II), con versiones e importación desde Excel.
+  requisitos:
+  - id: RF-01
+    texto: Gestionar la configuración funcional normalizada (árbol SNS, categorías y subcategorías de material) e importarla
+      desde fichero Excel.
+  entradas:
+  - CONF_FUN (Anexo II, Excel del Ejército)
+  salidas:
+  - Catálogo SNS versionado
+  - Configuración normalizada de cada CUF
+  entregable: null
+  depende_de: []
+- codigo: materiales
+  grupo: base
+  nombre: Materiales / CUF
+  orden: 3
+  fase: '1'
+  estado: en_desarrollo
+  encargo: E01/E11
+  objetivo: Dar de alta cada CUF, sus categorías y subcategorías, y obtener su configuración funcional normalizada. Cada variante
+    es un CUF con su propia CONFUNFIS.
+  requisitos:
+  - id: RF-01
+    texto: Gestionar la configuración funcional normalizada (árbol SNS, categorías y subcategorías de material) e importarla
+      desde fichero Excel.
+  - id: RF-02
+    texto: 'Crear la configuración funcional física del material: posiciones SNS, NOC, código de componente, alternativos,
+      cantidad, conjunto superior, tabla de partes, productos funcionales, componentes multifunción e incompatibilidades.'
+  entradas:
+  - Datos del CUF (NOC, P/N, NCAGE)
+  - Catálogo SNS
+  salidas:
+  - Configuración normalizada del CUF
+  entregable: null
+  depende_de:
+  - catalogo-normalizado
+- codigo: confunfis
+  grupo: base
+  nombre: Configuración funcional física
+  orden: 4
+  fase: '1'
+  estado: planificado
+  encargo: E13/E15
+  objetivo: Ubicar los artículos del CUF en sus posiciones funcionales (SNS) con código de componente, alternativos, cantidad
+    y conjunto superior (NT 10/17 §9).
+  requisitos:
+  - id: RF-02
+    texto: 'Crear la configuración funcional física del material: posiciones SNS, NOC, código de componente, alternativos,
+      cantidad, conjunto superior, tabla de partes, productos funcionales, componentes multifunción e incompatibilidades.'
+  entradas:
+  - Configuración normalizada del CUF
+  - Maestro de artículos
+  - E-BOM / PLM
+  salidas:
+  - CONFUNFIS física
+  entregable: Configuración funcional física, tabla de partes y productos funcionales — Anexo XI NT 10/17 (SIGLE)
+  depende_de:
+  - materiales
+  - articulos
+- codigo: tabla-partes
+  grupo: base
+  nombre: Tabla de partes
+  orden: 5
+  fase: '1'
+  estado: planificado
+  encargo: E14
+  objetivo: Registrar el despiece de los artículos de la configuración que no figuran en ella pero entran en los análisis
+    (NT 10/17 §9.1.10).
+  requisitos:
+  - id: RF-02
+    texto: 'Crear la configuración funcional física del material: posiciones SNS, NOC, código de componente, alternativos,
+      cantidad, conjunto superior, tabla de partes, productos funcionales, componentes multifunción e incompatibilidades.'
+  entradas:
+  - CONFUNFIS física
+  - Maestro de artículos
+  salidas:
+  - Tabla de partes
+  entregable: Incluida en el Anexo XI
+  depende_de:
+  - confunfis
+- codigo: productos-funcionales
+  grupo: base
+  nombre: Productos funcionales
+  orden: 6
+  fase: '1'
+  estado: planificado
+  encargo: E14
+  objetivo: Registrar los productos funcionales del CUF (combustibles, aceites, grasas) según la GTPF (NT 10/17 §9.1.11).
+  requisitos:
+  - id: RF-02
+    texto: 'Crear la configuración funcional física del material: posiciones SNS, NOC, código de componente, alternativos,
+      cantidad, conjunto superior, tabla de partes, productos funcionales, componentes multifunción e incompatibilidades.'
+  entradas:
+  - GTPF
+  - Tabla D155
+  salidas:
+  - Tabla de productos funcionales
+  entregable: Incluida en el Anexo XI
+  depende_de:
+  - materiales
+- codigo: articulos
+  grupo: base
+  nombre: Artículos — datos básicos
+  orden: 7
+  fase: '1'
+  estado: planificado
+  encargo: E12
+  objetivo: Mantener un maestro único de artículos con sus datos básicos SIGLE (NOC, referencia-NCAGE, reparable, precio,
+    peso, dimensiones, control de vida…).
+  requisitos:
+  - id: RF-04
+    texto: Gestionar la base de datos básicos de artículos (NOC, referencia-NCAGE, reparable/no reparable, precio, peso y
+      dimensiones, etc.).
+  entradas:
+  - Fichero Carga
+  - Datos de fabricantes
+  salidas:
+  - Maestro de artículos
+  entregable: Datos básicos de artículos — formato NT 10/17 / PRISMA PB06 (SIGLE)
+  depende_de: []
+- codigo: validacion
+  grupo: base
+  nombre: Validación NT 10/17
+  orden: 8
+  fase: '1'
+  estado: planificado
+  encargo: E16
+  objetivo: Validar la configuración con las reglas de la NT 10/17 y emitir un informe de errores antes de exportar.
+  requisitos:
+  - id: RF-03
+    texto: Validar la configuración con las reglas de la NT 10/17 (coherencia estructural, alternativos, cantidades, datos
+      obligatorios) y emitir un informe de errores antes de exportar.
+  entradas:
+  - CONFUNFIS física
+  - Artículos
+  - Tabla de partes
+  - Productos funcionales
+  salidas:
+  - Informe de validación
+  entregable: null
+  depende_de:
+  - confunfis
+  - articulos
+- codigo: candidatos
+  grupo: paal
+  nombre: Candidatos AAL
+  orden: 9
+  fase: '1'
+  estado: planificado
+  encargo: E18
+  objetivo: Seleccionar los candidatos AAL a partir de la configuración, con criterios parametrizables (S3000L) y justificación
+    de cada inclusión o exclusión.
+  requisitos:
+  - id: RF-05
+    texto: Seleccionar candidatos AAL a partir de la configuración, con criterios parametrizables (según S3000L) y justificación
+      registrada de cada inclusión o exclusión.
+  entradas:
+  - CONFUNFIS física
+  - Datos básicos de artículos
+  salidas:
+  - Lista de candidatos (CIL)
+  - Matriz candidato × actividad
+  entregable: Lista de candidatos AAL justificada — Word/PDF y Excel
+  depende_de:
+  - confunfis
+  - articulos
+- codigo: requisitos-tarea
+  grupo: paal
+  nombre: Requisitos de tarea
+  orden: 10
+  fase: '1'
+  estado: planificado
+  encargo: E19
+  objetivo: Registrar por candidato y actividad los requisitos de tarea, con vista previa no vinculante del código SIGLE.
+  requisitos:
+  - id: RF-05
+    texto: Seleccionar candidatos AAL a partir de la configuración, con criterios parametrizables (según S3000L) y justificación
+      registrada de cada inclusión o exclusión.
+  entradas:
+  - Candidatos AAL
+  salidas:
+  - Requisitos de tarea
+  entregable: null
+  depende_de:
+  - candidatos
+- codigo: perfil-mision
+  grupo: paal
+  nombre: Perfil de misión y concepto de apoyo
+  orden: 11
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Registrar como entradas el perfil de misión y el concepto de apoyo logístico.
+  requisitos:
+  - id: RF-06
+    texto: Registrar como entradas el Perfil de Misión (horas o km de uso, escenarios, entorno) y el Concepto de Apoyo Logístico
+      (escalones, políticas de sostenimiento, etc.).
+  entradas:
+  - Perfil de misión
+  - Concepto de apoyo logístico
+  salidas:
+  - Entradas del AAL
+  entregable: null
+  depende_de:
+  - materiales
+- codigo: eventos-especiales
+  grupo: paal
+  nombre: Eventos especiales y daños
+  orden: 12
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: 'Identificar tareas no derivadas de fallos: daños, condiciones extremas, eventos operativos y obligaciones legales.
+    Módulo único para PAAL y PRAMT.'
+  requisitos:
+  - id: RF-07
+    texto: 'Análisis de eventos especiales y de daños: tareas no derivadas de fallos (daños, condiciones extremas, eventos
+      operativos, obligaciones legales y reglamentarias).'
+  - id: RF-11
+    texto: 'Análisis de eventos especiales y de daños: tareas no derivadas de fallos (daños, condiciones extremas, eventos
+      operativos, obligaciones legales y reglamentarias).'
+  entradas:
+  - CONFUNFIS física
+  - Perfil de misión
+  salidas:
+  - Tareas por eventos y daños
+  entregable: Informe LORA, eventos especiales e indicadores RAMT
+  depende_de:
+  - confunfis
+- codigo: amfec
+  grupo: pramt
+  nombre: AMFEC
+  orden: 13
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: AMFEC por candidato con cálculo automático del NPR y su criticidad (NT 10/17 Anexos IV, V, VII y VIII).
+  requisitos:
+  - id: RF-08
+    texto: 'AMFEC por candidato: funciones, modos de fallo, efectos local, superior y final, síntomas, causas, severidad,
+      probabilidad, detectabilidad y cálculo automático del NPR y su criticidad.'
+  entradas:
+  - Candidatos AAL
+  - Datos de fiabilidad
+  salidas:
+  - Modos de fallo con NPR y criticidad
+  entregable: Análisis AMFEC-RCM-MTA — Anexo VI NT 10/17 (SIGLE)
+  depende_de:
+  - candidatos
+- codigo: fta
+  grupo: pramt
+  nombre: FTA — árbol de fallos
+  orden: 14
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Árbol de fallos complementario al AMFEC.
+  requisitos:
+  - id: RF-09
+    texto: Árbol FTA complementario al AMFEC.
+  entradas:
+  - AMFEC
+  salidas:
+  - Árbol de fallos
+  entregable: null
+  depende_de:
+  - amfec
+- codigo: rcm
+  grupo: pramt
+  nombre: RCM
+  orden: 15
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Aplicar el árbol lógico de decisión RCM (NT 10/17 Anexo IX) a cada modo de fallo.
+  requisitos:
+  - id: RF-10
+    texto: 'RCM: aplicar el árbol lógico de decisión a cada modo de fallo y proponer tarea preventiva, correctiva, búsqueda
+      de fallo o rediseño con su intervalo.'
+  entradas:
+  - AMFEC
+  salidas:
+  - Tareas propuestas con intervalo
+  entregable: Incluido en el Anexo VI
+  depende_de:
+  - amfec
+- codigo: mta
+  grupo: pramt
+  nombre: MTA — análisis de tareas
+  orden: 16
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Desglosar cada tarea en pasos con especialistas, equipos, repuestos, tiempos y escalón.
+  requisitos:
+  - id: RF-12
+    texto: 'MTA: desglose de cada tarea en pasos con especialistas (cantidad y horas), equipos y herramientas, repuestos y
+      consumibles, tiempos y escalón. Cálculo automático de la tarea madre a partir de las hijas.'
+  entradas:
+  - Tareas RCM
+  - Requisitos de tarea
+  salidas:
+  - Tareas con recursos
+  entregable: Incluido en el Anexo VI
+  depende_de:
+  - rcm
+  - requisitos-tarea
+- codigo: lora
+  grupo: pramt
+  nombre: LORA
+  orden: 17
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Comparar escalones y reparar frente a desechar con criterios configurables.
+  requisitos:
+  - id: RF-13
+    texto: 'LORA: comparar escalones y la opción reparar frente a desechar, con criterios económicos y no económicos configurables.'
+  entradas:
+  - MTA
+  salidas:
+  - Escalón recomendado
+  entregable: Informe LORA, eventos especiales e indicadores RAMT
+  depende_de:
+  - mta
+- codigo: mantenibilidad
+  grupo: pramt
+  nombre: Mantenibilidad e indicadores
+  orden: 18
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Análisis de mantenibilidad e indicadores MTBF, MTTR, disponibilidad y tasa de fallos.
+  requisitos:
+  - id: RF-14
+    texto: Análisis de Mantenibilidad (ergonomía, accesibilidad, identificación, etc.). Calcular indicadores MTBF, MTTR, disponibilidad
+      y tasa de fallos por posición y por sistema/subsistema.
+  entradas:
+  - Datos de fiabilidad
+  - MTA
+  salidas:
+  - Indicadores RAMT
+  entregable: Informe LORA, eventos especiales e indicadores RAMT
+  depende_de:
+  - mta
+- codigo: rbd
+  grupo: pramt
+  nombre: Diagramas de bloques de fiabilidad
+  orden: 19
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Construir diagramas de bloques de fiabilidad a partir de la configuración.
+  requisitos:
+  - id: RF-15
+    texto: Fiabilidad de sistemas. La herramienta permitirá construir diagramas de bloques de fiabilidad a partir de la configuración
+      funcional física.
+  entradas:
+  - CONFUNFIS física
+  - Datos de fiabilidad
+  salidas:
+  - Fiabilidad del sistema
+  entregable: null
+  depende_de:
+  - confunfis
+- codigo: prediccion
+  grupo: pramt
+  nombre: Predicción de fiabilidad
+  orden: 20
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: (Deseable) Módulos de predicción de fiabilidad y acceso a bases de datos de fallos.
+  requisitos:
+  - id: RF-16
+    texto: DESEABLE. La herramienta incluirá módulos de predicción de fiabilidad (MIL-HDBK-217F y FIDES; opcionalmente 217Plus
+      y NSWC-11) y acceso a las bases NPRD y FMD.
+  entradas:
+  - Datos de componentes
+  salidas:
+  - Tasas de fallo predichas
+  entregable: null
+  depende_de:
+  - datos-fiabilidad
+- codigo: datos-fiabilidad
+  grupo: pramt
+  nombre: Datos de fiabilidad
+  orden: 21
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Registrar cada dato de fiabilidad con su fuente, fecha e histórico.
+  requisitos:
+  - id: RF-17
+    texto: Cada dato de fiabilidad registrará su fuente y fecha, y podrá sustituirse por datos del fabricante o de uso real
+      manteniendo el histórico. Los criterios de valoración serán siempre los de la NT 10/17.
+  entradas:
+  - Fabricante
+  - Uso real
+  salidas:
+  - Datos de fiabilidad
+  entregable: null
+  depende_de:
+  - articulos
+- codigo: codificacion-tareas
+  grupo: pman
+  nombre: Codificación de tareas
+  orden: 22
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Codificar las tareas (10 caracteres) y asignar el NOC de gestión según la NT 10/17 §12.
+  requisitos:
+  - id: RF-18
+    texto: 'Codificar las tareas automáticamente (10 caracteres: SNS + operatividad + criticidad + código de acción + secuencial)
+      y asignar el NOC de gestión según las reglas de la NT 10/17.'
+  entradas:
+  - MTA
+  - AMFEC
+  salidas:
+  - Tareas codificadas
+  entregable: Tareas de mantenimiento — Anexo X NT 10/17 (SIGLE)
+  depende_de:
+  - mta
+- codigo: plan-mantenimiento
+  grupo: pman
+  nombre: Plan de mantenimiento
+  orden: 23
+  fase: '2'
+  estado: planificado
+  encargo: null
+  objetivo: Generar el plan de mantenimiento con cadencias y estructura madre/hijas.
+  requisitos:
+  - id: RF-19
+    texto: Generar el plan de mantenimiento con cadencias y estructura de procesos (madre e hijas).
+  entradas:
+  - Tareas codificadas
+  salidas:
+  - Plan de mantenimiento
+  entregable: Tareas de mantenimiento — Anexo X NT 10/17 (SIGLE)
+  depende_de:
+  - codificacion-tareas
+- codigo: articulos-logisticos
+  grupo: paba
+  nombre: Artículos logísticos
+  orden: 24
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Mantener la base de artículos logísticos derivada del MTA.
+  requisitos:
+  - id: RF-20
+    texto: Mantener la BD de artículos logísticos derivada del MTA.
+  entradas:
+  - MTA
+  salidas:
+  - Base de artículos logísticos
+  entregable: null
+  depende_de:
+  - mta
+- codigo: repuestos
+  grupo: paba
+  nombre: Cálculo de repuestos
+  orden: 25
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Calcular el nivel de repuestos por escalón.
+  requisitos:
+  - id: RF-21
+    texto: Calcular el nivel de repuestos por escalón a partir de tasas de fallo, cantidad instalada, flota, horas de uso,
+      plazo de reposición y nivel de servicio objetivo.
+  entradas:
+  - Tasas de fallo
+  - Flota
+  - Plazos
+  salidas:
+  - Niveles de repuestos
+  entregable: LIR, listas de aprovisionamiento, cálculo de repuestos y herramientas
+  depende_de:
+  - articulos-logisticos
+- codigo: lir
+  grupo: paba
+  nombre: LIR y aprovisionamiento
+  orden: 26
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Generar la Lista Inicial de Repuestos y las listas de aprovisionamiento con coste total.
+  requisitos:
+  - id: RF-22
+    texto: Generar la Lista Inicial de Repuestos (LIR) y las listas de aprovisionamiento, con coste total.
+  entradas:
+  - Niveles de repuestos
+  salidas:
+  - LIR
+  entregable: LIR, listas de aprovisionamiento, cálculo de repuestos y herramientas
+  depende_de:
+  - repuestos
+- codigo: herramientas
+  grupo: paba
+  nombre: Herramientas y equipos de apoyo
+  orden: 27
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Calcular necesidades de herramientas y equipos de apoyo y prueba por escalón.
+  requisitos:
+  - id: RF-23
+    texto: Calcular necesidades de herramientas y equipos de apoyo y prueba por escalón.
+  entradas:
+  - MTA
+  salidas:
+  - Necesidades de herramientas
+  entregable: LIR, listas de aprovisionamiento, cálculo de repuestos y herramientas
+  depende_de:
+  - mta
+- codigo: phst
+  grupo: otros
+  nombre: PMAT — PHST
+  orden: 28
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Datos de manipulación, almacenamiento y transporte por artículo.
+  requisitos:
+  - id: RF-24
+    texto: 'Recoger los datos PHST por artículo: embalaje, peso, dimensiones, peligrosidad, vida útil, condiciones de almacenamiento
+      y medio de transporte. Generar el informe PHST.'
+  entradas:
+  - Artículos
+  salidas:
+  - Datos PHST
+  entregable: Informe PHST
+  depende_de:
+  - articulos
+- codigo: infraestructuras
+  grupo: otros
+  nombre: PINST — Infraestructuras
+  orden: 29
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Derivar las necesidades de infraestructura de las tareas MTA.
+  requisitos:
+  - id: RF-25
+    texto: Derivar las necesidades de infraestructura de las tareas MTA (superficies, fosos, grúas, energía, condiciones ambientales,
+      almacenes) por escalón y generar el informe de requisitos.
+  entradas:
+  - MTA
+  salidas:
+  - Requisitos de infraestructura
+  entregable: Informe de requisitos de infraestructuras
+  depende_de:
+  - mta
+- codigo: recursos-informaticos
+  grupo: otros
+  nombre: PRINF — Recursos informáticos
+  orden: 30
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Identificar software, equipos, licencias y herramientas de diagnosis.
+  requisitos:
+  - id: RF-26
+    texto: Identificar el software, equipos informáticos, licencias y herramientas de diagnosis necesarios para operar y mantener
+      el material.
+  entradas:
+  - CONFUNFIS física
+  - MTA
+  salidas:
+  - Recursos informáticos
+  entregable: Informe de herramientas de apoyo al mantenimiento informático
+  depende_de:
+  - confunfis
+- codigo: lbraa
+  grupo: otros
+  nombre: PGCAT — LBRAA
+  orden: 31
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Generar la Lista Base Recomendada de Artículos de Abastecimiento.
+  requisitos:
+  - id: RF-27
+    texto: Generar la LBRAA a partir de la BD de artículos.
+  entradas:
+  - Artículos
+  salidas:
+  - LBRAA
+  entregable: LBRAA (Excel)
+  depende_de:
+  - articulos-logisticos
+- codigo: comunalidad
+  grupo: otros
+  nombre: PIC — Comunalidad e intercambiabilidad
+  orden: 32
+  fase: '3'
+  estado: planificado
+  encargo: null
+  objetivo: Identificar elementos intercambiables y comunes y generar la matriz de comunalidad.
+  requisitos:
+  - id: RF-28
+    texto: Identificar elementos intercambiables y comunes, dentro del propio producto y con otros productos de la misma familia
+      (por NOC, referencia-NCAGE y forma-ajuste-función). Generar la matriz de comunalidad.
+  entradas:
+  - Artículos
+  - Otros CUF
+  salidas:
+  - Matriz de comunalidad
+  entregable: Matriz de comunalidad e intercambiabilidad (Excel)
+  depende_de:
+  - articulos
+- codigo: formacion
+  grupo: otros
+  nombre: PPF — Personal y formación
+  orden: 33
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Obtener de las tareas MTA las necesidades de especialistas y formación.
+  requisitos:
+  - id: RF-29
+    texto: Obtener de las tareas MTA las necesidades de especialistas y cualificaciones. Generar fichas formativas e informe
+      de necesidades de formación.
+  entradas:
+  - MTA
+  salidas:
+  - Fichas formativas
+  entregable: Fichas formativas, informe de necesidades y documentación para la formación
+  depende_de:
+  - mta
+- codigo: documentacion-tecnica
+  grupo: otros
+  nombre: PDT — Documentación técnica
+  orden: 34
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Exportar los datos del AAL para la documentación técnica.
+  requisitos:
+  - id: RF-30
+    texto: Exportar los datos del AAL para la documentación técnica (manuales de operador, de mantenimiento y catálogos de
+      piezas).
+  entradas:
+  - AAL completo
+  salidas:
+  - Datos para manuales y catálogos
+  entregable: Módulos S1000D o Excel
+  depende_de:
+  - mta
+- codigo: ccv
+  grupo: otros
+  nombre: MCCV — Coste de ciclo de vida
+  orden: 35
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Calcular el coste de ciclo de vida por fases, con escenarios y sensibilidad.
+  requisitos:
+  - id: RF-31
+    texto: Calcular el coste de ciclo de vida por fases (adquisición, operación, mantenimiento, abastecimiento, formación,
+      infraestructuras, baja) usando los datos de los planes anteriores. Permitir comparar escenarios y análisis de sensibilidad.
+  entradas:
+  - Datos de todos los planes
+  salidas:
+  - Coste de ciclo de vida
+  entregable: Informe de coste de ciclo de vida (Word/PDF y Excel)
+  depende_de:
+  - lir
+  - mta
+- codigo: paquetes-sigle
+  grupo: sigle
+  nombre: Paquete de entrega SIGLE
+  orden: 36
+  fase: 1b
+  estado: planificado
+  encargo: null
+  objetivo: Generar el paquete con los cuatro archivos SIGLE en formato NT 10/17.
+  requisitos:
+  - id: RF-38
+    texto: Generar el paquete de entrega para SIGLE con los cuatro archivos (configuración funcional física, AMFEC-RCM-MTA,
+      tareas de mantenimiento con sus tablas de datos básicos y datos básicos de artículos) en el formato de la NT 10/17.
+  entradas:
+  - CONFUNFIS
+  - AMFEC-RCM-MTA
+  - Tareas
+  - Artículos
+  salidas:
+  - Paquete SIGLE
+  entregable: Los cuatro archivos SIGLE
+  depende_de:
+  - confunfis
+  - articulos
+- codigo: validacion-paquete
+  grupo: sigle
+  nombre: Validación del paquete
+  orden: 37
+  fase: 1b
+  estado: planificado
+  encargo: null
+  objetivo: Validar el paquete antes de entregarlo; no se entrega con errores bloqueantes.
+  requisitos:
+  - id: RF-39
+    texto: Validar el paquete antes de entregarlo y emitir un informe de errores. No se podrá marcar como entregado un paquete
+      con errores bloqueantes.
+  entradas:
+  - Paquete SIGLE
+  salidas:
+  - Informe de errores
+  entregable: null
+  depende_de:
+  - paquetes-sigle
+  - validacion
+- codigo: registro-entregas
+  grupo: sigle
+  nombre: Registro de entregas y observaciones
+  orden: 38
+  fase: 1b
+  estado: planificado
+  encargo: null
+  objetivo: Registrar cada entrega, vincular observaciones del cliente y generar la versión corregida.
+  requisitos:
+  - id: RF-40
+    texto: Registrar cada entrega (versión, fecha y contenido), vincular las observaciones del cliente a los registros afectados
+      y generar la versión corregida con un informe de cambios respecto a la anterior.
+  entradas:
+  - Entregas
+  - Observaciones
+  salidas:
+  - Historial de entregas
+  entregable: null
+  depende_de:
+  - paquetes-sigle
+- codigo: extracciones-sigle
+  grupo: sigle
+  nombre: Importar extracciones de SIGLE
+  orden: 39
+  fase: 1b
+  estado: planificado
+  encargo: null
+  objetivo: Importar las extracciones de SIGLE para no duplicar ni contradecir datos ya registrados.
+  requisitos:
+  - id: RF-41
+    texto: Importar las extracciones de SIGLE que facilite el cliente (configuración funcional normalizada, artículos y tareas
+      ya existentes) para no duplicar ni contradecir datos ya registrados.
+  entradas:
+  - Extracciones SIGLE
+  salidas:
+  - Datos de SIGLE contrastados
+  entregable: null
+  depende_de:
+  - articulos
+- codigo: teamcenter
+  grupo: transversal
+  nombre: Integración TeamCenter
+  orden: 40
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Importar y exportar datos con TeamCenter.
+  requisitos:
+  - id: RF-32
+    texto: Importación y exportación de datos hacia y desde TeamCenter para su almacenamiento y actualización.
+  entradas:
+  - TeamCenter
+  salidas:
+  - Datos sincronizados
+  entregable: null
+  depende_de:
+  - confunfis
+- codigo: flujo-entregables
+  grupo: transversal
+  nombre: Flujo de estados de entregables
+  orden: 41
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Estados borrador → revisión interna → entregado → con observaciones → aprobado, con perfiles de usuario.
+  requisitos:
+  - id: RF-33
+    texto: 'Flujo interno de estados de cada entregable: borrador, revisión interna, entregado al cliente, con observaciones
+      y aprobado por el cliente. Perfiles de usuario: analista, revisor y administrador.'
+  entradas:
+  - Entregables
+  salidas:
+  - Estado de cada entregable
+  entregable: null
+  depende_de: []
+- codigo: versionado
+  grupo: transversal
+  nombre: Versionado y auditoría
+  orden: 42
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Versionado, notas de revisión, propuestas de cambio y registro de auditoría.
+  requisitos:
+  - id: RF-34
+    texto: Versionado, notas de revisión, propuestas de cambio y registro de auditoría de todas las modificaciones.
+  entradas:
+  - Todos los datos
+  salidas:
+  - Historial y versiones
+  entregable: null
+  depende_de: []
+- codigo: trazabilidad
+  grupo: transversal
+  nombre: Trazabilidad
+  orden: 43
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Llegar desde cada tarea, repuesto o herramienta al modo de fallo, posición SNS y candidato que lo originan.
+  requisitos:
+  - id: RF-35
+    texto: 'Trazabilidad completa: de cada tarea, repuesto o herramienta se podrá llegar al modo de fallo, posición SNS y
+      candidato AAL que lo originan.'
+  entradas:
+  - Todos los análisis
+  salidas:
+  - Trazabilidad completa
+  entregable: null
+  depende_de:
+  - mta
+- codigo: excel-masivo
+  grupo: transversal
+  nombre: Importación y exportación masiva
+  orden: 44
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Importar y exportar hojas de cálculo y cargas masivas desde plantillas, para contratistas sin acceso.
+  requisitos:
+  - id: RF-36
+    texto: Importar y exportar a hoja de cálculo, y carga masiva desde plantillas, para trabajar con contratistas sin acceso
+      a la herramienta.
+  entradas:
+  - Plantillas Excel
+  salidas:
+  - Datos cargados
+  entregable: null
+  depende_de: []
+- codigo: datos-uso-real
+  grupo: transversal
+  nombre: Datos de uso real
+  orden: 45
+  fase: '4'
+  estado: planificado
+  encargo: null
+  objetivo: Importar datos de uso real del cliente para actualizar tasas de fallo, tiempos y consumos.
+  requisitos:
+  - id: RF-37
+    texto: Importar datos de uso real facilitados por el cliente (extracciones de SIGLE de peticiones de mantenimiento y órdenes
+      de trabajo) para actualizar tasas de fallo, tiempos y consumos.
+  entradas:
+  - Extracciones SIGLE
+  salidas:
+  - Datos de fiabilidad actualizados
+  entregable: null
+  depende_de:
+  - datos-fiabilidad

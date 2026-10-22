@@ -44,6 +44,11 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
             "max_failures_per_ip": 20,
         },
     },
+    # The material's Panel (E02).
+    "panel": {
+        # Latest actions of the material shown in "Actividad reciente".
+        "activity_items": 10,
+    },
     # Settings -> Auditoría.
     "audit": {
         "page_size": 50,

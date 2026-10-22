@@ -22,6 +22,8 @@ dependencies = [
     "cryptography>=43",
     # EmailStr in the request schemas.
     "email-validator>=2.2",
+    # The module catalog seed (app/seeds/module_catalog_seed.yaml).
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]

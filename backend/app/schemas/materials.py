@@ -48,11 +48,23 @@ class MaterialUpdate(StrictModel):
 
 
 class MemberOut(BaseModel):
-    user_id: uuid.UUID
-    email: str
+    """A member of the team. user_id, email and assigned_at only for an admin."""
+
     display_name: str
     role: str
-    assigned_at: datetime
+    user_id: uuid.UUID | None = None
+    email: str | None = None
+    assigned_at: datetime | None = None
+
+
+class ActivityEntry(BaseModel):
+    """A recent action on a material: who (None: the system or a removed
+    user), what and when -- no data before or after."""
+
+    created_at: datetime
+    action: str
+    entity_type: str
+    user_name: str | None
 
 
 class MemberAssign(StrictModel):

@@ -19,3 +19,4 @@ src/i18n/locales/*.json           text eol=lf
 *.pdf   binary
 *.woff  binary
 *.woff2 binary
+backend/app/seeds/**                text eol=lf

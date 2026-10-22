@@ -1,5 +1,5 @@
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
@@ -38,3 +38,5 @@ class UiPreferencesPatch(StrictModel):
     sent is deep-merged over what is stored (HR10), a key not sent is kept."""
 
     active_material_id: uuid.UUID | None = None
+    # The sidebar groups the user folded (E02). A list is replaced whole.
+    sidebar_collapsed_groups: list[Annotated[str, Field(min_length=1, max_length=50)]] | None = Field(default=None, max_length=50)

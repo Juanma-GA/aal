@@ -255,7 +255,8 @@
       "hint": "Valores en vigor (los de fábrica combinados con los guardados). En esta versión son de solo lectura.",
       "groups": {
         "auth": "Autenticación",
-        "audit": "Auditoría"
+        "audit": "Auditoría",
+        "panel": "Panel del material"
       },
       "labels": {
         "access_token_minutes": "Duración del token de acceso (minutos)",
@@ -266,7 +267,8 @@
         "login_limit.max_failures_per_email": "Intentos fallidos máximos por email",
         "login_limit.max_failures_per_ip": "Intentos fallidos máximos por dirección",
         "page_size": "Filas por página",
-        "max_page_size": "Máximo de filas por página"
+        "max_page_size": "Máximo de filas por página",
+        "activity_items": "Acciones en \"Actividad reciente\""
       }
     }
   },

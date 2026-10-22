@@ -22,7 +22,7 @@ fichero, salvo las **desviaciones documentadas** de abajo, que son decisiones ex
 
 App web para em&e group que soporta el Análisis de Apoyo Logístico de un material del Ejército de
 Tierra y genera los entregables del PALI desde una única base de datos. Plan completo:
-[`docs/plan/AAL_Plan_Encargos_v0.3.md`](docs/plan/AAL_Plan_Encargos_v0.3.md) (decisiones D1–D15,
+[`docs/plan/AAL_Plan_Encargos_v0.3.md`](docs/plan/AAL_Plan_Encargos_v0.3.md) (decisiones D1–D18,
 modelo de datos, reglas NT, encargos). Cada encargo tal como se entregó: [`docs/encargos/`](docs/encargos/).
 
 ## Stack (plantilla AACF `web-app`, D2)
@@ -46,6 +46,9 @@ modelo de datos, reglas NT, encargos). Cada encargo tal como se entregó: [`docs
    organización del repo, la verificación y el flujo de encargos, no su frontend en JS con CSS propio.
    **Zustand solo para estado de UI global, nunca persistido en el navegador** (sin middleware
    `persist`); **el estado de servidor va siempre con React Query**.
+4. **Rama de trabajo única sin PR (D18)** en lugar de G5 (agentes solo en ramas con PR revisado):
+   commit y push directos a `claude/new-session-bl3tt3`, con la CI en cada push. Sin etiquetas: el
+   punto de vuelta atrás de cada encargo es su commit de cierre, anotado en `docs/historial-cambios.md`.
 
 ## Reglas de dominio
 
@@ -64,10 +67,6 @@ Funciona detrás de la inspección SSL de Zscaler **sin desactivar nunca la veri
 certificados**, y con Windows como entorno de desarrollo (portabilidad vigilada por tests, UTF-8, LF,
 PowerShell sin `>` para volcados, secretos nunca como argumento). Detalle en `CLAUDE.md` ("Red
 corporativa y Windows") y [`docs/instalacion/`](docs/instalacion/README.md).
-
-4. **Rama de trabajo única sin PR (D18)** en lugar de G5 (agentes solo en ramas con PR revisado):
-   commit y push directos a `claude/new-session-bl3tt3`, CI en cada push y una etiqueta anotada `eNN`
-   por encargo cerrado en verde como punto de vuelta atrás.
 
 ## Datos reales del cliente (D13)
 

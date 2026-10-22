@@ -36,15 +36,14 @@ en Windows como entorno de desarrollo: ver "Red corporativa y Windows".
 **D13**: los ficheros reales del cliente van solo a `private/` (ignorado); los tests usan fixtures
 sintéticos; un `verify-*` que necesite ficheros reales sale con código 2 ("NOT RUN").
 
-## Rama de trabajo única y etiquetas (D18)
+## Rama de trabajo única (D18)
 
 - Todo el trabajo va a una sola rama, `claude/new-session-bl3tt3` (la rama por defecto del repo):
   Claude Code hace commit y push directamente, **sin PR**. Si el entorno asigna otra rama, se parte
   de esta y al terminar se integra en ella con fast-forward.
-- Cada encargo cerrado con la CI en verde lleva su **etiqueta anotada `eNN`** (`e00`, `e01`…) en su
-  último commit: es el punto de vuelta atrás.
-- Es una desviación consciente de G5 del AACF (sin revisión por PR), mitigada con la CI en cada push
-  y con las etiquetas.
+- **Sin etiquetas** (ni de Claude Code ni de Juanma): el punto de vuelta atrás de cada encargo es su
+  **commit de cierre**, anotado en `docs/historial-cambios.md`.
+- Es una desviación consciente de G5 del AACF (sin revisión por PR), mitigada con la CI en cada push.
 
 ## Cómo levantar el entorno
 
@@ -174,9 +173,9 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
 
 (Adaptadas de brdp-manager, "Reglas de cierre de cada encargo".)
 
-1. Rama de trabajo única (D18, ver arriba): commit y push en `claude/new-session-bl3tt3`, sin PR. Al
-   cerrar el encargo **con la CI en verde en el último push**, etiqueta anotada `eNN` en ese commit
-   (`git tag -a eNN -m "…"` y `git push origin eNN`).
+1. Rama de trabajo única (D18, ver arriba): commit y push en `claude/new-session-bl3tt3`, sin PR. El
+   encargo se cierra **con la CI en verde en el último push**; ese commit es el de cierre y va al
+   historial (regla 7).
 2. Siempre: `npm run check`.
 3. `npm run test:backend` si el encargo toca `backend/` (código, migraciones o tests). Una vez, al
    final. Tras una migración nueva, `npm run test:db:create` pone al día `aal_test`.
@@ -187,7 +186,7 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
    se arregla.
 6. `code-reviewer` (AACF) sobre el diff antes de darlo por terminado; `security-reviewer` si toca
    autenticación, permisos, entrada de ficheros o secretos.
-7. `docs/historial-cambios.md`: una entrada corta al final (qué, por qué, commit y tests). Las reglas
+7. `docs/historial-cambios.md`: una entrada corta al final (qué, por qué, commit de cierre y tests). Las reglas
    que sigan vigentes se suben aquí, en una línea.
 8. Informe: qué se hizo, qué no y por qué, lo que el encargo pida expresamente, y el resumen final del
    comando tal cual. Sin repetir lo que ya está en los commits.
