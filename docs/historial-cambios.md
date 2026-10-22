@@ -43,6 +43,8 @@ corporativo y Windows):
 saneados, auditoría y parámetros listos (D11, HR0/HR10), y desarrollo posible desde el primer día
 detrás de Zscaler y en Windows.
 
+**Commit.** `35317a6`.
+
 **Tests.** `npm run check:all`: lint, typecheck y build limpios; 6 `test:js` (Windows: rutas, programas,
 secretos como argumento, `.gitattributes`, documentación y CI; HR1 sin `localStorage`/`persist`; HR15 y
 tokens: ni texto en el JSX ni colores crudos; claves i18n y códigos de error del backend; `humanize`;
