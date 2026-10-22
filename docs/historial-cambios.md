@@ -226,7 +226,8 @@ defusedxml o usa lxml (test de entidades XML). Pendiente para el despliegue (E20
 tamaño del cuerpo en nginx (`client_max_body_size`), porque Starlette guarda la subida en disco
 antes de que la ruta lea los primeros bytes.
 
-**Commits.** `85e96e9` (todo el encargo) y el commit de cierre (correcciones de la revisión).
+**Commits.** `85e96e9` (todo el encargo) y **`20fd46f`, commit de cierre** (correcciones de la
+revisión; CI en verde, run 39870405885).
 
 **Tests.** `npm run check:all` verde: 236 tests de backend (semilla con recuentos exactos y
 cada validación, recarga idempotente que no pisa ediciones, códigos como texto, API y permisos, sin
