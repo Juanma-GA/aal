@@ -36,6 +36,22 @@ class Settings(BaseSettings):
     # not DATABASE_URL, and only then points DATABASE_URL at it.
     test_database_url: str | None = None
 
+    # --- Sessions (D4) ---
+    # RS256 key pair that signs the access tokens, relative to backend/
+    # (scripts/generate_rsa_keypair.py writes it; keys/ is not in git).
+    # Token lifetimes, password policy and login limits are business
+    # parameters, not settings: app/services/parameters.py ("auth").
+    jwt_private_key_path: str = "keys/jwt_private.pem"
+    jwt_public_key_path: str = "keys/jwt_public.pem"
+    # "iss" and "aud" of the access tokens. The day the corporate SSO
+    # arrives they become the IdP's (app/core/security.py).
+    jwt_issuer: str = "aal"
+    jwt_audience: str = "aal-api"
+    # Secure flag of the refresh cookie. Browsers accept Secure cookies on
+    # http://localhost, so it stays on in development too; turn it off only
+    # for a plain-HTTP host that is not localhost.
+    refresh_cookie_secure: bool = True
+
     # --- CORS ---
     # The addresses the browser uses. Never "*" (refused below).
     cors_origins: list[str] = ["http://localhost:5173"]

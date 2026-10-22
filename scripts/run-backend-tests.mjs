@@ -16,7 +16,8 @@
 //
 // Extra arguments go to pytest: npm run test:backend -- -k audit -x
 // Exit code: pytest's (0 all passed); 2 if the environment is missing
-// (no Python with pytest, test database missing, down or not migrated) or
+// (no Python with pytest, test database missing, down or not migrated, the
+// JWT key pair missing) or
 // if TEST_DATABASE_URL must not be used (the app's database, no "_test").
 // A suite that runs longer than $BACKEND_TEST_TIMEOUT_SECONDS (default
 // 3600) is killed and reported: a watchdog for a hung run, far above what
@@ -55,6 +56,7 @@ if (db.code !== 0) {
   const hints = {
     3: 'Start Postgres (Linux: service postgresql start; Docker: docker compose up -d); if the test database does not exist yet: npm run test:db:create',
     4: 'Bring the test database up to date: npm run test:db:create',
+    7: 'Create the JWT key pair: python scripts/generate_rsa_keypair.py (from backend/).',
     6: 'Point TEST_DATABASE_URL (environment or backend/.env) to a database of its own whose name ends in _test: npm run test:db:create creates aal_test.',
   };
   const lines = [`Backend tests: not run -- ${dbLine}`];

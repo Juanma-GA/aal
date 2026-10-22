@@ -32,7 +32,9 @@ async def test_unknown_key_is_an_error_not_an_empty_value(db):
         await get_parameter(db, f"test.{uuid.uuid4()}", {})
 
 
-def test_the_registry_starts_empty():
-    """E00 declares no parameters; each encargo adds its own (with its
-    Settings section, HR0)."""
-    assert PARAMETER_DEFAULTS == {}
+async def test_the_auth_parameters_are_declared(db):
+    value = await get_parameter(db, "auth")
+    assert value["access_token_minutes"] > 0 and value["refresh_token_days"] > 0
+    assert value["password"]["min_length"] >= 8
+    assert set(value["login_limit"]) == {"window_minutes", "max_failures_per_email", "max_failures_per_ip"}
+    assert set(PARAMETER_DEFAULTS) == {"auth", "audit"}

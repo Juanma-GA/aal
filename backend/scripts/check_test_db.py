@@ -12,6 +12,8 @@ applies). Prints ONE line and exits:
   5  TEST_DATABASE_URL is not set
   6  TEST_DATABASE_URL must not be used (name without "_test", or it is
      the app's own database)
+  7  the JWT key pair is missing (keys/ is not in git: a fresh clone has
+     none, and every test that signs in would fail with the same error)
 
 Codes 3, 4 and 5 are fixed by `npm run test:db:create`.
 
@@ -80,6 +82,15 @@ async def _check(url) -> int:
 
 
 def main() -> int:
+    from app.core.security import jwt_keys_missing
+
+    missing = jwt_keys_missing()
+    if missing:
+        _out(
+            f"JWT key file(s) missing: {', '.join(missing)} (relative to backend/). "
+            "Create them with: python scripts/generate_rsa_keypair.py (from backend/)."
+        )
+        return 7
     try:
         test_db = resolve_test_database()
     except TestDatabaseRefused as exc:

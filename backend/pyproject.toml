@@ -16,6 +16,12 @@ dependencies = [
     # tests/_testdb.py and the scripts read backend/.env with it (also a
     # dependency of pydantic-settings, listed because we import it).
     "python-dotenv>=1.0",
+    # Authentication (D4): bcrypt password hashes, RS256 JWTs.
+    "bcrypt>=4.1",
+    "pyjwt[crypto]>=2.9",
+    "cryptography>=43",
+    # EmailStr in the request schemas.
+    "email-validator>=2.2",
 ]
 
 [project.optional-dependencies]

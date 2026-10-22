@@ -7,8 +7,9 @@ row only needs the keys that differ, and a key the code adds later is
 there with its default without touching the database. A key the code does
 not declare is an error, never an empty dict (HR7).
 
-The registry starts empty: each encargo that adds a parameter adds its
-defaults here and its section in Settings (HR0).
+Each encargo that adds a parameter adds its defaults here and shows it in
+Settings (HR0): for now Settings -> Parámetros lists them read-only (E01);
+editing them comes later.
 """
 
 from collections.abc import Mapping
@@ -20,7 +21,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.merge import deep_merge
 from app.models import AppParameter
 
-PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {}
+PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
+    # Sessions, passwords and the login limit (E01, D4).
+    "auth": {
+        # Lifetime of an access token (kept in memory by the browser).
+        "access_token_minutes": 15,
+        # Lifetime of a refresh token (HttpOnly cookie); each refresh
+        # replaces it with a new one of the same lifetime.
+        "refresh_token_days": 7,
+        "password": {
+            # Minimum length of a password a person chooses. bcrypt's own
+            # limit (72 bytes) is the maximum, a fact, not a parameter.
+            "min_length": 12,
+        },
+        # Length of the temporary password an admin hands over.
+        "temporary_password_length": 16,
+        "login_limit": {
+            # Failed logins counted over the last `window_minutes`; at the
+            # limit, the login is refused until the window passes.
+            "window_minutes": 15,
+            "max_failures_per_email": 5,
+            "max_failures_per_ip": 20,
+        },
+    },
+    # Settings -> Auditoría.
+    "audit": {
+        "page_size": 50,
+        "max_page_size": 200,
+    },
+}
 
 
 class UnknownParameterError(KeyError):

@@ -49,7 +49,7 @@ def test_a_script_that_prints_writes_utf8(script):
     source = script.read_text(encoding="utf-8")
     if not _prints(source):
         pytest.skip("prints nothing")
-    handled = 'reconfigure(encoding="utf-8"' in source or "sys.stdout.buffer.write" in source
+    handled = 'reconfigure(encoding="utf-8"' in source or "sys.stdout.buffer.write" in source or "utf8_output()" in source
     assert handled, f"{script.name} prints but does not reconfigure stdout to UTF-8 (see the module docstring)"
 
 

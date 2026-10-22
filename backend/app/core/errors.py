@@ -119,3 +119,14 @@ class SanitizedErrorMiddleware:
                 raise
             response = unexpected_error_response(exc, scope.get("method", ""), scope.get("path", ""))
             await response(scope, receive, send)
+
+
+async def validation_error_handler(_request, exc) -> JSONResponse:
+    """A request that does not pass its schema: 422 with the fields and the
+    kind of problem, never the values sent (a password must not come back
+    or reach a log)."""
+    fields = [
+        {"field": ".".join(str(part) for part in err.get("loc", ())[1:]) or None, "type": err.get("type")}
+        for err in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": error_detail("validation_error", fields=fields)})
