@@ -159,7 +159,10 @@ como historia.
 `Math.random()` en render): reescritos. `verify-navigation` arrastraba el plegado de una ejecución
 fallida anterior: ahora restaura las preferencias del analista.
 
-**Tests.** `npm run check:all` verde (ver informe); backend: semilla (cada validación), carga
+**Commits.** `70019ef` (backend y fleco de etiquetas) y **`df80ea2`, commit de cierre** (frontend,
+verify, CI y docs; CI en verde, run 39862479697).
+
+**Tests.** `npm run check:all` verde: 126 tests de backend y 6 `test:js`; backend: semilla (cada validación), carga
 idempotente sin pisar estados, permisos de `/api/modules`, `/activity` y `/members` (ajeno → 404),
 `/activity` sin antes/después; `verify-navigation`, `verify-auth-settings` y `verify-health` en verde
 con capturas de escritorio y móvil.
