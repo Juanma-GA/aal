@@ -110,7 +110,10 @@ sin `forwardRef` se perdían los refs de Radix (lo detectó `verify-health`). (3
 "último administrador" no podía dispararse nunca (quien cambia a otro admin es admin activo y no puede
 tocarse a sí mismo): eliminado (HR13).
 
-**Tests.** `npm run check:all` verde (ver informe); `tests/security` (login, límite de intentos, JWT,
+**Commits.** `59c0c39` (flecos de E00), `4d85d6c` (backend), `cb4e1d8` (frontend, verify, CI y docs;
+CI en verde, run 39855384845). Etiqueta `e01` en el último commit del encargo.
+
+**Tests.** `npm run check:all` verde: 105 tests de backend y 6 `test:js`; `tests/security` (login, límite de intentos, JWT,
 cookie, rotación y reutilización, logout, cuentas desactivadas o dadas de baja, matriz completa rol ×
 permiso × material, ningún secreto en `audit_log` ni en logs) e integración de cada endpoint;
 `verify-health` y `verify-auth-settings` en verde con capturas.
