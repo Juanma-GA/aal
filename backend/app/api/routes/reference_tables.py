@@ -219,7 +219,9 @@ async def reorder_values(
         raise _not_editable()
     if table.version != body.version:
         raise version_conflict(table.version)
-    values = await table_values(db, code)
+    values = list(
+        (await db.execute(select(ReferenceValue).where(ReferenceValue.table_code == code).order_by(ReferenceValue.sort_order, ReferenceValue.code).with_for_update())).scalars()
+    )
     by_id = {v.id: v for v in values}
     if len(body.value_ids) != len(values) or set(body.value_ids) != set(by_id):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("reference_order_mismatch"))

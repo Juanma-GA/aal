@@ -89,7 +89,12 @@ def _integer(col: Column, raw: Any) -> Normalized:
     if isinstance(raw, float) and raw.is_integer():
         raw = int(raw)
     if isinstance(raw, str) and _INTEGER_RE.match(raw):
-        raw = int(raw)
+        if col.max_length is not None and len(raw.lstrip("+-")) > col.max_length:
+            raise CellError("too_many_digits", max=col.max_length)
+        try:
+            raw = int(raw)
+        except ValueError:  # over Python's digit limit
+            raise CellError("not_integer") from None
     if not isinstance(raw, int):
         raise CellError("not_integer")
     if col.max_length is not None and _digits(raw) > col.max_length:
@@ -119,7 +124,10 @@ def _decimal(col: Column, raw: Any) -> Normalized:
     exponent = value.normalize().as_tuple().exponent
     if isinstance(exponent, int) and -exponent > col.decimals:
         raise CellError("too_many_decimals", max=col.decimals)
-    value = value.quantize(Decimal(1).scaleb(-col.decimals)) if col.decimals else value.to_integral_value()
+    try:
+        value = value.quantize(Decimal(1).scaleb(-col.decimals)) if col.decimals else value.to_integral_value()
+    except InvalidOperation:  # too many digits for the context
+        raise CellError("too_many_digits", max=col.max_length or 0) from None
     if col.max_length is not None and _digits(value) > col.max_length:
         raise CellError("too_many_digits", max=col.max_length)
     return Normalized(value)

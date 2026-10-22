@@ -52,7 +52,7 @@ for (const file of walk(path.join(ROOT, 'backend', 'app'), /\.py$/)) {
 }
 const excelEngine = walk(path.join(ROOT, 'backend', 'app'), /\.py$/).map((f) => fs.readFileSync(f, 'utf8')).join('\n');
 for (const m of excelEngine.matchAll(/ExcelFileError\(\s*"([a-z_]+)"/g)) codes.add(m[1]);
-for (const m of excelEngine.matchAll(/"failed", "([a-z_]+)"|_conflict\(\s*"([a-z_]+)"/g)) codes.add(m[1] ?? m[2]);
+for (const m of excelEngine.matchAll(/= "failed", "([a-z_]+)"|"error_code": "([a-z_]+)"|_conflict\(\s*"([a-z_]+)"/g)) codes.add(m[1] ?? m[2] ?? m[3]);
 for (const m of excelEngine.matchAll(/return "([a-z_]+)", \{/g)) codes.add(m[1]);
 const issues = new Set();
 for (const m of excelEngine.matchAll(/(?:CellError|Issue)\(\s*"([a-z_]+)"|warning = \("([a-z_]+)"/g)) issues.add(m[1] ?? m[2]);

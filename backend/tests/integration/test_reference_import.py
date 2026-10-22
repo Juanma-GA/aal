@@ -186,3 +186,29 @@ async def test_the_staged_file_is_removed_after_the_analysis(client, admin):
         stored = await session.get(ImportJob, job["id"])
         assert len(stored.file_sha256) == 64 and stored.file_name == "tabla.xlsx"
         assert (await session.get(ReferenceTable, "NAE")).version >= 1
+
+
+async def test_a_reaped_analysis_is_not_brought_back(client, admin):
+    from app.services.import_jobs import run_analysis, staging_path
+
+    job = (await analyse(client, admin, "NAE", await export(client, admin, "NAE"))).json()
+    # The analysis is "still running" when someone reaps it...
+    async with async_session_factory() as session:
+        await session.execute(update(ImportJob).where(ImportJob.id == job["id"]).values(status="failed", error_code="import_interrupted"))
+        await session.commit()
+    # ...and then it finishes: the job stays failed.
+    staging_path(job["id"]).write_bytes(await export(client, admin, "NAE"))
+    await run_analysis(job["id"])
+    staging_path(job["id"]).unlink(missing_ok=True)
+    reaped = (await client.get(f"/api/import-jobs/{job['id']}", headers=admin)).json()
+    assert (reaped["status"], reaped["error_code"]) == ("failed", "import_interrupted")
+
+
+async def test_a_template_changed_since_the_analysis_stops_applying(client, admin):
+    job = (await analyse(client, admin, "NAE", edit(await export(client, admin, "NAE"), {"B2": "Otro"}, "NAE"))).json()
+    async with async_session_factory() as session:
+        stored = await session.get(ImportJob, job["id"])
+        stored.report = {**stored.report, "columns": stored.report["columns"][:-1]}
+        await session.commit()
+    res = await client.post(f"/api/import-jobs/{job['id']}/apply", headers=admin)
+    assert (res.status_code, res.json()["detail"]["code"]) == (409, "import_template_changed")

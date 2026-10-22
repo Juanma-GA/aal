@@ -33,6 +33,13 @@ from app.io_excel.cells import CellError, normalize
 from app.io_excel.template import Template
 
 
+# The XML of an uploaded workbook must be parsed without entity expansion
+# (billion laughs): openpyxl does so only with defusedxml and without lxml.
+# Never a silent degradation (HR7): the app refuses to start otherwise.
+if not openpyxl.DEFUSEDXML or openpyxl.LXML:
+    raise RuntimeError("openpyxl must parse with defusedxml and without lxml (app/io_excel/reader.py)")
+
+
 class ExcelFileError(Exception):
     """A file that cannot be imported at all: an error code and params."""
 

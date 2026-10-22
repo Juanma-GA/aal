@@ -331,3 +331,26 @@ def test_analysis_new_modified_unchanged_and_references():
     # kept for the value that already had it (row 6).
     assert [(e["row"], e["code"]) for e in report["errors"]] == [(4, "not_in_table"), (5, "inactive_in_table")]
     assert {u["key"] for u in report["unchanged"]} == {"AA", "EE"}
+
+
+def test_huge_numbers_are_cell_errors_not_a_broken_file():
+    with pytest.raises(CellError) as exc:
+        normalize(col("count"), "9" * 5000)
+    assert exc.value.code == "too_many_digits"
+    with pytest.raises(CellError):
+        normalize(col("price"), "1" * 40)
+
+
+def test_openpyxl_parses_without_entity_expansion():
+    assert openpyxl.DEFUSEDXML and not openpyxl.LXML
+    buf = io.BytesIO(book([HEADER, ["AB", "x"]]))
+    out = io.BytesIO()
+    with zipfile.ZipFile(buf) as src, zipfile.ZipFile(out, "w") as dst:
+        for item in src.infolist():
+            data = src.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                data = data.replace(b"<worksheet", b'<!DOCTYPE w [<!ENTITY a "aaaaaaaaaa"><!ENTITY b "&a;&a;&a;&a;&a;">]><worksheet', 1)
+            dst.writestr(item, data)
+    with pytest.raises(ExcelFileError) as exc:
+        read_rows(ONE, out.getvalue(), LIMITS)
+    assert exc.value.code == "excel_corrupt"

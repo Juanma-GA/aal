@@ -27,7 +27,7 @@ from pathlib import Path, PurePath
 from typing import Any
 
 from fastapi import HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import backend_path, get_settings
@@ -118,20 +118,19 @@ async def run_analysis(job_id: uuid.UUID) -> None:
             stored = await target.stored(db, job.params, template)
             references = {t: await codes_by_state(db, t) for t in {c.ref_table for c in template.columns if c.ref_table}}
             report = analyze(template, read, stored, references)
-            job.status, job.report, job.counts = "analyzed", report, report["counts"]
-            job.analyzed_at = datetime.now(timezone.utc)
+            outcome = {"status": "analyzed", "report": report, "counts": report["counts"], "analyzed_at": datetime.now(timezone.utc)}
         except ExcelFileError as exc:
-            job.status, job.error_code = "failed", exc.code
-            job.report = {"error_params": exc.params}
+            outcome = {"status": "failed", "error_code": exc.code, "report": {"error_params": exc.params}}
         except Exception:
             ref = new_error_ref()
             logger.exception("ref=%s import job %s: the analysis failed", ref, job_id, extra={"ref": ref})
-            await db.rollback()
-            job = await db.get(ImportJob, job_id)
-            job.status, job.error_code = "failed", "import_failed"
-            job.report = {"error_params": {"ref": ref}}
+            outcome = {"status": "failed", "error_code": "import_failed", "report": {"error_params": {"ref": ref}}}
         finally:
             path.unlink(missing_ok=True)
+        await db.rollback()
+        # Only over a job still "analyzing": one reaped meanwhile (it took
+        # longer than import.stale_minutes) stays failed, as the person was told.
+        await db.execute(update(ImportJob).where(ImportJob.id == job_id, ImportJob.status == "analyzing").values(**outcome))
         await db.commit()
 
 
@@ -176,6 +175,9 @@ async def apply(db: AsyncSession, job_id: uuid.UUID, user: User, ip: str | None)
     if job.counts.get("errors"):
         raise _conflict("import_has_errors")
     template = await target.template(db, job.params)
+    if [c["field"] for c in job.report["columns"]] != [c.field for c in template.columns]:
+        # The template changed since the analysis (a table's attributes).
+        raise _conflict("import_template_changed")
     await target.apply(db, job, template, user, ip)
     job.status, job.applied_at = "applied", datetime.now(timezone.utc)
     audit.record(

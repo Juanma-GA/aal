@@ -87,7 +87,8 @@
     "reference_value_exists": "Ya hay un valor con ese código en la tabla.",
     "reference_value_inactive": "El valor de «{{field}}» está desactivado en la tabla {{table}}.",
     "reference_value_not_found": "El valor no existe en esta tabla.",
-    "reference_value_unknown": "El valor de «{{field}}» no está en la tabla {{table}}."
+    "reference_value_unknown": "El valor de «{{field}}» no está en la tabla {{table}}.",
+    "import_template_changed": "La plantilla de la tabla ha cambiado desde el análisis. Vuelve a analizar el fichero."
   },
   "actions": {
     "retry": "Reintentar",

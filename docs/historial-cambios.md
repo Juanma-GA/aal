@@ -217,9 +217,18 @@ con capturas de escritorio y móvil.
 - Las tablas viven fuera de Ajustes para que el analista las lea; el admin las edita en Ajustes.
 - El alta de un valor no es optimista (id y posición del servidor): misma excepción que usuarios.
 
-**Commits.** (se anota el de cierre)
+**Revisión (code-reviewer y security-reviewer del AACF).** Sin bloqueantes. Corregido: un análisis
+que acaba tras ser dado por caducado ya no lo resucita (escribe solo sobre un trabajo
+`analyzing`); aplicar con una plantilla distinta de la analizada da 409 `import_template_changed`;
+reordenar bloquea los valores; números enormes son error de celda y no "fichero dañado"; los
+atributos de texto tienen su longitud máxima al importar; la app no arranca si openpyxl no usa
+defusedxml o usa lxml (test de entidades XML). Pendiente para el despliegue (E20): limitar el
+tamaño del cuerpo en nginx (`client_max_body_size`), porque Starlette guarda la subida en disco
+antes de que la ruta lea los primeros bytes.
 
-**Tests.** `npm run check:all` verde: 232 tests de backend (semilla con recuentos exactos y
+**Commits.** `85e96e9` (todo el encargo) y el commit de cierre (correcciones de la revisión).
+
+**Tests.** `npm run check:all` verde: 236 tests de backend (semilla con recuentos exactos y
 cada validación, recarga idempotente que no pisa ediciones, códigos como texto, API y permisos, sin
 borrado físico, `must_be_in`, motor: cabeceras de 1 y 2 filas, cada tipo, errores, `.xlsm`, macros,
 tamaños, fórmulas sin valor, round-trip D155 161 sin cambios, 2 modificados con su diff, analizar

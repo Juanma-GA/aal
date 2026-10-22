@@ -76,6 +76,7 @@ def build_template(table: ReferenceTable, codes: list[str]) -> Template:
                 _ATTR + spec["key"],
                 (spec["name"],),
                 _ATTRIBUTE_TYPES[spec["type"]],
+                max_length=REFERENCE_DESCRIPTION_MAX_LENGTH if spec["type"] == "texto" else None,
                 required=spec.get("required", False),
                 choices=tuple((o["code"], o["name"]) for o in spec.get("options") or []),
                 width=max(14, len(spec["name"]) + 2),
