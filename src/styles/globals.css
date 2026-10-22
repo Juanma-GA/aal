@@ -39,6 +39,15 @@
   --input: oklch(0.89 0.006 255);
   --ring: oklch(0.5 0.13 250);
 
+  /* The PALI sidebar (E02). */
+  --sidebar: oklch(0.975 0.004 255);
+  --sidebar-foreground: oklch(0.24 0.015 255);
+  --sidebar-primary: oklch(0.3 0.015 255);
+  --sidebar-primary-foreground: oklch(0.98 0.003 255);
+  --sidebar-accent: oklch(0.93 0.008 255);
+  --sidebar-accent-foreground: oklch(0.22 0.015 255);
+  --sidebar-border: oklch(0.89 0.006 255);
+  --sidebar-ring: oklch(0.5 0.13 250);
   /* em&e accent: links, focus, highlights. */
   --brand: oklch(0.5 0.13 250);
   --brand-foreground: oklch(0.98 0.003 255);
@@ -77,6 +86,14 @@
   --input: oklch(0.34 0.012 255);
   --ring: oklch(0.72 0.12 250);
 
+  --sidebar: oklch(0.2 0.011 255);
+  --sidebar-foreground: oklch(0.93 0.004 255);
+  --sidebar-primary: oklch(0.9 0.006 255);
+  --sidebar-primary-foreground: oklch(0.2 0.011 255);
+  --sidebar-accent: oklch(0.29 0.012 255);
+  --sidebar-accent-foreground: oklch(0.95 0.004 255);
+  --sidebar-border: oklch(0.32 0.012 255);
+  --sidebar-ring: oklch(0.72 0.12 250);
   --logo-surface: oklch(0.97 0.003 255);
   --overlay: oklch(0.05 0.005 255 / 0.65);
   --brand: oklch(0.74 0.11 250);
@@ -114,6 +131,14 @@
   --color-ring: var(--ring);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
   --color-logo-surface: var(--logo-surface);
   --color-overlay: var(--overlay);
   --color-success: var(--success);

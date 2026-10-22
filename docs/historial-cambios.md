@@ -117,3 +117,49 @@ CI en verde, run 39855384845). Etiqueta `e01` en el último commit del encargo.
 cookie, rotación y reutilización, logout, cuentas desactivadas o dadas de baja, matriz completa rol ×
 permiso × material, ningún secreto en `audit_log` ni en logs) e integración de cada endpoint;
 `verify-health` y `verify-auth-settings` en verde con capturas.
+
+## E02 — Shell de la app, catálogo de módulos y Panel del material (2026-10-22)
+
+**Fleco de E01.** Sin etiquetas (D18 rev. 6): borradas `e00`/`e01` en local (nunca se publicaron) y
+quitadas de `CLAUDE.md`/`AGENTS.md`; el punto de vuelta atrás es el commit de cierre de cada encargo,
+anotado aquí. Plan rev. 6 en `docs/plan/`. Las entradas anteriores que hablan de etiquetas quedan
+como historia.
+
+**Qué.**
+- Backend: migración `0003` (`module_group`, `module_catalog` con CHECK de estado y de "solo los
+  disponibles tienen ruta", `module_requirement`) que carga `app/seeds/module_catalog_seed.yaml` con
+  `app/services/module_catalog.py` (validación de códigos, grupos, dependencias sin ciclos y
+  RF-01…RF-41; carga idempotente que no pisa estado ni ruta) y `scripts/load_module_catalog.py`.
+  `GET /api/modules`, `GET /api/modules/{code}` (requisitos, dependencias y "lo usan" resueltos) y
+  `PATCH /api/modules/{code}` (admin, versión, auditado). `GET /api/materials/{id}/activity`
+  (`material.ver`, últimas `panel.activity_items` acciones, sin antes/después) y
+  `GET /api/materials/{id}/members` abierto a `material.ver` (nombre y rol; el admin ve además id,
+  email y fecha). `ui_preferences.sidebar_collapsed_groups`. Limpieza de los verify:
+  `purge_verify_data.py` (usuarios y materiales `[verify] …`).
+- Frontend: URLs por material (`/materiales/:materialId`, fichas en `…/modulos/:code`; `/` al
+  material activo o a "sin materiales"; material ajeno → 404 humanizado); sidebar del PALI (shadcn
+  `sidebar` + `collapsible`, sin la cookie del registro, grupos plegables guardados en el servidor,
+  icono de estado accesible, panel lateral en móvil, Ajustes al pie para admin); ficha de módulo
+  (objetivo, RF, entradas, salidas, entregable, "Depende de" y "Lo usan" con estado, aviso de
+  planificado sin botones); Panel (CUF y rol, equipo, avance por estado, fase y grupo, actividad,
+  accesos a disponibles); Ajustes → Módulos (filtros, cambio de estado y ruta con diálogo y mutación
+  optimista); migas, 404 y título de pestaña por página.
+
+**Decisiones.**
+- La semilla entregada traía `panel` y `materiales` como `planificado`; se versiona con los estados
+  iniciales de E02 §2.1 (`panel` disponible con `ruta: /materiales/:materialId`, `materiales` en
+  desarrollo). `ruta` es una clave nueva y opcional de la semilla.
+- `/` sin material activo lleva al primer material asignado (y lo hace activo) en vez de pedir que
+  se elija.
+- El cargador de la semilla lee solo columnas explícitas: la migración 0003 lo llama y debe seguir
+  funcionando cuando un encargo añada columnas.
+
+**Hallazgos.** El `sidebar` del registro guardaba su estado en una cookie (HR1): quitado. Su hook
+`use-mobile` y su esqueleto de menú no pasaban el lint de React (setState en efecto,
+`Math.random()` en render): reescritos. `verify-navigation` arrastraba el plegado de una ejecución
+fallida anterior: ahora restaura las preferencias del analista.
+
+**Tests.** `npm run check:all` verde (ver informe); backend: semilla (cada validación), carga
+idempotente sin pisar estados, permisos de `/api/modules`, `/activity` y `/members` (ajeno → 404),
+`/activity` sin antes/después; `verify-navigation`, `verify-auth-settings` y `verify-health` en verde
+con capturas de escritorio y móvil.

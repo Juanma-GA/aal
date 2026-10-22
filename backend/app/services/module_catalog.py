@@ -182,7 +182,10 @@ def load_catalog(conn: Connection, seed: Seed | None = None) -> LoadReport:
             conn.execute(insert(ModuleGroup).values(code=code, name=name, sort_order=order))
             groups_added += 1
 
-    stored = {row.code: row for row in conn.execute(select(ModuleCatalog))}
+    # Only the columns migration 0003 creates: this loader runs inside that
+    # migration, so it must not depend on columns a later one may add.
+    columns = [ModuleCatalog.code, ModuleCatalog.version, *(getattr(ModuleCatalog, name) for name in _TEXT_FIELDS)]
+    stored = {row.code: row for row in conn.execute(select(*columns))}
     added = updated = 0
     for m in seed.modules:
         texts = m.texts()

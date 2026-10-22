@@ -12,6 +12,7 @@ export interface Me {
 
 export interface UiPreferences {
   active_material_id?: string | null;
+  sidebar_collapsed_groups?: string[];
 }
 
 export interface TokenResponse {

@@ -4,13 +4,13 @@
 //   2. The admin gives that user the Observador role on the development
 //      material (backend/scripts/seed_dev_data.py).
 //   3. The user signs in with the temporary password, is sent to change it,
-//      chooses the material in the header and sees it with the badge
+//      lands on their material's Panel (/materiales/:id) with the badge
 //      "Observador"; they see no edit action and no Settings (and /ajustes
-//      sends them home).
+//      sends them back to their material).
 //   4. The admin sees all of it in Settings -> Auditoría.
 // No token in localStorage / sessionStorage at any point; the refresh
 // cookie is HttpOnly. The user is removed at the end
-// (backend/scripts/purge_verify_users.py), so the database stays as it was
+// (backend/scripts/purge_verify_data.py), so the database stays as it was
 // -- but for the audit rows, which are append-only.
 //
 // Needs Vite (BASE_URL, default http://localhost:5173) and uvicorn running,
@@ -20,13 +20,12 @@
 // Without them, or without the servers, it says so and exits 2 (NOT RUN).
 //
 //   node scripts/verify-auth-settings.mjs
-import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { BACKEND_DIR, findBackendPython, pythonEnv } from './lib/backendPython.mjs';
 import { shot } from './lib/shots.mjs';
 import { readTextFile } from './lib/textFile.mjs';
+import { backendPythonOrNotRun, notRun, purgeVerifyData } from './lib/verifyData.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
@@ -38,11 +37,6 @@ const es = JSON.parse(readTextFile(path.join(ROOT, 'src', 'i18n', 'locales', 'es
 const USER_EMAIL = `observador-${Date.now()}@verify.aal-dev.es`;
 const USER_NAME = 'Observador de verificación';
 const NEW_PASSWORD = `Verificacion-${Date.now()}-x`;
-
-function notRun(reason) {
-  console.log(`NOT RUN (environment): ${reason}`);
-  process.exit(2);
-}
 
 function assert(cond, msg) {
   if (!cond) throw new Error('ASSERTION FAILED: ' + msg);
@@ -56,17 +50,8 @@ try {
 } catch {
   notRun(`${BASE_URL} is not reachable -- start uvicorn (port 8000) and Vite first.`);
 }
-const python = findBackendPython({ modules: ['sqlalchemy', 'asyncpg'] });
-if (!python.python) notRun(python.reason);
-
-function purge() {
-  const res = spawnSync(python.python, [path.join('scripts', 'purge_verify_users.py'), USER_EMAIL], {
-    cwd: BACKEND_DIR,
-    env: pythonEnv(),
-    encoding: 'utf8',
-  });
-  console.log(`cleanup: ${(res.stdout || res.stderr || '').trim() || `exit ${res.status}`}`);
-}
+const python = backendPythonOrNotRun();
+const purge = () => purgeVerifyData(python, { users: [USER_EMAIL] });
 
 async function noBrowserStorage(page, when) {
   const stored = await page.evaluate(() => ({ local: window.localStorage.length, session: window.sessionStorage.length }));
@@ -140,25 +125,23 @@ try {
   await page.getByLabel(es.auth.newPassword, { exact: true }).fill(NEW_PASSWORD);
   await page.getByLabel(es.auth.repeatPassword).fill(NEW_PASSWORD);
   await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/me/password') && r.ok()), page.getByRole('button', { name: es.actions.changePassword }).click()]);
-  await page.waitForURL(`${BASE_URL}/`);
-  await page.getByTestId('no-material').waitFor();
-  await page.getByTestId('material-selector').click();
-  await Promise.all([
-    page.waitForResponse((r) => r.url().endsWith('/api/me/ui-preferences') && r.ok()),
-    page.getByRole('option', { name: MATERIAL_NAME }).click(),
-  ]);
+  // "/" takes them to their only material's Panel, which becomes their
+  // active material (E02).
+  await page.waitForURL(/\/materiales\/[0-9a-f-]{36}$/);
+  await page.waitForResponse((r) => r.url().endsWith('/api/me/ui-preferences') && r.ok());
+  assert((await page.getByTestId('material-selector').textContent()).includes(MATERIAL_NAME), 'the header selector shows the material');
   await page.getByTestId('active-material').waitFor();
   assert((await page.getByTestId('material-role').textContent()) === es.roles.observador, 'the header badge says Observador');
   const permissions = await page.getByTestId('material-permissions').textContent();
   assert(!/Editar|Aprobar|Enviar|Ejecutar/.test(permissions), 'the observer has no edit, approve, send or run permission');
   assert((await page.getByTestId('settings-link').count()) === 0, 'no Settings link');
   assert((await page.getByRole('button', { name: es.actions.edit }).count()) === 0, 'no edit button');
-  assert((await page.getByRole('link', { name: es.material.editInSettings }).count()) === 0, 'no "manage in Settings" link');
+  assert((await page.getByTestId('panel-role').textContent()) === es.roles.observador, 'the Panel says Observador too');
   await noBrowserStorage(page, 'observer signed in');
   await page.screenshot({ path: shot('verify-auth-3-observer.png'), fullPage: true });
   await page.goto(`${BASE_URL}/ajustes/usuarios`);
-  await page.waitForURL(`${BASE_URL}/`);
-  assert(true, '/ajustes sends the observer home');
+  await page.waitForURL(/\/materiales\/[0-9a-f-]{36}$/);
+  assert(true, '/ajustes sends the observer to their material');
   // The choice is on the server: a reload keeps it (the session comes back
   // from the cookie, the material from ui_preferences).
   await page.reload();

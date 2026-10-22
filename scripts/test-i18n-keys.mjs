@@ -78,5 +78,16 @@ for (const { code, area } of permissions) {
 for (const action of actions) check(`es.json audit.actions has ${action}`, typeof es.audit?.actions?.[action] === 'string');
 for (const entity of entities) check(`es.json audit.entities has ${entity}`, typeof es.audit?.entities?.[entity] === 'string');
 
+// The module states (backend/app/models/module.py) and the phases of the
+// catalog seed (backend/app/seeds/module_catalog_seed.yaml), shown by name.
+const moduleModel = fs.readFileSync(path.join(ROOT, 'backend', 'app', 'models', 'module.py'), 'utf8');
+const statuses = [...(moduleModel.match(/^MODULE_STATUSES = \(([^)]*)\)/m)?.[1] ?? '').matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+const seedText = readTextFile(path.join(ROOT, 'backend', 'app', 'seeds', 'module_catalog_seed.yaml'));
+const phases = new Set([...seedText.matchAll(/^\s+fase: '?([0-9a-z]+)'?$/gm)].map((m) => m[1]));
+check('finds the module states', statuses.length === 3, statuses.join(', '));
+check('finds the phases of the seed', phases.size >= 5, [...phases].join(', '));
+for (const status of statuses) check(`es.json modules.status has ${status}`, typeof es.modules?.status?.[status] === 'string');
+for (const phase of phases) check(`es.json modules.phase has ${phase}`, typeof es.modules?.phase?.[phase] === 'string');
+
 console.log(`${checks - failures}/${checks} checks passed`);
 process.exit(failures ? 1 : 0);

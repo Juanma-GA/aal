@@ -162,12 +162,19 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   desarrollo, el usuario cambia la contraseña obligatoria, ve su material con el badge y nada de
   edición ni Ajustes, y el admin lo ve en Auditoría. Credenciales del admin por entorno:
   `VERIFY_ADMIN_EMAIL` y `VERIFY_ADMIN_PASSWORD` (sin ellas, 2 "NOT RUN"). Deja la base como estaba:
-  borra su usuario (dominio `@verify.aal-dev.es`) con `backend/scripts/purge_verify_users.py`; solo
-  quedan sus filas de `audit_log`, que es de solo añadir.
+  borra su usuario (dominio `@verify.aal-dev.es`) con `backend/scripts/purge_verify_data.py`, que
+  también borra los materiales `[verify] …`; solo quedan sus filas de `audit_log`, que es de solo añadir.
+- **`verify-navigation.mjs`** (E02): el analista de desarrollo aterriza en el Panel de su material,
+  recorre tres grupos del sidebar y la ficha de "Configuración funcional física", un material ajeno da
+  404, el admin cambia FTA a "en desarrollo" y el analista lo ve; también el plegado de grupos tras
+  recargar y la vista móvil. Credenciales por entorno: `VERIFY_ADMIN_EMAIL`, `VERIFY_ADMIN_PASSWORD` y
+  `DEV_ANALISTA_PASSWORD`. Deja la base como estaba (material `[verify] …` borrado, FTA de vuelta a
+  "planificado", preferencias del analista restauradas).
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
-  job (enmascaradas); y `verify-health` + `verify-auth-settings` con Chrome contra uvicorn y Vite.
+  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` con Chrome
+  contra uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
 
@@ -199,7 +206,7 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
 
 Las carpetas del §4 del plan que todavía no tienen contenido no se crean; llegan con su encargo:
 `backend/app/repositories/`, `backend/app/validacion/` (motor NT), `backend/app/io_excel/`
-(plantillas NT/SIGLE), `backend/tests/security/` y `backend/tests/fixtures/`.
+(plantillas NT/SIGLE) y `backend/tests/fixtures/`.
 
 ## Historial de cambios
 
@@ -250,6 +257,24 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
 - **Mutaciones (HR20)**: `useOptimisticMutation` (lista en caché, rollback y toast; un 409 de versión
   ofrece recargar). Crear un usuario o material y restablecer una contraseña no son optimistas: el id
   y la contraseña temporal los da el servidor (excepción documentada de HR20).
+- **Catálogo de módulos (E02, D7)**: grupos y módulos del PALI salen de
+  `backend/app/seeds/module_catalog_seed.yaml` (textos de la especificación del cliente), que carga
+  `app/services/module_catalog.py` desde la migración `0003` o con `scripts/load_module_catalog.py`.
+  Antes de cargar valida códigos, grupos, dependencias sin ciclos y cobertura RF-01…RF-41. Al recargar
+  añade lo nuevo y actualiza los textos, pero **nunca pisa el estado ni la ruta** que haya puesto un
+  admin; un módulo que sale de la semilla se conserva y se avisa. Los textos solo se editan en la
+  semilla. Solo un módulo `disponible` tiene `route` (lo garantiza una CHECK en BD). **"Encender" un
+  módulo** en un encargo: su página bajo `/materiales/:materialId/...`, su ruta en la semilla
+  (`ruta:`, con `:materialId`) y `estado: disponible`, y un `scripts/load_module_catalog.py` (o una
+  migración que lo cargue) para las BD ya creadas.
+- **URLs por material (E02)**: las páginas de un material cuelgan de `/materiales/:materialId`
+  (`src/layouts/MaterialLayout.tsx`: un material sin acceso es el 404 humanizado; abrir uno por URL lo
+  hace material activo). `/` lleva al material activo (o al primero, o a "sin materiales"); `/ajustes`
+  queda fuera del material. Cada página pone sus migas y su título con `PageHeader`.
+- **Sidebar del PALI**: `src/components/layout/AppSidebar.tsx` sobre el `sidebar` de shadcn, al que se
+  le quitó la cookie con que guardaba su estado (HR1). Los grupos plegados viven en el `uiStore`
+  (Zustand sin `persist`) y se guardan en `ui_preferences.sidebar_collapsed_groups`
+  (`useSidebarGroups`).
 - **shadcn/ui con React 18**: el registro `new-york-v4` asume React 19 (`ref` como prop). Un
   componente que recibe un `ref` de Radix (`asChild`, `FormControl`, `Presence`) se convierte a
   `React.forwardRef` (ya: `button`, `input`, `switch` y los overlays de `dialog`, `sheet`,

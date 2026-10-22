@@ -55,7 +55,11 @@
     "user_email_deleted": "Ese email pertenece a un usuario dado de baja.",
     "material_noc_taken": "Ya hay un material con ese NOC.",
     "page_size_too_large": "No se pueden pedir más de {{max_page_size}} filas por página.",
-    "validation_error": "Hay datos que no son válidos. Revisa el formulario."
+    "validation_error": "Hay datos que no son válidos. Revisa el formulario.",
+    "module_not_found": "El módulo no existe en el catálogo.",
+    "module_status_unknown": "Ese estado de módulo no existe.",
+    "module_route_required": "Un módulo disponible necesita su ruta.",
+    "module_route_invalid": "La ruta debe ser una dirección de la app que empiece por /."
   },
   "actions": {
     "retry": "Reintentar",
@@ -115,12 +119,9 @@
     "activeTitle": "Material activo",
     "noAccessTitle": "Sin acceso a ningún material",
     "noAccess": "Todavía no tienes ningún material asignado. Pide acceso a un administrador de AAL.",
-    "chooseTitle": "Ningún material seleccionado",
-    "choose": "Elige en la cabecera el material con el que vas a trabajar.",
     "yourRole": "Tu rol",
     "adminRole": "Administrador (todos los permisos)",
     "yourPermissions": "Lo que puedes hacer en este material",
-    "editInSettings": "Gestionar en Ajustes",
     "fields": {
       "noc": "NOC",
       "name": "Nombre",
@@ -171,7 +172,8 @@
       "materials": "Materiales",
       "roles": "Roles y permisos",
       "audit": "Auditoría",
-      "parameters": "Parámetros"
+      "parameters": "Parámetros",
+      "modules": "Módulos"
     },
     "users": {
       "search": "Buscar por nombre o email",
@@ -270,6 +272,21 @@
         "max_page_size": "Máximo de filas por página",
         "activity_items": "Acciones en \"Actividad reciente\""
       }
+    },
+    "modules": {
+      "hint": "Catálogo del PALI cargado de la semilla. Aquí solo se cambian el estado y la ruta; los textos se editan en la semilla.",
+      "group": "Grupo",
+      "status": "Estado",
+      "route": "Ruta",
+      "module": "Módulo",
+      "allGroups": "Todos los grupos",
+      "allPhases": "Todas las fases",
+      "allStatuses": "Todos los estados",
+      "empty": "Ningún módulo coincide con los filtros.",
+      "change": "Cambiar",
+      "changeTitle": "Cambiar el estado de {{name}}",
+      "changeHint": "Un módulo disponible necesita su ruta; en otro estado, la ruta se quita.",
+      "routeHint": "Ruta de la app que empieza por /; :materialId se sustituye por el material, p. ej. /materiales/:materialId/confunfis."
     }
   },
   "audit": {
@@ -291,14 +308,79 @@
       "material_role.assigned": "Rol asignado",
       "material_role.changed": "Rol cambiado",
       "material_role.removed": "Rol quitado",
-      "app_parameter.updated": "Parámetro cambiado"
+      "app_parameter.updated": "Parámetro cambiado",
+      "module.updated": "Módulo cambiado",
+      "module_catalog.loaded": "Catálogo de módulos recargado"
     },
     "entities": {
       "user": "Usuario",
       "material": "Material",
       "user_material_role": "Rol en un material",
       "app_parameter": "Parámetro",
-      "system": "Sistema"
+      "system": "Sistema",
+      "module": "Módulo",
+      "module_catalog": "Catálogo de módulos"
     }
+  },
+  "nav": {
+    "sidebarTitle": "Menú del PALI",
+    "sidebarDescription": "Grupos y módulos del plan de apoyo logístico integrado.",
+    "toggleSidebar": "Mostrar u ocultar el menú",
+    "breadcrumb": "Ruta de navegación",
+    "pageTitle": "{{page}} · {{app}}",
+    "noMaterial": "Elige un material en la cabecera para ver sus módulos."
+  },
+  "panel": {
+    "title": "Panel del material",
+    "team": "Equipo del material",
+    "teamHint": "Quién trabaja en este material y con qué rol.",
+    "noTeam": "Este material todavía no tiene miembros.",
+    "progress": "Avance del AAL",
+    "progressHint": "Módulos del PALI por estado, por fase y por grupo.",
+    "groupProgress": "{{done}} de {{total}} disponibles · {{building}} en desarrollo",
+    "groupProgressLabel": "Módulos disponibles de {{group}}",
+    "activity": "Actividad reciente",
+    "noActivity": "Todavía no hay actividad en este material.",
+    "shortcuts": "Módulos disponibles",
+    "noShortcuts": "Todavía no hay otros módulos disponibles."
+  },
+  "modules": {
+    "status": {
+      "planificado": "Planificado",
+      "en_desarrollo": "En desarrollo",
+      "disponible": "Disponible"
+    },
+    "phase": {
+      "1": "Fase 1",
+      "1b": "Fase 1b",
+      "2": "Fase 2",
+      "3": "Fase 3",
+      "4": "Fase 4"
+    },
+    "phaseLabel": "Fase",
+    "plannedTitle": "Módulo planificado",
+    "planned": "Este módulo está planificado; todavía no tiene funcionalidad.",
+    "inProgressTitle": "Módulo en desarrollo",
+    "inProgress": "Este módulo se está desarrollando; todavía no está disponible.",
+    "open": "Abrir el módulo",
+    "objective": "Objetivo",
+    "requirements": "Requisitos del cliente",
+    "noRequirements": "Este módulo no cubre ningún requisito de la especificación por sí solo.",
+    "inputs": "Entradas",
+    "outputs": "Salidas",
+    "deliverable": "Entregable",
+    "noDeliverable": "Sin entregable propio.",
+    "dependsOn": "Depende de",
+    "usedBy": "Lo usan",
+    "noDependencies": "No depende de otros módulos.",
+    "noUsers": "Ningún módulo depende de este.",
+    "none": "—"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "page": "La dirección no corresponde a ninguna página de AAL.",
+    "material": "El material no existe o no tienes acceso a él.",
+    "module": "El módulo no existe en el catálogo del PALI.",
+    "home": "Ir al inicio"
   }
 }
