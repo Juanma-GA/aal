@@ -81,7 +81,7 @@ if _TEST_DB is not None:
     from sqlalchemy import update as _update  # noqa: E402
 
     from app.core.security import hash_password as _hash_password  # noqa: E402
-    from app.models import LoginFailure, Material, User, UserMaterialRole  # noqa: E402
+    from app.models import ImportJob, LoginFailure, Material, User, UserMaterialRole  # noqa: E402
 
     TEST_PASSWORD = "Contraseña-de-prueba-1"
     # One bcrypt hash for every test user: hashing is slow on purpose.
@@ -134,6 +134,7 @@ if _TEST_DB is not None:
                 if self.material_ids:
                     await session.execute(_delete(Material).where(Material.id.in_(self.material_ids)))
                 if self.user_ids:
+                    await session.execute(_delete(ImportJob).where(ImportJob.user_id.in_(self.user_ids)))
                     await session.execute(_update(User).where(User.id.in_(self.user_ids)).values(deleted_by=None))
                     await session.execute(_update(Material).where(Material.deleted_by.in_(self.user_ids)).values(deleted_by=None))
                     await session.execute(

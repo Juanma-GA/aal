@@ -6,14 +6,16 @@
 
 The three passwords come from DEV_ANALISTA_PASSWORD, DEV_REVISOR_PASSWORD
 and DEV_OBSERVADOR_PASSWORD, or are asked with getpass -- never arguments
-(D17). Running it again changes nothing that already exists (it only adds
-what is missing).
+(D17); each is checked as soon as it is typed and asked again when it breaks
+the policy, and Ctrl+C cancels before anything is written
+(scripts/_common.py). Running it again changes nothing that already exists
+(it only adds what is missing).
 """
 
 import asyncio
 import sys
 
-from _common import secret, utf8_output
+from _common import cancellable, new_password, utf8_output
 
 from sqlalchemy import select
 
@@ -22,6 +24,7 @@ from app.core.security import hash_password
 from app.db.base import async_session_factory, engine
 from app.models import Material, User, UserMaterialRole
 from app.services import audit
+from app.services.parameters import get_parameter
 
 DEV_MATERIAL_NAME = "Material de desarrollo (sintético)"
 DEV_USERS = (
@@ -31,7 +34,20 @@ DEV_USERS = (
 )
 
 
-async def seed() -> int:
+async def _missing_users() -> tuple[list[str], int]:
+    """The emails of DEV_USERS still to create, and the policy's minimum
+    password length."""
+    try:
+        async with async_session_factory() as db:
+            emails = [email for _role, email, _name in DEV_USERS]
+            existing = set((await db.execute(select(User.email).where(User.email.in_(emails)))).scalars())
+            min_length = (await get_parameter(db, "auth"))["password"]["min_length"]
+            return [email for email in emails if email not in existing], min_length
+    finally:
+        await engine.dispose()
+
+
+async def seed(passwords: dict[str, str]) -> None:
     async with async_session_factory() as db:
         material = (
             await db.execute(select(Material).where(Material.name == DEV_MATERIAL_NAME, Material.deleted_at.is_(None)))
@@ -45,11 +61,10 @@ async def seed() -> int:
         for role, email, name in DEV_USERS:
             user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
             if user is None:
-                password = secret(f"DEV_{role.upper()}_PASSWORD", f"Contraseña de {email}")
                 user = User(
                     email=email,
                     display_name=name,
-                    password_hash=hash_password(password),
+                    password_hash=hash_password(passwords[email]),
                     is_admin=False,
                     is_active=True,
                     must_change_password=False,
@@ -74,16 +89,20 @@ async def seed() -> int:
                 print(f"  {email}: {role} en {material.name}")
         await db.commit()
     await engine.dispose()
-    return 0
 
 
 def main() -> int:
     if get_settings().environment == "production":
         print("seed_dev_data no se ejecuta con ENVIRONMENT=production.", file=sys.stderr)
         return 1
-    return asyncio.run(seed())
+    missing, min_length = asyncio.run(_missing_users())
+    # Asked before anything is written: Ctrl+C here leaves the base as it was.
+    roles = {email: role for role, email, _name in DEV_USERS}
+    passwords = {email: new_password(f"DEV_{roles[email].upper()}_PASSWORD", f"Contraseña de {email}", min_length) for email in missing}
+    asyncio.run(seed(passwords))
+    return 0
 
 
 if __name__ == "__main__":
     utf8_output()
-    sys.exit(main())
+    sys.exit(cancellable(main))

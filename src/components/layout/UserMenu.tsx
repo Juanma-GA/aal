@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useMe } from '@/hooks/useSession';
+import { ARTICLE_FIELDS_PATH, REFERENCE_TABLES_PATH } from '@/pages/reference/ReferencePages';
 import { logout } from '@/services/authApi';
 
 export function UserMenu(): React.JSX.Element | null {
@@ -39,6 +40,11 @@ export function UserMenu(): React.JSX.Element | null {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel className="font-normal text-muted-foreground">{me.data.email}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate(REFERENCE_TABLES_PATH)} data-testid="reference-tables-link">
+          {t('header.referenceTables')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate(ARTICLE_FIELDS_PATH)}>{t('header.articleFields')}</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate(CHANGE_PASSWORD_PATH)}>{t('actions.changePassword')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void signOut()} data-testid="sign-out">

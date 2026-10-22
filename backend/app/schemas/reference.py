@@ -1,0 +1,123 @@
+import uuid
+from datetime import datetime
+from typing import Annotated, Any
+
+from pydantic import BaseModel, Field, StringConstraints
+
+from app.models import REFERENCE_CODE_MAX_LENGTH, REFERENCE_DEFINITION_MAX_LENGTH, REFERENCE_DESCRIPTION_MAX_LENGTH
+from app.schemas.common import StrictModel
+
+Code = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=REFERENCE_CODE_MAX_LENGTH)]
+Description = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=REFERENCE_DESCRIPTION_MAX_LENGTH)]
+Definition = Annotated[str, StringConstraints(strip_whitespace=True, max_length=REFERENCE_DEFINITION_MAX_LENGTH)]
+# An attribute's value: text, integer or yes/no (the table's schema says
+# which; app/services/reference.attribute_problem checks it).
+AttributeValue = Annotated[str, StringConstraints(strip_whitespace=True, max_length=REFERENCE_DESCRIPTION_MAX_LENGTH)] | bool | int
+
+
+class AttributeOption(BaseModel):
+    code: str
+    name: str
+
+
+class AttributeSpec(BaseModel):
+    key: str
+    name: str
+    type: str
+    required: bool
+    options: list[AttributeOption]
+
+
+class ReferenceTableOut(BaseModel):
+    code: str
+    name: str
+    source: str
+    note: str | None
+    editable: bool
+    attribute_schema: list[AttributeSpec]
+    value_count: int
+    active_count: int
+    version: int
+
+
+class ReferenceValueOut(BaseModel):
+    id: uuid.UUID
+    code: str
+    description: str
+    definition: str | None
+    attributes: dict[str, Any]
+    is_active: bool
+    sort_order: int
+    version: int
+    updated_at: datetime
+
+
+class ReferenceValueCreate(StrictModel):
+    code: Code
+    description: Description
+    definition: Definition | None = None
+    attributes: dict[str, AttributeValue] = Field(default_factory=dict)
+
+
+class ReferenceValueUpdate(StrictModel):
+    version: int
+    description: Description | None = None
+    # null (or "") clears it.
+    definition: Definition | None = None
+    attributes: dict[str, AttributeValue] | None = None
+    is_active: bool | None = None
+
+
+class ReferenceOrderIn(StrictModel):
+    # The table's version (reordering changes the whole table).
+    version: int
+    # Every value of the table, in the new order.
+    value_ids: list[uuid.UUID]
+
+
+class ArticleFieldOut(BaseModel):
+    prisma_code: str
+    name: str
+    importance: str
+    guide_field: str
+    data_type: str
+    length: int | None
+    decimals: int | None
+    related_to: str | None
+    supplied_by_contractor: str
+    reference_table_code: str | None
+    reference_table_name: str | None
+
+
+class ImportIssueOut(BaseModel):
+    code: str
+    params: dict[str, Any]
+    row: int | None
+    column: str | None
+    header: str | None
+
+
+class ImportReportOut(BaseModel):
+    columns: list[dict[str, str]]
+    new: list[dict[str, Any]]
+    modified: list[dict[str, Any]]
+    unchanged: list[dict[str, Any]]
+    errors: list[ImportIssueOut]
+    warnings: list[ImportIssueOut]
+
+
+class ImportJobOut(BaseModel):
+    id: uuid.UUID
+    template: str
+    params: dict[str, Any]
+    status: str
+    file_name: str
+    counts: dict[str, int]
+    # The report once analysed ("pending", what apply writes, stays on the
+    # server).
+    report: ImportReportOut | None
+    error_code: str | None
+    error_params: dict[str, Any]
+    created_at: datetime
+    analyzed_at: datetime | None
+    applied_at: datetime | None

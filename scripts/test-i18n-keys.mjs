@@ -1,7 +1,9 @@
 // HR15: every key the app asks t() for exists in the Spanish locale
 // (src/i18n/locales/es.json), no value is empty, and every sanitized error
-// code the backend can answer (error_detail("<code>") in backend/app) has
-// its sentence under errors.<code>.
+// code the backend can answer (error_detail("<code>") in backend/app, the
+// Excel file errors, an import job's failure, an attribute's problem) has
+// its sentence under errors.<code>; every issue of an Excel import (a cell
+// error or warning, app/io_excel) under import.issues.<code>.
 //
 // Run: node scripts/test-i18n-keys.mjs
 import fs from 'node:fs';
@@ -48,6 +50,14 @@ const codes = new Set();
 for (const file of walk(path.join(ROOT, 'backend', 'app'), /\.py$/)) {
   for (const m of fs.readFileSync(file, 'utf8').matchAll(/error_detail\(\s*"([a-z_]+)"/g)) codes.add(m[1]);
 }
+const excelEngine = walk(path.join(ROOT, 'backend', 'app'), /\.py$/).map((f) => fs.readFileSync(f, 'utf8')).join('\n');
+for (const m of excelEngine.matchAll(/ExcelFileError\(\s*"([a-z_]+)"/g)) codes.add(m[1]);
+for (const m of excelEngine.matchAll(/"failed", "([a-z_]+)"|_conflict\(\s*"([a-z_]+)"/g)) codes.add(m[1] ?? m[2]);
+for (const m of excelEngine.matchAll(/return "([a-z_]+)", \{/g)) codes.add(m[1]);
+const issues = new Set();
+for (const m of excelEngine.matchAll(/(?:CellError|Issue)\(\s*"([a-z_]+)"|warning = \("([a-z_]+)"/g)) issues.add(m[1] ?? m[2]);
+check('finds the Excel import issues', issues.size >= 15, [...issues].join(', '));
+for (const issue of issues) check(`es.json has import.issues.${issue}`, typeof lookup(es, `import.issues.${issue}`) === 'string');
 check('finds the backend error codes', codes.size >= 3, [...codes].join(', '));
 for (const code of codes) check(`es.json has errors.${code}`, typeof lookup(es, `errors.${code}`) === 'string');
 // The client's own codes (src/services/apiClient.ts).
@@ -64,7 +74,7 @@ const migrations = walk(path.join(ROOT, 'backend', 'alembic', 'versions'), /\.py
 const rolesBlock = migrations.match(/^ROLES = \(([^)]*)\)/m)?.[1] ?? '';
 const roles = [...rolesBlock.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
 const permissions = [...migrations.matchAll(/^\s+\("([a-z_.]+)", "([a-z_]+)"\),$/gm)].map((m) => ({ code: m[1], area: m[2] }));
-const actions = new Set([...backendText.matchAll(/action\s?=\s?"([a-z_.]+)"/g)].map((m) => m[1]));
+const actions = new Set([...backendText.matchAll(/action\s?=\s?"([a-z_]+\.[a-z_.]+)"/g)].map((m) => m[1]));
 for (const m of backendText.matchAll(/_member_audit\([^)]*"(material_role\.[a-z_]+)"/g)) actions.add(m[1]);
 const entities = new Set([...backendText.matchAll(/entity_type="([a-z_]+)"/g)].map((m) => m[1]));
 check('finds the seeded roles', roles.length === 3, roles.join(', '));

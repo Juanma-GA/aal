@@ -9,26 +9,74 @@ on a server (ENVIRONMENT=production).
 
 They are deleted for good, with their roles, sessions and failed logins.
 Their audit_log rows stay: the log is append-only, and that run did happen.
+
+Reference tables a check edits (E03) are saved before and put back after,
+every column of their values (version included) and the table's version;
+a value the check added is removed. The import jobs it ran are removed.
+
+    python scripts/purge_verify_data.py --save-reference D112 --snapshot FICHERO
+    python scripts/purge_verify_data.py --restore-reference --snapshot FICHERO
+    python scripts/purge_verify_data.py --import-jobs <id>
 """
 
 import argparse
 import asyncio
+import json
 import sys
+import uuid
+from pathlib import Path
 
 from _common import utf8_output
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from app.core.config import get_settings
 from app.db.base import async_session_factory, engine
-from app.models import LoginFailure, Material, User
+from app.models import ImportJob, LoginFailure, Material, ReferenceTable, ReferenceValue, User
+
+_VALUE_COLUMNS = ("description", "definition", "attributes", "is_active", "sort_order", "version")
 
 VERIFY_DOMAIN = "@verify.aal-dev.es"
 VERIFY_MATERIAL_PREFIX = "[verify] "
 
 
-async def purge(emails: list[str], materials: list[str]) -> int:
+async def save_reference(tables: list[str], snapshot: Path) -> int:
     async with async_session_factory() as db:
+        saved = {}
+        for code in tables:
+            table = await db.get(ReferenceTable, code)
+            if table is None:
+                print(f"No existe la tabla {code}.", file=sys.stderr)
+                return 1
+            values = (await db.execute(select(ReferenceValue).where(ReferenceValue.table_code == code))).scalars()
+            saved[code] = {"version": table.version, "values": {str(v.id): {c: getattr(v, c) for c in _VALUE_COLUMNS} for v in values}}
+    await engine.dispose()
+    snapshot.write_text(json.dumps(saved, ensure_ascii=False), encoding="utf-8")
+    print(f"Tablas guardadas: {', '.join(tables)}")
+    return 0
+
+
+async def restore_reference(snapshot: Path) -> int:
+    saved = json.loads(snapshot.read_text(encoding="utf-8"))
+    async with async_session_factory() as db:
+        for code, table in saved.items():
+            ids = [uuid.UUID(i) for i in table["values"]]
+            await db.execute(delete(ReferenceValue).where(ReferenceValue.table_code == code, ReferenceValue.id.not_in(ids)))
+            for value_id, columns in table["values"].items():
+                await db.execute(update(ReferenceValue).where(ReferenceValue.id == uuid.UUID(value_id)).values(**columns))
+            await db.execute(update(ReferenceTable).where(ReferenceTable.code == code).values(version=table["version"]))
+            print(f"Tabla restaurada: {code}")
+        await db.commit()
+    await engine.dispose()
+    snapshot.unlink()
+    return 0
+
+
+async def purge(emails: list[str], materials: list[str], jobs: list[uuid.UUID]) -> int:
+    async with async_session_factory() as db:
+        if jobs:
+            await db.execute(delete(ImportJob).where(ImportJob.id.in_(jobs)))
+            print(f"Importaciones eliminadas: {len(jobs)}")
         for email in emails:
             user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
             await db.execute(delete(LoginFailure).where(LoginFailure.email == email))
@@ -48,6 +96,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Elimina lo que han creado los verify-*.")
     parser.add_argument("--users", nargs="*", default=[], help=f"emails {VERIFY_DOMAIN}")
     parser.add_argument("--materials", nargs="*", default=[], help=f'nombres que empiezan por "{VERIFY_MATERIAL_PREFIX}"')
+    parser.add_argument("--import-jobs", nargs="*", default=[], type=uuid.UUID, help="ids de importaciones")
+    parser.add_argument("--save-reference", nargs="*", default=[], help="tablas de referencia que guardar")
+    parser.add_argument("--restore-reference", action="store_true", help="devuelve las tablas guardadas")
+    parser.add_argument("--snapshot", type=Path, help="fichero de --save-reference / --restore-reference")
     args = parser.parse_args()
     if get_settings().environment == "production":
         print("No se ejecuta con ENVIRONMENT=production.", file=sys.stderr)
@@ -57,7 +109,14 @@ def main() -> int:
     if wrong:
         print(f"Solo usuarios {VERIFY_DOMAIN} y materiales \"{VERIFY_MATERIAL_PREFIX}…\": {', '.join(wrong)}", file=sys.stderr)
         return 1
-    return asyncio.run(purge(emails, args.materials))
+    if (args.save_reference or args.restore_reference) and not args.snapshot:
+        print("--save-reference y --restore-reference necesitan --snapshot.", file=sys.stderr)
+        return 1
+    if args.save_reference:
+        return asyncio.run(save_reference(args.save_reference, args.snapshot))
+    if args.restore_reference:
+        return asyncio.run(restore_reference(args.snapshot))
+    return asyncio.run(purge(emails, args.materials, args.import_jobs))
 
 
 if __name__ == "__main__":

@@ -81,7 +81,7 @@ y no los tenga sale con **código 2 ("NOT RUN")**, nunca 1.
 src/                 frontend: pages, layouts, components/ui (shadcn), services, hooks, stores, i18n, lib, types, styles
 public/brand/        logo em&e
 scripts/             run-checks.mjs, run-js-tests.mjs, run-backend-tests.mjs, test-*.mjs, verify-*.mjs, lib/
-backend/app/         api/routes, core, db, models, schemas, services
+backend/app/         api/routes, core, db, models, schemas, services, seeds, io_excel (motor Excel, E03)
 backend/alembic/     migraciones
 backend/scripts/     create_test_db.py, check_test_db.py
 backend/tests/       unit/, integration/ (con _testdb.py y conftest.py)
@@ -91,8 +91,7 @@ private/             IGNORADO: ficheros reales del cliente
 ```
 
 Previstas y todavía sin crear (llegan con su encargo): `backend/app/repositories/`,
-`backend/app/validacion/` (motor de reglas NT, E16), `backend/app/io_excel/` (plantillas NT/SIGLE,
-E03), `backend/tests/security/` (E01), `backend/tests/fixtures/`.
+`backend/app/validacion/` (motor de reglas NT, E16), `backend/tests/fixtures/`.
 
 ## Cómo verificar
 

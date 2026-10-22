@@ -49,6 +49,17 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
         # Latest actions of the material shown in "Actividad reciente".
         "activity_items": 10,
     },
+    # Excel imports (E03, app/io_excel): limits of an uploaded workbook,
+    # checked before it is read (a zip bomb never gets expanded).
+    "import": {
+        "max_file_mb": 10,
+        # Sum of the sizes of the files inside the .xlsx (a zip).
+        "max_uncompressed_mb": 100,
+        "max_rows": 20000,
+        # An analysis still running after this long is taken as dead (the
+        # process stopped) and marked failed the next time it is read.
+        "stale_minutes": 30,
+    },
     # Settings -> Auditoría.
     "audit": {
         "page_size": 50,

@@ -1,0 +1,2049 @@
+# Tablas de referencia (E03, RNF-07) y definición de los 30 campos del
+# artículo (Fichero Carga / MAR06). Adjunto del encargo E03, versionado aquí.
+#
+# Lo carga app/services/reference_tables.py desde la migración 0004 y con
+# scripts/load_reference_tables.py. Una recarga añade tablas y valores nuevos
+# pero nunca modifica un valor que ya esté en la base (lo puede haber editado
+# un administrador): las diferencias solo se informan.
+#
+# Cambios respecto al adjunto:
+# - `atributos_definicion` en las tablas con atributos (D114, D155,
+#   NIVEL_FUNCIONAL, M101, CRITICIDAD): nombre legible, tipo (texto, entero,
+#   si_no) y opciones de cada atributo, para mostrarlos (HR21), validarlos y
+#   llevarlos a columnas de Excel.
+# - El código 09 de D114 va entre comillas: los códigos son siempre texto
+#   (la carga rechaza cualquier código que no lo sea).
+version: 1
+tablas:
+- codigo: D106
+  nombre: Grados de seguridad OTAN
+  fuente: Campos Ficha Datos Básicos SIGLE Contratista (MAR06)
+  valores:
+  - codigo: A
+    descripcion: Confidencial - Antes Datos Restringidos
+  - codigo: B
+    descripcion: Confidencial - Datos Restringidos
+  - codigo: C
+    descripcion: Confidencial
+  - codigo: D
+    descripcion: Confidencial - Criptologico
+  - codigo: E
+    descripcion: Secreto - Criptologico
+  - codigo: F
+    descripcion: Máximo Secreto - Criptologico
+  - codigo: G
+    descripcion: Secreto - Antes Datos Restringidos
+  - codigo: H
+    descripcion: Secreto - Datos Restringidos
+  - codigo: K
+    descripcion: Máximo Secreto - Antes Datos Restringidos
+  - codigo: L
+    descripcion: Máximo Secreto - Datos Restringidos
+  - codigo: O
+    descripcion: El artículo contiene información sobre propulsión naval nuclear. Las restricciones a su acceso y "baja y
+      liquidación" están identificadas en NAVSEAINST C5511.32. Debe almacenarse y manejarse de manera que se evite el acceso
+      no autorizado a este material.
+  - codigo: S
+    descripcion: Secreto
+  - codigo: T
+    descripcion: Máximo Secreto
+  - codigo: U
+    descripcion: No Clasificado
+  - codigo: '7'
+    descripcion: El artículo muestra información sensible. Antes de la "baja y liquidación", se deben quitar y destruir todas
+      las placas, etiquetas y nombres de las placas, marcas y documentos que relacionen los artículos con el sistema de armas
+      o conjunto de aplicación final.
+  - codigo: '9'
+    descripcion: Identifica un artículo CCI (Controlled Cryptographic Item) o Artículo criptográfico controlado. Son equipos
+      de telecomunicaciones seguras o de manejo de información, los componentes criptográficos asociados, u otros artículos
+      que realizan funciones críticas de seguridad de las comunicaciones (COMSEC). Estos artículos no están clasificados,
+      pero sí controlados y llevan la designación CCI.
+  - codigo: '&'
+    descripcion: Restringido
+  - codigo: '@'
+    descripcion: El artículo está clasificado, pero su nivel de clasificación todavía no se ha indicado/determinado.
+- codigo: D107
+  nombre: Nivel estructural de artículo
+  fuente: Campos Ficha Datos Básicos SIGLE Contratista (MAR06)
+  valores:
+  - codigo: '0'
+    descripcion: ARTICULO FINAL
+  - codigo: '1'
+    descripcion: SISTEMA
+  - codigo: '2'
+    descripcion: SUBSISTEMA
+  - codigo: '3'
+    descripcion: CONJUNTO
+  - codigo: '4'
+    descripcion: SUBCONJUNTO
+  - codigo: '5'
+    descripcion: ACCESORIO-PIEZA AUXILIAR
+  - codigo: '6'
+    descripcion: COMPONENTE-REPUESTO
+  - codigo: '7'
+    descripcion: ARTICULO FINAL SIN FILIACIÓN
+  - codigo: A
+    descripcion: ACCESORIO OPCIONAL
+  - codigo: B
+    descripcion: SUBSISTEMA OPCIONAL
+  - codigo: C
+    descripcion: CONJUNTO OPCIONAL
+  - codigo: J
+    descripcion: SUBCONJUNTO OPCIONAL
+  - codigo: P
+    descripcion: COMPONENTE OPCIONAL
+  - codigo: R
+    descripcion: REPUESTO OPCIONAL
+  - codigo: S
+    descripcion: SISTEMA OPCIONAL
+- codigo: D112
+  nombre: Unidades de medida del NOC relacionado
+  fuente: Campos Ficha Datos Básicos SIGLE Contratista (MAR06)
+  valores:
+  - codigo: BF
+    descripcion: Board Foot
+  - codigo: BQ
+    descripcion: Briquet
+  - codigo: CC
+    descripcion: Cubic Centimeter
+  - codigo: CD
+    descripcion: Cubic Yard
+  - codigo: CF
+    descripcion: Cubic Foot
+  - codigo: CG
+    descripcion: Centigram
+  - codigo: CI
+    descripcion: Cubic Inch
+  - codigo: CL
+    descripcion: Centiliter
+  - codigo: CM
+    descripcion: Centimeter
+  - codigo: CU
+    descripcion: Curie
+  - codigo: CV
+    descripcion: Cubic Decimeter
+  - codigo: CZ
+    descripcion: Cubic Meter
+  - codigo: DC
+    descripcion: Decagram
+  - codigo: DE
+    descripcion: Decimeter
+  - codigo: DG
+    descripcion: Decigram
+  - codigo: DL
+    descripcion: Deciliter
+  - codigo: DM
+    descripcion: Dram
+  - codigo: DW
+    descripcion: Pennyweight
+  - codigo: DZ
+    descripcion: Dozen
+  - codigo: EA
+    descripcion: Each
+  - codigo: EX
+    descripcion: Exposure
+  - codigo: FD
+    descripcion: Fold
+  - codigo: FR
+    descripcion: Frame
+  - codigo: FT
+    descripcion: Foot
+  - codigo: FZ
+    descripcion: Fluid Ounce
+  - codigo: GB
+    descripcion: Gallon (Imperial)
+  - codigo: GC
+    descripcion: Gill (Imperial)
+  - codigo: GG
+    descripcion: Great Gross
+  - codigo: GI
+    descripcion: Gill (US)
+  - codigo: GL
+    descripcion: Gallon (US)
+  - codigo: GM
+    descripcion: Gram
+  - codigo: GN
+    descripcion: Grain
+  - codigo: GR
+    descripcion: Gross
+  - codigo: HD
+    descripcion: Hundred
+  - codigo: HF
+    descripcion: Hundred Feet
+  - codigo: HG
+    descripcion: Hectogram
+  - codigo: HL
+    descripcion: Hectoliter
+  - codigo: HM
+    descripcion: Hectometer
+  - codigo: HP
+    descripcion: Hundred Pounds
+  - codigo: HS
+    descripcion: Hundred Square Feet
+  - codigo: HW
+    descripcion: Hundred Weight
+  - codigo: HY
+    descripcion: Hundred Yards
+  - codigo: IN
+    descripcion: Inch
+  - codigo: KG
+    descripcion: Kilogram
+  - codigo: KM
+    descripcion: Kilometer
+  - codigo: KR
+    descripcion: Carat
+  - codigo: LB
+    descripcion: Pound
+  - codigo: LF
+    descripcion: Linear Foot
+  - codigo: LI
+    descripcion: Liter
+  - codigo: MC
+    descripcion: Thousand Cubic Feet
+  - codigo: MF
+    descripcion: Thousand Feet
+  - codigo: MG
+    descripcion: Milligram
+  - codigo: MI
+    descripcion: Mile
+  - codigo: ML
+    descripcion: Milliliter
+  - codigo: MM
+    descripcion: Millimeter
+  - codigo: MN
+    descripcion: Square Millimeter
+  - codigo: MR
+    descripcion: Meter
+  - codigo: MX
+    descripcion: Thousand
+  - codigo: OZ
+    descripcion: Ounce
+  - codigo: PB
+    descripcion: Pint (Imperial)
+  - codigo: PT
+    descripcion: Pint (US)
+  - codigo: QC
+    descripcion: Square Centimeter
+  - codigo: QD
+    descripcion: Square Decimeter
+  - codigo: QT
+    descripcion: Quart (US)
+  - codigo: RA
+    descripcion: Ration
+  - codigo: RD
+    descripcion: Round
+  - codigo: RM
+    descripcion: Ream
+  - codigo: RX
+    descripcion: Thousand Rounds
+  - codigo: SF
+    descripcion: Square Foot
+  - codigo: SH
+    descripcion: Sheet
+  - codigo: '*SI'
+    descripcion: Square Inch
+  - codigo: SK
+    descripcion: Skein
+  - codigo: SM
+    descripcion: Square Meter
+  - codigo: SO
+    descripcion: Shot
+  - codigo: SQ
+    descripcion: Square
+  - codigo: SY
+    descripcion: Square Yard
+  - codigo: TM
+    descripcion: Metric Ton
+  - codigo: TN
+    descripcion: Ton (2,000 lb)
+  - codigo: TO
+    descripcion: Troy Ounce
+  - codigo: TT
+    descripcion: Tablet
+  - codigo: US
+    descripcion: U.S.P. Unit
+  - codigo: YD
+    descripcion: Yard
+- codigo: D113
+  nombre: Tipo de control unitario
+  fuente: Campos Ficha Datos Básicos SIGLE Contratista (MAR06)
+  valores:
+  - codigo: A
+    descripcion: MATRICULA AERONÁUTICA
+  - codigo: B
+    descripcion: NUMERO DE BASTIDOR
+  - codigo: C
+    descripcion: NUMERO DE CHASIS
+  - codigo: I
+    descripcion: NUMERO DE INVENTARIO
+  - codigo: K
+    descripcion: MATRICULA ANIMAL
+  - codigo: L
+    descripcion: LOTE
+  - codigo: M
+    descripcion: MATRICULA
+  - codigo: N
+    descripcion: MATRICULA VE
+  - codigo: S
+    descripcion: NUMERO DE SERIE
+  - codigo: Z
+    descripcion: NUMERO Z (INGENIEROS ZAPADORES)
+  - codigo: '0'
+    descripcion: POSICIONAL
+  - codigo: '1'
+    descripcion: UNITARIO
+- codigo: D114
+  nombre: Códigos de control de vida de artículos
+  fuente: Campos Ficha Datos Básicos SIGLE Contratista (MAR06)
+  atributos_definicion:
+  - clave: tipo
+    nombre: Tipo de control
+    tipo: texto
+    obligatorio: true
+    opciones:
+    - codigo: temporal
+      nombre: Temporal
+    - codigo: no_temporal
+      nombre: No temporal
+  valores:
+  - codigo: '02'
+    descripcion: DIAS
+    atributos:
+      tipo: temporal
+  - codigo: '03'
+    descripcion: MESES
+    atributos:
+      tipo: temporal
+  - codigo: '04'
+    descripcion: AÑOS
+    atributos:
+      tipo: temporal
+  - codigo: '05'
+    descripcion: SEMESTRE
+    atributos:
+      tipo: temporal
+  - codigo: GC
+    descripcion: APERTURAS DEL GANCHO DE CARGA
+    atributos:
+      tipo: no_temporal
+  - codigo: TL
+    descripcion: CICLOS TL (NUM. ARRANQUES DE MOTOR)
+    atributos:
+      tipo: no_temporal
+  - codigo: '01'
+    descripcion: HORAS
+    atributos:
+      tipo: no_temporal
+  - codigo: '09'
+    descripcion: CICLOS (Cañones)
+    atributos:
+      tipo: no_temporal
+  - codigo: '11'
+    descripcion: KILOMETROS
+    atributos:
+      tipo: no_temporal
+  - codigo: '21'
+    descripcion: DISPAROS
+    atributos:
+      tipo: no_temporal
+  - codigo: '31'
+    descripcion: RADIACIONES
+    atributos:
+      tipo: no_temporal
+  - codigo: '41'
+    descripcion: CAUDAL (LTS)
+    atributos:
+      tipo: no_temporal
+  - codigo: '51'
+    descripcion: DIFERENCIA_P.S.I.
+    atributos:
+      tipo: no_temporal
+- codigo: D155
+  nombre: Unidades de suministro o envío
+  fuente: Campos Ficha (NATO ACodP-1, tabla 31)
+  nota: El significado del asterisco que precede a algunos términos en la fuente está por confirmar; se conserva en atributos.marca_asterisco.
+  atributos_definicion:
+  - clave: marca_asterisco
+    nombre: Asterisco en la fuente
+    tipo: si_no
+  valores:
+  - codigo: AA
+    descripcion: Doscientos cincuenta
+    definicion: Doscientas cincuenta (250) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: AM
+    descripcion: Ampolla
+    definicion: Pequeño tubo de vidrio o plástico sellado por fusión después de llenado.
+    atributos:
+      marca_asterisco: true
+  - codigo: AT
+    descripcion: Surtido
+    definicion: Un conjunto de artículos variados de una misma categoría o clase, embalados en una unidad y que constituyen
+      un único artículo de abastecimiento. Úsese sólo cuando el término "surtido" forma parte del nombre del artículo.
+    atributos:
+      marca_asterisco: false
+  - codigo: AX
+    descripcion: Veinte
+    definicion: Veinte (20) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: AY
+    descripcion: Conjunto (assembly)
+    definicion: Combinación de piezas montadas para formar una unidad completa, constituyendo un único artículo de abastecimiento,
+      por ej., conjunto manguera. Debe usarse sólo cuando el término "conjunto" forma parte del nombre del artículo.
+    atributos:
+      marca_asterisco: false
+  - codigo: BA
+    descripcion: Ovillo
+    definicion: Cuerpo esférico de materiales como cordel o hilo.
+    atributos:
+      marca_asterisco: true
+  - codigo: BB
+    descripcion: Bobina
+    definicion: Cilindro de hilo, cordel, cable, arrollado en torno a un soporte.
+    atributos:
+      marca_asterisco: true
+  - codigo: BC
+    descripcion: Bloque
+    definicion: Una pieza de material como madera, piedra, o metal, normalmente con una o más caras planas.
+    atributos:
+      marca_asterisco: true
+  - codigo: BD
+    descripcion: Atado
+    definicion: Conjunto del mismo artículo atado junto sin presión.
+    atributos:
+      marca_asterisco: true
+  - codigo: BE
+    descripcion: Bala/fardo
+    definicion: Fardo (atado con cuerdas o cables metálicos) apretado de mercaderías y normalmente envuelto en tela o papel.
+    atributos:
+      marca_asterisco: true
+  - codigo: BF
+    descripcion: Pie tablar
+    definicion: Unidad de medida para madera que equivale al volumen de un tablero de medidas 12" x 12" x 1". 2,3597 decímetros
+      cúbicos
+    atributos:
+      marca_asterisco: false
+  - codigo: BG
+    descripcion: Bolsa
+    definicion: Recipiente flexible de diversos tamaños y formas, fabricado de materiales plásticos, textiles o papel. Incluye
+      "saco".
+    atributos:
+      marca_asterisco: true
+  - codigo: BK
+    descripcion: Libro
+    definicion: Paquete con forma de libro, como etiquetas o billetes, sujetos juntos sobre un borde, y normalmente con cubiertas
+      protectoras.
+    atributos:
+      marca_asterisco: true
+  - codigo: BL
+    descripcion: Barril
+    definicion: Recipiente cilíndrico, de metal o madera, con los extremos planos o de igual diámetro y laterales que sobresalen.
+      Excluye barrica (barril pequeño).
+    atributos:
+      marca_asterisco: true
+  - codigo: BO
+    descripcion: Pieza (tela)
+    definicion: Una pieza de tela doblada sobre un soporte de cartón rígido plano.
+    atributos:
+      marca_asterisco: true
+  - codigo: BR
+    descripcion: Varilla
+    definicion: Pieza de metal u otra materia, mucho más larga que gruesa. No es aplicable a artículos como jabón, cera de
+      abeja o compuestos pulimentadotes.
+    atributos:
+      marca_asterisco: true
+  - codigo: BT
+    descripcion: Botella
+    definicion: Vasija de vidrio, plástico o barro cocido de diversos tamaños, formas y terminaciones, excluyendo jarras,
+      ampollas, viales, garrafas, con un cierre para retener el contenido.
+    atributos:
+      marca_asterisco: true
+  - codigo: BX
+    descripcion: Caja
+    definicion: Recipiente rígido tridimensional de diversos tamaños y materiales. Incluye "maleta", "jaula", "cajón".
+    atributos:
+      marca_asterisco: true
+  - codigo: CA
+    descripcion: Cartucho
+    definicion: Recipiente normalmente cilíndrico para materiales flexibles o sueltos diseñado para máquinas dispensadoras.
+      Normalmente va asociados a productos adhesivos o sellantes.
+    atributos:
+      marca_asterisco: true
+  - codigo: CB
+    descripcion: Garrafa
+    definicion: Recipiente robusto, similar a una botella, usada para el transporte y almacenamiento de líquidos. Normalmente
+      está diseñada para encajarse en contenedores de protección para su envío.
+    atributos:
+      marca_asterisco: true
+  - codigo: CC
+    descripcion: Centímetro cúbico
+    definicion: Millonésima parte (1/1,000,000) de un metro cúbico en el sistema métrico Unidad de medida de volumen.
+    atributos:
+      marca_asterisco: false
+  - codigo: CD
+    descripcion: Yarda cúbica
+    definicion: Unidad de medida de volumen. 764,5 decímetros cúbicos
+    atributos:
+      marca_asterisco: false
+  - codigo: CE
+    descripcion: Cono
+    definicion: Material enrollado sobre sí mismo con forma de cono, como por ej. hilo o cordel enrollado sobre un núcleo
+      cónico.
+    atributos:
+      marca_asterisco: true
+  - codigo: CF
+    descripcion: Pie cúbico
+    definicion: Unidad de medida de volumen. 28,32 decímetros cúbicos
+    atributos:
+      marca_asterisco: false
+  - codigo: CG
+    descripcion: Centigramo
+    definicion: Centésima parte (1/100) de un gramo en el sistema métrico.
+    atributos:
+      marca_asterisco: false
+  - codigo: CI
+    descripcion: Pulgada cúbica
+    definicion: Unidad de medida de volumen. 0,0163 decímetros cúbicos
+    atributos:
+      marca_asterisco: false
+  - codigo: CK
+    descripcion: Pastilla
+    definicion: Bloque de material compacto o congelado. Aplicable a artículos como jabón o compuestos abrillantadores.
+    atributos:
+      marca_asterisco: true
+  - codigo: CL
+    descripcion: Arrollamiento
+    definicion: Rollo de materiales como alambre, cuerdo, tubería, enrollados en forma circular.
+    atributos:
+      marca_asterisco: true
+  - codigo: CM
+    descripcion: Centímetro
+    definicion: Centésima parte (1/100) de un metro en el sistema métrico.
+    atributos:
+      marca_asterisco: false
+  - codigo: CN
+    descripcion: Bote
+    definicion: Recipiente rígido de fibra, metal, plástico, o una combinación de éstos. Pueden tener forma cilíndrica u otras
+      irregulares. Su uso se restringe a aquellos artículos que no se pueden suministrar en cantidades inferiores al contenido
+      del recipiente. No debe
+    atributos:
+      marca_asterisco: true
+  - codigo: CO
+    descripcion: Contenedor
+    definicion: Término genérico para usar cuando un mismo artículo con un único NOC pueda ser embalado para suministro en
+      contenedores opcionales, como por ej. botella o tubo.
+    atributos:
+      marca_asterisco: true
+  - codigo: CP
+    descripcion: Cápsula
+    definicion: Recipiente metálico o de plástico para líquidos.
+    atributos:
+      marca_asterisco: true
+  - codigo: CS
+    descripcion: Estuche/caja
+    definicion: Recipiente para guardar ordenadamente uno o varios objetos determinados, mediante sujeciones o alojamientos
+      específicos.
+    atributos:
+      marca_asterisco: true
+  - codigo: CT
+    descripcion: Caja cartón
+    definicion: Contenedor, generalmente de cartón o fibra de papel, con tapas fijas o plegables.
+    atributos:
+      marca_asterisco: true
+  - codigo: CV
+    descripcion: Decímetro cúbico
+    definicion: Milésima parte (1/1,000) de un metro cúbico en el sistema métrico.
+    atributos:
+      marca_asterisco: false
+  - codigo: CY
+    descripcion: Bombona
+    definicion: Recipiente portátil metálico rígido, cilíndrico para almacenamiento y transporte de gases comprimidos, generalmente
+      equipados con válvulas de cierre y de seguridad.
+    atributos:
+      marca_asterisco: true
+  - codigo: CZ
+    descripcion: Metro cúbico
+    definicion: Unidad de volumen del sistema métrico. Su utilización está limitada a NOC's de asignación local utilizados
+      para la compra local de artículos como cemento ya preparado y asfalto en zonas donde su utiliza el sistema métrico.
+    atributos:
+      marca_asterisco: false
+  - codigo: DA
+    descripcion: Decámetro
+    definicion: Diez (10) metros.
+    atributos:
+      marca_asterisco: false
+  - codigo: DB
+    descripcion: Decalitro
+    definicion: Diez (10) litros.
+    atributos:
+      marca_asterisco: false
+  - codigo: DC
+    descripcion: Decagramo
+    definicion: Diez (10) gramos.
+    atributos:
+      marca_asterisco: false
+  - codigo: DE
+    descripcion: Decímetro
+    definicion: Décima parte (1/10) de un metro en el sistema métrico (= 10 CM = 100 MM =0.1 MR)
+    atributos:
+      marca_asterisco: false
+  - codigo: DF
+    descripcion: Doce pies
+    definicion: Una medida de doce (12) pies. 3,6576 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: DG
+    descripcion: Decigramo
+    definicion: Décima parte (1/10) de un gramo en el sistema métrico (= 10 CG = 100 MG = 0.1 GM).
+    atributos:
+      marca_asterisco: false
+  - codigo: DK
+    descripcion: Blister
+    definicion: Un trozo de cartón o pasta al que se sujetan o en el que se exponen varios artículos.
+    atributos:
+      marca_asterisco: true
+  - codigo: DL
+    descripcion: Decilitro
+    definicion: Décima parte (1/10) de un litro en el sistema métrico. (= 10 CL = 100 ML = 0.1 LI).
+    atributos:
+      marca_asterisco: false
+  - codigo: DM
+    descripcion: Dracma
+    definicion: Dieciseisava parte (1/16) de una onza. 0,0017 Kg
+    atributos:
+      marca_asterisco: false
+  - codigo: DP
+    descripcion: Doce pares
+    definicion: Doce (12) pares de un artículo de abastecimiento
+    atributos:
+      marca_asterisco: false
+  - codigo: DR
+    descripcion: Bidón
+    definicion: Recipiente cilíndrico utilizado para el transporte y almacenamiento de productos a granel, como fuel, productos
+      químicos, etc. Pueden estar fabricados de metal, goma, polietileno, contrachapado, o fibra con terminaciones metálicas,
+      de madera o de fibra.
+    atributos:
+      marca_asterisco: true
+  - codigo: DY
+    descripcion: Doce yardas
+    definicion: Una medida de doce (12) yardas. 10,9728 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: DZ
+    descripcion: Docena
+    definicion: Doce (12) unidades de un artículo de abastecimiento
+    atributos:
+      marca_asterisco: false
+  - codigo: EA
+    descripcion: Cada (unidad)
+    definicion: Expresión numérica de un artículo de abastecimiento. No debe utilizarse si es aplicable un término más específico,
+      tal como kit, juego (set),surtido, conjunto, grupo, hoja/lámina, plancha, tira/banda, o largo.
+    atributos:
+      marca_asterisco: false
+  - codigo: FF
+    descripcion: Seiscientos pies
+    definicion: Una medida de seiscientos (600) pies. 128,88 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: FH
+    descripcion: Cuatrocientos pies
+    definicion: Una medida de cuatrocientos (400) pies. 121,92 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: FM
+    descripcion: Braza
+    definicion: Unidad de longitud equivalente a seis pies o de superficie equivalente a seis pies cuadrados (para madera).
+      1,83 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: FT
+    descripcion: Pie
+    definicion: Medida de longitud. A veces llamada "pie lineal". 0,3048 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: FV
+    descripcion: Cinco
+    definicion: Cinco (5) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: FY
+    descripcion: Cincuenta
+    definicion: Cincuenta unidades (50) de un artículo de abastecimiento. Código usado en DoD 4100.39-M. Ver también código
+      "LL"
+    atributos:
+      marca_asterisco: false
+  - codigo: FZ
+    descripcion: Onza liquida (GB)
+    definicion: Veinteava parte (1/20) de una pinta (Imperial). 0,284 litros
+    atributos:
+      marca_asterisco: false
+  - codigo: GB
+    descripcion: Galón (GB)
+    definicion: Medida de capacidad para líquidos equivalente a 8 pintas (Imperiales) o 4.54 litros.
+    atributos:
+      marca_asterisco: false
+  - codigo: GC
+    descripcion: Gill (GB)
+    definicion: Medida de capacidad equivalente a un cuarto (1/4) de pinta (Imperial). 0,142 litros
+    atributos:
+      marca_asterisco: false
+  - codigo: GL
+    descripcion: Galón (ee.uu)
+    definicion: Medida de capacidad equivalente a 3.78 litros.
+    atributos:
+      marca_asterisco: false
+  - codigo: GM
+    descripcion: Gramo
+    definicion: Unidad de masa en el sistema métrico decimal equivalente a la milésima parte de un kilogramo.
+    atributos:
+      marca_asterisco: false
+  - codigo: GN
+    descripcion: Grano Troy
+    definicion: Pequeña unidad de peso (1/480 onza Troy). 0,648 gramos
+    atributos:
+      marca_asterisco: false
+  - codigo: GP
+    descripcion: Grupo
+    definicion: Conjunto de artículos suministrados como un único artículo de abastecimiento, como por ej. test set group.
+      Debe usarse sólo cuando el término "grupo" forma parte del nombre.
+    atributos:
+      marca_asterisco: false
+  - codigo: GR
+    descripcion: Gruesa
+    definicion: Ciento cuarenta y cuatro (144) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: GY
+    descripcion: Gruesa de yardas
+    definicion: Una medida de ciento cuarenta y cuatro (144) yardas. 131,6736 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: HC
+    descripcion: Cien metros cúbicos
+    definicion: Unidad métrica de volumen.
+    atributos:
+      marca_asterisco: false
+  - codigo: HD
+    descripcion: Cien
+    definicion: Cien (100) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: HF
+    descripcion: Cien pies
+    definicion: Unidad de longitud. 30,48 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: HG
+    descripcion: Hectogramo
+    definicion: Cien (100) gramos (3.52 onzas).
+    atributos:
+      marca_asterisco: false
+  - codigo: HK
+    descripcion: Madeja
+    definicion: Ovillo de hilo o cuerda de longitud fija, por ej, algodón, 840 yardas; estambre, 560 yardas. Ver "skein" para
+      comparación.
+    atributos:
+      marca_asterisco: true
+  - codigo: HL
+    descripcion: Hectolitro
+    definicion: Cien (100) litros (3.531 pies cúbicos).
+    atributos:
+      marca_asterisco: false
+  - codigo: HM
+    descripcion: Hectómetro
+    definicion: Cien (100) metros.
+    atributos:
+      marca_asterisco: false
+  - codigo: HS
+    descripcion: Cien pies cuadrados
+    definicion: Unidad de medida de superficie (área).
+    atributos:
+      marca_asterisco: false
+  - codigo: HW
+    descripcion: '"Hundredweight"'
+    definicion: Medida de peso equivalente a ciento doce (112) libras. 50,8032 Kg
+    atributos:
+      marca_asterisco: false
+  - codigo: HY
+    descripcion: Cien yardas
+    definicion: Unidad de medida de longitud. 91,44 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: IN
+    descripcion: Pulgada
+    definicion: Doceava parte (1/12) de un pie (lineal). 0,0254 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: IU
+    descripcion: Elemento (unit)
+    definicion: Cantidad básica o normalizada en la cual se divide un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: true
+  - codigo: JR
+    descripcion: Jarra
+    definicion: Recipiente rígido, generalmente de loza o cristal, con boca ancha y sin cuello. Excluye "botella".
+    atributos:
+      marca_asterisco: true
+  - codigo: KE
+    descripcion: Barrica
+    definicion: Pequeño recipiente con forma de barril - Ver Barril.
+    atributos:
+      marca_asterisco: true
+  - codigo: KG
+    descripcion: Kilogramo
+    definicion: Unidad métrica de masa (peso)equivalente a mil (1,000) gramos (2.205 libras).
+    atributos:
+      marca_asterisco: false
+  - codigo: KM
+    descripcion: Kilómetro
+    definicion: Unidad métrica de longitud equivalente a mil (1,000) metros.
+    atributos:
+      marca_asterisco: false
+  - codigo: KP
+    descripcion: Husada
+    definicion: Carrete de hilo o cable de forma cónica.
+    atributos:
+      marca_asterisco: true
+  - codigo: KT
+    descripcion: Kit
+    definicion: Conjunto de artículos relacionados que se usan como un único artículo de abastecimiento tal como herramientas,
+      aparatos de medida, piezas de recambio, hojas de instrucciones y repuestos, normalmente transportadas en una caja o
+      maletín. También incluye con
+    atributos:
+      marca_asterisco: false
+  - codigo: KW
+    descripcion: Kilovatio
+    definicion: Mil (1.000) Vatios
+    atributos:
+      marca_asterisco: false
+  - codigo: LB
+    descripcion: Libra
+    definicion: Unidad de medida de peso equivalente a 16 onzas. 0,4536 Kg
+    atributos:
+      marca_asterisco: false
+  - codigo: LF
+    descripcion: Cincuenta pies
+    definicion: Una medida de cincuenta (50) pies. 15,24 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: LG
+    descripcion: Largo
+    definicion: Este término se aplica a artículos que se expiden con una longitud fija y específica. No se aplica a aquellos
+      con medidas variables, que deberán expresarse en las unidades de longitud correspondientes, como pies o yardas. Excluye
+      "banda/tira".
+    atributos:
+      marca_asterisco: true
+  - codigo: LI
+    descripcion: Litro
+    definicion: Unidad de capacidad en el sistema métrico decimal.
+    atributos:
+      marca_asterisco: false
+  - codigo: LL
+    descripcion: Cincuenta
+    definicion: Cincuenta (50) unidades de un artículo de abastecimiento. Código usado en AECMA SPEC 200M. Ver también Código
+      "FY"
+    atributos:
+      marca_asterisco: false
+  - codigo: LM
+    descripcion: Metro lineal
+    definicion: Término utilizado para medir tuberías prefabricadas, aislantes. No es lo mismo que "Metro".
+    atributos:
+      marca_asterisco: false
+  - codigo: LO
+    descripcion: Lote
+    definicion: Cantidad de un artículo o material suministrado en subdivisiones específicas.
+    atributos:
+      marca_asterisco: false
+  - codigo: LT
+    descripcion: Tonelada larga
+    definicion: Peso equivalente a 2,240 libras. 1.016 Kg
+    atributos:
+      marca_asterisco: false
+  - codigo: MC
+    descripcion: Mil pies cúbicos
+    definicion: Unidad de volumen expresada en múltiplos de mil (1,000). 2.8316,8 decímetros cúbicos
+    atributos:
+      marca_asterisco: false
+  - codigo: ME
+    descripcion: Comida
+    definicion: Cantidad de comida que normalmente ingiere una persona de una vez.
+    atributos:
+      marca_asterisco: false
+  - codigo: MF
+    descripcion: Mil pies
+    definicion: Unidad de medida de longitud. 304,8 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: MG
+    descripcion: Miligramo
+    definicion: Milésima (1/1,000) parte de un gramo (0.0154 de un grano o 0.00003527 de una onza).
+    atributos:
+      marca_asterisco: false
+  - codigo: MI
+    descripcion: Milla
+    definicion: Unidad de medida equivalente a 1,610 metros.
+    atributos:
+      marca_asterisco: false
+  - codigo: ML
+    descripcion: Mililitro
+    definicion: Milésima (1/1,000) parte de un litro (0.061 de una pulgada cúbica).
+    atributos:
+      marca_asterisco: false
+  - codigo: MM
+    descripcion: Milímetro
+    definicion: Milésima (1/1,000) parte de un metro (0.0394 de una pulgada).
+    atributos:
+      marca_asterisco: false
+  - codigo: MN
+    descripcion: Milímetro cuadrado
+    definicion: Unidad de medida de superficie en el sistema métrico.
+    atributos:
+      marca_asterisco: false
+  - codigo: MR
+    descripcion: Metro
+    definicion: Unidad de longitud en el sistema métrico decimal, equivalente a 39.37 pulgadas. Su uso se limita a NOC's asignados
+      localmente para artículos de compra local tales como tuberías, maderas, mangueras, etc. en zonas donde se utiliza el
+      sistema métrico decimal
+    atributos:
+      marca_asterisco: false
+  - codigo: MX
+    descripcion: Mil
+    definicion: Mil (1,000) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: OT
+    descripcion: Equipamiento (outfit)
+    definicion: Un conjunto de artículos relacionados suministrados como un único artículo de abastecimiento, tal como las
+      herramientas, equipos de medida, materiales, equipamiento y/o manuales de instrucciones necesarias para la práctica
+      de un oficio o profesión o para
+    atributos:
+      marca_asterisco: false
+  - codigo: OZ
+    descripcion: Onza
+    definicion: Unidad de peso. 0,0283 Kg
+    atributos:
+      marca_asterisco: false
+  - codigo: PB
+    descripcion: Pinta (GB)
+    definicion: Unidad de volumen equivalente a un octavo (1/8) de galón (Imperial). 0,568 litros
+    atributos:
+      marca_asterisco: false
+  - codigo: PC
+    descripcion: Porcion/parte
+    definicion: Una parte o cantidad de un artículo, normalmente de longitud definida.
+    atributos:
+      marca_asterisco: true
+  - codigo: PD
+    descripcion: Bloc
+    definicion: Múltiples hojas de papel cosidas juntas o sujetas por un extremo mediante pegado.
+    atributos:
+      marca_asterisco: true
+  - codigo: PG
+    descripcion: Embalaje
+    definicion: Una forma de envuelta protectora para dos o más artículos de abastecimiento iguales. Sólo debe usarse cuando
+      no hay una unidad de medida o tipo de contenedor aplicable. Incluye "sobre".
+    atributos:
+      marca_asterisco: true
+  - codigo: PK
+    descripcion: Pack
+    definicion: Paquete o cantidad de artículos iguales que se suministra envueltos o atados.
+    atributos:
+      marca_asterisco: true
+  - codigo: PM
+    descripcion: Plancha/placa
+    definicion: Pieza metálica plana de forma cuadrada o rectangular de espesor uniforme, generalmente de un cuarto (1/4)
+      de pulgada o más. Sólo debe usarse cuando el término "plancha/placa" (NSCs 9515 y 9535) aparece en el nombre del artículo
+      para indicar su forma.
+    atributos:
+      marca_asterisco: false
+  - codigo: PR
+    descripcion: Par
+    definicion: Dos artículos similares que se corresponden, por ej., guantes, zapatos, rodamientos; o artículos compuestos
+      en su fabricación de dos partes, por ej. pantalones, tijeras, gafas.
+    atributos:
+      marca_asterisco: false
+  - codigo: PT
+    descripcion: Pinta (ee.uu)
+    definicion: Unidad de medida de capacidad. 0,55 litros
+    atributos:
+      marca_asterisco: false
+  - codigo: PZ
+    descripcion: Paquete
+    definicion: Un contenedor utilizado para artículos de subsistencia. Sólo debe usarse cuando los términos "paquete de comida"
+      formen parte del nombre del artículo (Grupo 89).
+    atributos:
+      marca_asterisco: true
+  - codigo: QB
+    descripcion: Cuarto galón (gb)
+    definicion: Unidad de medida británica de capacidad. 1,1365 litros
+    atributos:
+      marca_asterisco: false
+  - codigo: QC
+    descripcion: Centímetro cuadrado
+    definicion: Unidad de superficie (área) en el sistema métrico decimal.
+    atributos:
+      marca_asterisco: false
+  - codigo: QD
+    descripcion: Decímetro cuadrado
+    definicion: Unidad de superficie (área) en el sistema métrico decimal.
+    atributos:
+      marca_asterisco: false
+  - codigo: QK
+    descripcion: Cuarto de kilo
+    definicion: Unidad de peso del sistema métrico decimal equivalente a doscientos cincuenta (250) gramos.
+    atributos:
+      marca_asterisco: false
+  - codigo: QN
+    descripcion: Quintal
+    definicion: Cien (100) kilogramos.
+    atributos:
+      marca_asterisco: false
+  - codigo: QR
+    descripcion: Mano de papel
+    definicion: Medida de 24 hojas de papel.
+    atributos:
+      marca_asterisco: false
+  - codigo: QT
+    descripcion: Cuarto galón (ee.uu)
+    definicion: Medida de volumen. 0,9462 litros
+    atributos:
+      marca_asterisco: false
+  - codigo: RA
+    descripcion: Ración
+    definicion: Asignación de comida para una persona para un día. Sólo debe usarse cuando la palabra "ración" (NSC 8970)
+      forma parte del nombre del artículo.
+    atributos:
+      marca_asterisco: false
+  - codigo: RL
+    descripcion: Carrete
+    definicion: Núcleo cilíndrico alrededor del cual se enrollan materiales flexibles, como hilo o cable. Normalmente tiene
+      rebordes en los extremos.
+    atributos:
+      marca_asterisco: true
+  - codigo: RM
+    descripcion: Resma de papel
+    definicion: Cantidad de papel que varía desde 480 a 516 hojas, dependiendo del peso.
+    atributos:
+      marca_asterisco: false
+  - codigo: RO
+    descripcion: Rollo
+    definicion: Material flexible enrollado sobre sí mismo en forma cilíndrica, tal como textiles, cintas, papel de lija,
+      película y papel fotosensible; puede utilizar un núcleo con o sin rebordes.
+    atributos:
+      marca_asterisco: true
+  - codigo: SD
+    descripcion: Plataforma-patín
+    definicion: Una plataforma de tipo palet que consiste en una superficie de carga sujeta y apoyada sobre soportes deslizantes.
+    atributos:
+      marca_asterisco: true
+  - codigo: SE
+    descripcion: Juego (set)
+    definicion: Un conjunto de artículos relacionados o emparejados que se suministra como un solo artículo de abastecimiento,
+      por ej., set de herramientas, set de aparatos de medida. Sólo debe usarse cuando el término "juego (set)" forma parte
+      del nombre del artículo.
+    atributos:
+      marca_asterisco: false
+  - codigo: SF
+    descripcion: Pie cuadrado
+    definicion: Unidad de medida de superficie (área). 0,0929 metros cuadrados
+    atributos:
+      marca_asterisco: false
+  - codigo: SH
+    descripcion: Hoja/lamina
+    definicion: Lámina delgada de forma rectangular y espesor uniforme, de materiales tales como metal, plástico, papel o
+      conglomerado. El uso de este término no está limitado a ningún grupo o clase OTAN de artículos de abastecimiento. Sin
+      embargo, se utilizará sólo cuan
+    atributos:
+      marca_asterisco: false
+  - codigo: SI
+    descripcion: Pulgada cuadrada
+    definicion: Unidad de medida de superficie (área). 0,0064 metros cuadrados
+    atributos:
+      marca_asterisco: false
+  - codigo: SK
+    descripcion: '"Skein"'
+    definicion: Madeja de hilo de 120 yardas de longitud, normalmente enrollado alrededor de un núcleo circular de 54 pulgadas.
+      Ver "Madeja" para comparar.
+    atributos:
+      marca_asterisco: false
+  - codigo: SL
+    descripcion: Canilla/carrete
+    definicion: Soporte cilíndrico con reborde en los extremos y con un orificio axial para un eje, alrededor del cual se
+      enrolla material flexible como hilo o cable.
+    atributos:
+      marca_asterisco: true
+  - codigo: SM
+    descripcion: Metro cuadrado
+    definicion: Unidad de medida de superficie (área) en el sistema métrico decimal.
+    atributos:
+      marca_asterisco: false
+  - codigo: SO
+    descripcion: '"Shot"'
+    definicion: Unidad de medida de longitud, frecuentemente utilizada para la cadena del ancla; equivalente a 15 brazas (90
+      pies). 27,432 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: SP
+    descripcion: Banda/tira
+    definicion: Porción de material plana, relativamente estrecha, de anchura uniforme, tal como papel, madera o metal. Sólo
+      debe usarse cuando el término "banda/tira" forma parte del nombre del artículo.
+    atributos:
+      marca_asterisco: true
+  - codigo: SX
+    descripcion: Barra/vara
+    definicion: Material de forma relativamente larga y delgada, generalmente cilíndrico, de fácil aplicación o uso, por ej.
+      abrasivos.
+    atributos:
+      marca_asterisco: true
+  - codigo: SY
+    descripcion: Yarda cuadrada
+    definicion: Unidad de medida de superficie (área). 0,8361 metros cuadrados
+    atributos:
+      marca_asterisco: false
+  - codigo: TD
+    descripcion: Veinticuatro
+    definicion: Veinticuatro (24) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: TE
+    descripcion: Diez
+    definicion: Diez (10) unidades de un artículo de abastecimiento. Código usado en DoD 4100.369-M. Ver también código "XX"
+    atributos:
+      marca_asterisco: false
+  - codigo: TF
+    descripcion: Veinticinco
+    definicion: Veinticinco (25) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: TH
+    descripcion: Termia
+    definicion: Unidad de medida de calor
+    atributos:
+      marca_asterisco: false
+  - codigo: TI
+    descripcion: Lata
+    definicion: Recipiente de metal, con forma de caja, con tapadera adosada o suelta..
+    atributos:
+      marca_asterisco: true
+  - codigo: TL
+    descripcion: Mil litros
+    definicion: Mil (1000) litros
+    atributos:
+      marca_asterisco: false
+  - codigo: TM
+    descripcion: Tonelada métrica
+    definicion: Mil (1,000) kilogramos.
+    atributos:
+      marca_asterisco: false
+  - codigo: TN
+    descripcion: Tonelada (2000 libras)
+    definicion: Peso equivalente a 2,000 LB. Incluye tonelada corta y tonelada neta. 907,1847 Kg
+    atributos:
+      marca_asterisco: false
+  - codigo: TO
+    descripcion: Onza troy
+    definicion: Unidad de masa en las medidas troy, basada en la libra de 12 onzas, generalmente aplicada a los pesos de metales
+      preciosos. 0,311 Kg
+    atributos:
+      marca_asterisco: false
+  - codigo: TR
+    descripcion: Bandeja (tray)
+    definicion: Sub-embalaje, generalmente formado de manera similar a los contornos de un articulo de abastecimiento
+    atributos:
+      marca_asterisco: false
+  - codigo: TS
+    descripcion: Treinta y seis
+    definicion: Treinta y seis (36) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: TT
+    descripcion: Tableta
+    definicion: Pastilla plana de una sustancia preparada.
+    atributos:
+      marca_asterisco: true
+  - codigo: TU
+    descripcion: Tubo
+    definicion: Recipiente, normalmente de tipo presionable, generalmente fabricado de materiales flexibles y usado para pasta
+      dentífrica, crema de afeitar y productos farmacéuticos. También se aplica a formas alrededor de las cuales se enrollan
+      artículos, tales como hilo
+    atributos:
+      marca_asterisco: true
+  - codigo: TZ
+    descripcion: Dos onzas
+    definicion: Unidad de medida de peso equivalente a 2 onzas. 0,0566 Kg
+    atributos:
+      marca_asterisco: false
+  - codigo: VC
+    descripcion: Quinientos
+    definicion: Quinientas (500) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: VI
+    descripcion: Redoma (vial)
+    definicion: Pequeño recipiente de vidrio, generalmente de diámetro inferior a una pulgada. Son de fondo plano y forma
+      tubular y tienen gran variedad de formas de cuello.
+    atributos:
+      marca_asterisco: true
+  - codigo: XF
+    descripcion: Diez pies
+    definicion: Una medida de diez (10) pies. 3,0480 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: XX
+    descripcion: Diez
+    definicion: Diez (10) unidades de un artículo de abastecimiento. Código usado en AECMA SPEC 2000M. Ver también código
+      "TE"
+    atributos:
+      marca_asterisco: false
+  - codigo: YD
+    descripcion: Yarda
+    definicion: Unidad de medida de longitud equivalente a 3 pies y algunas veces expresada como "yardas lineales". 0.9144
+      metros
+    atributos:
+      marca_asterisco: false
+  - codigo: ZC
+    descripcion: Doscientos
+    definicion: Doscientas (200) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: ZD
+    descripcion: Cuatrocientos
+    definicion: Cuatrocientas (400) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: ZE
+    descripcion: Dos mil
+    definicion: Dos mil (2000) unidades de un artículo de abastecimiento.
+    atributos:
+      marca_asterisco: false
+  - codigo: ZF
+    descripcion: Doscientos pies
+    definicion: Una medida de doscientos (200) pies. 60,96 metros
+    atributos:
+      marca_asterisco: false
+  - codigo: ZV
+    descripcion: Sifón
+    definicion: Un envase desde el cual el líquido se fuerza a salir mediante gas a presión.
+    atributos:
+      marca_asterisco: true
+- codigo: POL
+  nombre: Códigos POL
+  fuente: Campos Ficha Datos Básicos SIGLE Contratista
+  valores:
+  - codigo: F-18
+    descripcion: GASOLINA DE AVIACIÓN GRADO 100/130
+  - codigo: F-34
+    descripcion: COMBUSTIBLE JP-8 PARA TURBINAS DE AVIACION
+  - codigo: F-35
+    descripcion: KEROSENO PARA TURBINAS DE AVIACION
+  - codigo: F-37
+    descripcion: COMBUSTIBLE JP-8+100 PARA TURBINAS DE AVIACION
+  - codigo: F-44
+    descripcion: COMBUSTIBLE JP-5 PARA TURBINAS DE AVIACION
+  - codigo: F-76
+    descripcion: COMBUSTIBLE NAVAL DESTILADO
+  - codigo: TF-02
+    descripcion: GASOLINA DE SUSTITUCIÓN
+  - codigo: TF-03
+    descripcion: GASOLEO AUTOMOCION CLASE A
+  - codigo: TF-04
+    descripcion: GASOLEO AUTOMOCION CLASE B
+  - codigo: TF-05
+    descripcion: GASOLEO DE CALEFACCION CLASE C
+  - codigo: TF-07
+    descripcion: GASOLINA SIN PLOMO (I.O. 95)
+  - codigo: TF-09
+    descripcion: GAS LICUADO PROPANO
+  - codigo: O-133
+    descripcion: ACEITE LUBRICANTE MINERAL DE TURBINA AVIACION GRADO 1010
+  - codigo: O-134
+    descripcion: ACEITE LUBRICANTE MINERAL DE PROPOSITO GENERAL
+  - codigo: O-135
+    descripcion: ACEITE LUBRICANTE MINERAL DE TURBINA AVIACION TIPO 3 cSt
+  - codigo: O-138
+    descripcion: ACEITE LUBRICANTE MINERAL DE TURBINA AVIACION TIPO 9 cSt
+  - codigo: O-142
+    descripcion: ACEITE LUBRICANTE ENGRASE GENERAL A BAJAS TEMPERATURAS
+  - codigo: O-147
+    descripcion: ACEITE LUBRICANTE SINTETICO PARA INSTRUMENTOS DE AVIACION
+  - codigo: O-148
+    descripcion: ACEITE LUBRICANTE SINTETICO DE TURBINA DE AVIACION GRADO 3 cSt
+  - codigo: O-149
+    descripcion: ACEITE LUBRICANTE SINTETICO DE TURBINA DE AVIACION TIPO 7,5 cSt
+  - codigo: O-150
+    descripcion: ACEITE LUBRICANTE SINTETICO DE TURBINA DE AVIACION TIPO 3 cSt
+  - codigo: O-152
+    descripcion: ACEITE LUBRICANTE SINTETICO DE TURBINA DE AVIACION TIPO 5 cSt CLASE C/I
+  - codigo: O-153
+    descripcion: ACEITE LUBRICANTE MINERAL ENGRANAJES AVIACION GRADO LIGERO (L)
+  - codigo: O-154
+    descripcion: ACEITE LUBRICANTE SINTETICO DE TURBINA DE AVIACION TIPO 5 cSt, CLASE HTS
+  - codigo: O-155
+    descripcion: ACEITE LUBRICANTE MINERAL ENGRANAJES AVIACION GRADO MEDIO
+  - codigo: O-156
+    descripcion: ACEITE LUBRICANTE SINTETICO DE TURBINA DE AVIACION TIPO 5 cSt, CLASE STD
+  - codigo: O-157
+    descripcion: ACEITE LUBRICANTE SINTETICO ARMAS A BAJA TEMPERATURA
+  - codigo: O-158
+    descripcion: ACEITE LUBRICANTE SINTETICO ARMAS SEMIFLUIDO
+  - codigo: O-159
+    descripcion: ACEITE LUBRICANTE SINTETICO DE TURBINA DE AVIACION TIPO 7,5 cSt
+  - codigo: O-160
+    descripcion: ACEITE LUBRICANTE SINTETICO DE TURBINA DE AVIACION TIPO 5 cSt
+  - codigo: O-190
+    descripcion: ACEITE LUBRICANTE PROTECTOR USO GENERAL GRADO LIGERO
+  - codigo: O-192
+    descripcion: ACEITE LUBRICANTE PROTECTOR USO GENERAL GRADO MEDIO
+  - codigo: O-204
+    descripcion: ACEITE LUBRICANTE SINTÉTICO SEMILIQUIDO PARA ARMAS AUTOMÁTICAS
+  - codigo: O-226
+    descripcion: ACEITE LUBRICANTE ENGRANAJES EXTREMA PRESION GRADO 80W/90
+  - codigo: O-228
+    descripcion: ACEITE LUBRICANTE ENGRANAJES EXTREMA PRESION GRADO 85W/140
+  - codigo: O-237
+    descripcion: ACEITE LUBRICANTE MOTOR GRADO 10W
+  - codigo: O-239
+    descripcion: ACEITE LUBRICANTE MOTOR GRADO 50
+  - codigo: O-250
+    descripcion: ACEITE LUBRICANTE PARA TURBINAS DE VAPOR Y ENGRANAJES, SERVICIO MODERADO
+  - codigo: O-278
+    descripcion: ACEITE LUBRICANTE DIESEL NAVAL SERVICIO SEVERO GRADO 40
+  - codigo: O-283
+    descripcion: ACEITE LUBRICANTE MINERAL, REFRIGERANTE E INHIBIDO, GRADO ISO VG 68 PARA COMPRESORES
+  - codigo: O-290
+    descripcion: ACEITE LUBRICANTE MINERAL, REFRIGERANTE E INHIBIDO, GRADO ISO VG 32 PARA COMPRESORES
+  - codigo: O-1177
+    descripcion: ACEITE LUBRICANTE MOTOR DOS TIEMPOS, FUERA BORDA
+  - codigo: O-1178
+    descripcion: ACEITE LUBRICANTE SINTETICO MOTOR GRADO 5W/30
+  - codigo: O-1236
+    descripcion: ACEITE LUBRICANTE MOTOR GRADO 15W/40
+  - codigo: TO-01
+    descripcion: ACEITE LUBRICANTE COMPRESORES EQUIPOS APOYO EN TIERRA GRADO II
+  - codigo: TO-02
+    descripcion: ACEITE LUBRICANTE COMPRESORES EQUIPOS APOYO EN TIERRA GRADO I
+  - codigo: TO-07
+    descripcion: ACEITE LUBRICANTE DE INSTRUMENTACION
+  - codigo: TO-09
+    descripcion: ACEITE LUBRICANTE SINTETICO PARA ESPOLETAS
+  - codigo: TO-11
+    descripcion: ACEITE LUBRICANTE TEFLONADO (PTFE) PARA ARMAS SEMIFLUIDO
+  - codigo: TO-13
+    descripcion: ACEITE LUBRICANTE SISTEMAS DE GAS OXIDANTE DE ALTA Y BAJA PRESION TIPO III
+  - codigo: TO-14
+    descripcion: ACEITE LUBRICANTE SISTEMAS DE GAS OXIDANTE DE ALTA Y BAJA PRESION TIPO II
+  - codigo: TO-15
+    descripcion: ACEITE LUBRICANTE SINTETICO BASE POLIOLESTER PARA COMPRESORES CON REFRIGERANTE HFC-134a
+  - codigo: TO-16
+    descripcion: ACEITE LUBRICANTE SINTETICO BASE POLIALQUILGLICOL PARA COMPRESORES CON REFRIGERANTES HFC
+  - codigo: TO-17
+    descripcion: ACEITE LUBRICANTE SINTETICO BASE POLIALFAOLEFINA PARA COMPRESORES CON REFRIGERANTES HFC
+  - codigo: TO-18
+    descripcion: ACEITE LUBRICANTE SINTETICO ENGRANAJES GRADO ISO VG 220
+  - codigo: TO-20
+    descripcion: ACEITE LUBRICANTE SINTETICO ENGRANAJES GRADO ISO VG 460
+  - codigo: TO-216
+    descripcion: FLUIDO DE CORTE DE MÁQUINAS HERRAMIENTAS
+  - codigo: G-353
+    descripcion: GRASA SINTETICA AVIACION EXTREMA PRESION CON BISULFURO DE MOLIBDENO
+  - codigo: G-354
+    descripcion: GRASA SINTETICA AVIACION EXTREMA PRESION
+  - codigo: G-355
+    descripcion: GRASA MINERAL AVIACION LITICA GRAFITADA
+  - codigo: G-359
+    descripcion: GRASA MINERAL AVIACION ALTAS TEMPERATURAS
+  - codigo: G-363
+    descripcion: GRASA MINERAL AVIACION RESISTENTE A HIDROCARBUROS
+  - codigo: G-366
+    descripcion: GRASA MINERAL AVIACIÓN PARA ROTORES DE HELICOPTEROS
+  - codigo: G-372
+    descripcion: GRASA SINTETICA AVIACION PARA ALTAS TEMPERATURAS
+  - codigo: G-382
+    descripcion: GRASA MINERAL AVIACION PARA USO GENERAL
+  - codigo: G-392
+    descripcion: GRASA SINTETICA AVIACION PARA SISTEMAS NEUMATICOS
+  - codigo: G-394
+    descripcion: GRASA SINTETICA AVIACION SILICONADA PARA SISTEMAS NEUMATICOS
+  - codigo: G-395
+    descripcion: GRASA SINTETICA AVIACION PARA USO GENERAL
+  - codigo: G-396
+    descripcion: GRASA SINTETICA AVIACION TEFLONADA (PTFE)
+  - codigo: G-399
+    descripcion: GRASA SINTETICA AVIACION PERFLUORADA COMPATIBLE CON OXIGENO LIQUIDO
+  - codigo: G-403
+    descripcion: GRASA MINERAL PARA AUTOMOCION Y ARTILLERIA
+  - codigo: G-412
+    descripcion: GRASA MINERAL CALCICA GRAFITADA
+  - codigo: G-414
+    descripcion: GRASA MINERAL DE USO GENERAL
+  - codigo: G-421
+    descripcion: GRASA SEMISINTETICA DE USO GENERAL
+  - codigo: G-450
+    descripcion: GRASA MINERAL NAVAL USO GENERAL
+  - codigo: G-460
+    descripcion: GRASA MINERAL NAVAL RESISTENTE AL AGUA DE MAR
+  - codigo: TG-01
+    descripcion: GRASA MINERAL NAVAL USO GENERAL CON BISULFURO DE MOLIBDENO
+  - codigo: TG-03
+    descripcion: GRASA SINTETICA SILICONADA PARA ALTAS TEMPERATURAS EN MOTORES ELECTRICOS
+  - codigo: TG-05
+    descripcion: GRASA ASFALTICA EXTREMA PRESION
+  - codigo: TG-06
+    descripcion: PASTA LUBRIFICANTE PARA UNIONES A PRESIÓN
+  - codigo: TG-07
+    descripcion: GRASA MINERAL PARA BAJAS TEMPERATURAS
+  - codigo: TG-09
+    descripcion: GRASA MINERAL BASE LITICA CON BISULFURO DE MOLIBDENO
+  - codigo: TG-15
+    descripcion: GRASA SINTETICA AVIACION EXTREMA PRESION Y ANTIDESGASTE
+  - codigo: TG-17
+    descripcion: PASTA LUBRIFICANTE DE SILICONA CON BISULFURO DE MOLIBDENO
+  - codigo: TG-19
+    descripcion: GRASA MINERAL PARA CABLES Y ENGRANAJES ABIERTOS
+  - codigo: TG-21
+    descripcion: PASTA LUBRIFICANTE PARA CONEXIONES ROSCADAS A ALTAS EMPERATURAS
+  - codigo: TG-22
+    descripcion: PASTA LUBRIFICANTE DE COBRE
+  - codigo: TG-23
+    descripcion: GEL DE CONTACTO PARA DISPOSITIVO DE RODAJE SIN AIRE
+  - codigo: TG-24
+    descripcion: GRASA PARA MONTAJE DE NEUMATICOS
+  - codigo: H-515
+    descripcion: LIQUIDO HIDRAULICO MINERAL SUPERLIMPIO
+  - codigo: H-537
+    descripcion: LIQUIDO HIDRAULICO SINTETICO
+  - codigo: H-540
+    descripcion: LIQUIDO HIDRAULICO MINERAL USO GENERAL
+  - codigo: H-542
+    descripcion: LIQUIDO DE FRENOS
+  - codigo: H-544
+    descripcion: LIQUIDO HIDRAULICO SINTETICO RESISTENTE AL FUEGO
+  - codigo: H-548
+    descripcion: LIQUIDO PARA TRANSMISIONES AUTOMATICAS
+  - codigo: H-572
+    descripcion: LIQUIDO HIDRAULICO MINERAL SIN ADITIVOS GRADO ISO VG 68
+  - codigo: H-573
+    descripcion: LIQUIDO HIDRAULICO MINERAL INHIBIDO GRADO ISO VG 46
+  - codigo: H-575
+    descripcion: LIQUIDO HIDRAULICO MINERAL PARA ARTILLERIA NAVAL
+  - codigo: H-579
+    descripcion: LIQUIDO HIDRAULICO SINTÉTICO RESISTENTE AL FUEGO PARA CATAPULTAS
+  - codigo: H-580
+    descripcion: LIQUIDO HIDRAULICO SINTETICO RESISTENTE AL FUEGO PARA ALTAS PRESIONES
+  - codigo: TH-10
+    descripcion: LIQUIDO HIDRAULICO MINERAL HLP-10
+  - codigo: TH-22
+    descripcion: LIQUIDO HIDRAULICO MINERAL HLP-22
+  - codigo: TH-23
+    descripcion: LIQUIDO HIDRAULICO MINERAL HLP-46
+  - codigo: TH-24
+    descripcion: LIQUIDO HIDRAULICO MINERAL HVLP-46
+  - codigo: TH-32
+    descripcion: LIQUIDO HIDRAULICO MINERAL HLP-32
+  - codigo: TH-33
+    descripcion: LIQUIDO HIDRAULICO MINERAL HVLP-68
+  - codigo: TH-100
+    descripcion: LIQUIDO HIDRAULICO MINERAL HLP-100
+  - codigo: C-608
+    descripcion: PROTECTOR ANTICORROSIVO CONCENTRADO PARA AVIACION
+  - codigo: C-609
+    descripcion: PROTECTOR ANTICORROSIVO PARA AVIACION
+  - codigo: C-610
+    descripcion: PROTECTOR ANTICORROSIVO PARA AVIACION
+  - codigo: C-620
+    descripcion: PROTECTOR ANTICORROSIVO DE CAPA BLANDA PARA APLICACION EN FRIO
+  - codigo: C-632
+    descripcion: PROTECTOR ANTICORROSIVO DE CAPA DURA PARA APLICACION EN FRIO
+  - codigo: C-633
+    descripcion: PROTECTOR ANTICORROSIVO DE CAPA DURA PARA APLICACION EN CALIENTE
+  - codigo: C-634
+    descripcion: PROTECTOR ANTICORROSIVO HIDROFUGO
+  - codigo: C-635
+    descripcion: LIQUIDO HIDRAULICO PROTECTOR ANTICORROSIVO
+  - codigo: C-638
+    descripcion: PROTECTOR ANTICORROSIVO SINTETICO PARA TURBINAS DE AVIACION
+  - codigo: C-640
+    descripcion: ACEITE LUBRICANTE PROTECTOR GRADO 10W
+  - codigo: C-642
+    descripcion: ACEITE LUBRICANTE PROTECTOR GRADO SAE 30
+  - codigo: TC-07
+    descripcion: BARNIZ LUBRIFICANTE DE SECADO AL AIRE
+  - codigo: TC-11
+    descripcion: PROTECTOR ANTICORROSIVO DE CAPA FINA Y BLANDA REPELENTE AL AGUA
+  - codigo: S-712
+    descripcion: LIQUIDO PARA BRUJULAS DE AVIACION
+  - codigo: S-720
+    descripcion: COMPUESTO ANTIGRIPANTE TIPO VASELINA GRAFITADA
+  - codigo: S-722
+    descripcion: COMPUESTO ANTIGRIPANTE CON BISULFURO DE MOLIBDENO
+  - codigo: S-736
+    descripcion: COMPUESTO SILICONADO AISLANTE ELECTRICO
+  - codigo: S-737
+    descripcion: ALCOHOL ISOPROPILICO DESNATURALIZADO
+  - codigo: S-738
+    descripcion: ALCOHOL ETILICO DESNATURALIZADO
+  - codigo: S-742
+    descripcion: LIQUIDO ANTIESCARCHA
+  - codigo: S-743
+    descripcion: VASELINA MINERAL
+  - codigo: S-747
+    descripcion: METANOL DESNATURALIZADO
+  - codigo: S-749
+    descripcion: LUBRICANTE DE CAPA SÓLIDA DE SECADO AL AIRE
+  - codigo: S-750
+    descripcion: ANTICONGELANTE DE AUTOMOCION
+  - codigo: S-753
+    descripcion: DISOLVENTE DE LIMPIEZA ALTO PUNTO DE INFLAMACION
+  - codigo: S-756
+    descripcion: ACEITE AISLANTE ELECTRICO
+  - codigo: S-757
+    descripcion: ANTICONGELANTE DE ETANODIOL INHIBIDO
+  - codigo: S-758
+    descripcion: ACEITE LUBRICANTE, LIMPIADOR Y PROTECTOR PARA ARMAS AUTOMÁTICAS
+  - codigo: S-759
+    descripcion: ANTICONGELANTE AUTOMOCIÓN
+  - codigo: S-761
+    descripcion: ACEITE LUBRICANTE, LIMPIADOR Y PROTECTOR PARA ARMAS AUTOMÁTICAS
+  - codigo: S-1712
+    descripcion: LIQUIDO AMORTIGUADOR DE SILICONA TIPO 3 cSt
+  - codigo: S-1714
+    descripcion: LIQUIDOS AMORTIGUADORES DE SILICONA
+  - codigo: S-1716
+    descripcion: LIQUIDOS AMORTIGUADORES DE SILICONA
+  - codigo: S-1718
+    descripcion: LIQUIDOS AMORTIGUADORES DE SILICONA
+  - codigo: S-1720
+    descripcion: LIQUIDOS AMORTIGUADORES DE SILICONA
+  - codigo: S-1724
+    descripcion: LIQUIDOS AMORTIGUADORES DE SILICONA
+  - codigo: S-1726
+    descripcion: LIQUIDOS AMORTIGUADORES DE SILICONA
+  - codigo: S-1728
+    descripcion: LIQUIDOS AMORTIGUADORES DE SILICONA
+  - codigo: S-1732
+    descripcion: LIQUIDOS AMORTIGUADORES DE SILICONA
+  - codigo: S-1735
+    descripcion: LUBRICANTE DE SILICONA CON BISULFURO DE MOLIBDENO
+  - codigo: S-1736
+    descripcion: COMPUESTO ANTIGRIPANTE Y SELLANTE PARA CIRCUITOS DE OXIGENO
+  - codigo: S-1737
+    descripcion: LUBRICANTE DE CAPA DURA CONDICIONES MEDIOAMBIENTALES EXTREMAS
+  - codigo: S-1738
+    descripcion: LUBRICANTE CAPA DURA INHIBIDOR DE CORROSION PARA APLICACION EN CALIENTE
+  - codigo: S-1744
+    descripcion: MEZCLA DE METANOL Y AGUA 44 / 56PARA TURBOMAQUINAS
+  - codigo: S-1745
+    descripcion: INHIBIDOR ANTIHIELO ALTO PUNTO INFLAMACION PARA COMBUSTIBLES DE TURBINA DE AVIACION
+  - codigo: S-1748
+    descripcion: REFRIGERANTE DIELECTRICO SINTETICO
+  - codigo: S-1750
+    descripcion: ADITIVO MULTIFUNCIONAL PARA MOTORES DIESEL
+  - codigo: TS-01
+    descripcion: DISOLVENTE DE LIMPIEZA PARA CAÑONES
+  - codigo: TS-07
+    descripcion: GLICERINA PURA
+  - codigo: TS-08
+    descripcion: MEZCLA DE GLICERINA Y AGUA PARA FRENOS DE RETROCESO Y RECUPERADORES
+  - codigo: TS-09
+    descripcion: ADHESIVO SELLANTE DE SILICONA
+  - codigo: TS-11
+    descripcion: ACETONA
+  - codigo: TS-21
+    descripcion: ACEITE LUBRICANTE AFLOJATODO
+  - codigo: TS-27
+    descripcion: COMPUESTO DE SILICONA DE CAPA BLANDA
+- codigo: NIVEL_FUNCIONAL
+  nombre: Nivel funcional SNS
+  fuente: NT 10/17 (mayo 2017) §6, fig. 6-2
+  atributos_definicion:
+  - clave: posiciones
+    nombre: Posiciones del SNS
+    tipo: texto
+  valores:
+  - codigo: SISTEMA
+    descripcion: Sistema
+    atributos:
+      posiciones: 1-2
+  - codigo: SUBSISTEMA
+    descripcion: Subsistema
+    atributos:
+      posiciones: '3'
+  - codigo: SUBSUBSISTEMA
+    descripcion: Subsubsistema
+    atributos:
+      posiciones: '4'
+  - codigo: CONJUNTO
+    descripcion: Conjunto
+    atributos:
+      posiciones: '5'
+  - codigo: SUBCONJUNTO
+    descripcion: Subconjunto
+    atributos:
+      posiciones: '6'
+  - codigo: ELEMENTO
+    descripcion: Elemento (denominación adicional bajo un subconjunto; aparece en CONF_FUN v3.0, no en la NT)
+    atributos:
+      posiciones: '6'
+- codigo: M101
+  nombre: Código de acción de mantenimiento (tabla M101 SIGLE)
+  fuente: NT 10/17 (mayo 2017) §12.2.4
+  atributos_definicion:
+  - clave: m101
+    nombre: Código M101
+    tipo: texto
+  - clave: uso
+    nombre: Uso
+    tipo: texto
+  valores:
+  - codigo: A
+    descripcion: Sustituir
+    atributos:
+      m101: A00
+      uso: Sustitución de componentes no reparables o cambio de líquidos funcionales. Para un componente reparable se usa
+        desmontar/montar.
+  - codigo: B
+    descripcion: Ajustar
+    atributos:
+      m101: B00
+      uso: Ajustes, aprietes de elementos roscados, etc.
+  - codigo: C
+    descripcion: Reparar
+    atributos:
+      m101: C00
+      uso: Reparación de componentes reparables (NOC del componente) o reparación sobre la plataforma sin desmontar (NOC de
+        la plataforma).
+  - codigo: D
+    descripcion: Calibrar
+    atributos:
+      m101: D00
+      uso: Calibración de útiles, instrumentos de medida, etc.
+  - codigo: E
+    descripcion: Servicio
+    atributos:
+      m101: E00
+      uso: Limpieza, pintura, reposición de niveles de líquidos funcionales, purgado, etc.
+  - codigo: F
+    descripcion: Inspección inicial
+    atributos:
+      m101: F00
+      uso: Inspecciones iniciales de calidad.
+  - codigo: G
+    descripcion: Inspección final
+    atributos:
+      m101: G00
+      uso: Inspecciones finales de calidad.
+  - codigo: J
+    descripcion: Revisar / comprobar
+    atributos:
+      m101: J00
+      uso: Comprobación, inspección, inspección visual, revisión, verificación, validación, etc.
+  - codigo: L
+    descripcion: Quitar y reinstalar
+    atributos:
+      m101: L00
+      uso: Desmontar un componente para ejecutar una tarea sobre otro (p. ej. quitar el radiador para acceder al motor).
+  - codigo: R
+    descripcion: Lubricar
+    atributos:
+      m101: R00
+      uso: Aplicación de grasa o aceite. El cambio de aceite o de filtros es código A.
+  - codigo: S
+    descripcion: Desinstalar / desmontar
+    atributos:
+      m101: S00
+      uso: Desmontar un componente para realizar una acción de mantenimiento sobre él.
+  - codigo: T
+    descripcion: Montar / instalar
+    atributos:
+      m101: T00
+      uso: Montar un componente.
+  - codigo: X
+    descripcion: Actualización de software / firmware
+    atributos:
+      m101: X00
+      uso: Tareas de software o firmware.
+- codigo: OPERATIVIDAD
+  nombre: Operatividad (7º dígito del código de tarea)
+  fuente: NT 10/17 (mayo 2017) §12.2.2
+  valores:
+  - codigo: '1'
+    descripcion: Operativo
+  - codigo: '2'
+    descripcion: Operativo con limitaciones
+  - codigo: '3'
+    descripcion: Inoperativo
+- codigo: CRITICIDAD
+  nombre: Criticidad (8º dígito del código de tarea)
+  fuente: NT 10/17 (mayo 2017) §12.2.3
+  atributos_definicion:
+  - clave: npr_min
+    nombre: NPR mínimo (incluido)
+    tipo: entero
+  - clave: npr_max
+    nombre: NPR máximo (incluido)
+    tipo: entero
+  - clave: npr_min_excl
+    nombre: NPR mínimo (excluido)
+    tipo: entero
+  - clave: npr_max_excl
+    nombre: NPR máximo (excluido)
+    tipo: entero
+  valores:
+  - codigo: '1'
+    descripcion: Alto riesgo
+    atributos:
+      npr_min: 300
+      npr_max: 1000
+  - codigo: '2'
+    descripcion: Medio riesgo
+    atributos:
+      npr_min_excl: 50
+      npr_max_excl: 300
+  - codigo: '3'
+    descripcion: Bajo riesgo
+    atributos:
+      npr_min: 0
+      npr_max: 50
+- codigo: ESCALON
+  nombre: Escalón de mantenimiento
+  fuente: NT 10/17 (mayo 2017) §13.1 / MAR06 campo 58
+  valores:
+  - codigo: '1'
+    descripcion: 1º escalón (operador / mantenimiento orgánico)
+  - codigo: '2'
+    descripcion: 2º escalón (unidad / mantenimiento orgánico)
+  - codigo: '3'
+    descripcion: 3º escalón (intermedio)
+  - codigo: '4'
+    descripcion: 4º escalón (superior)
+- codigo: TIPO_MANTENIMIENTO
+  nombre: Tipo de mantenimiento
+  fuente: NT 10/17 (mayo 2017) §13.1
+  valores:
+  - codigo: C
+    descripcion: Correctivo
+  - codigo: P
+    descripcion: Preventivo
+- codigo: MODO_EJECUCION
+  nombre: Modo de ejecución
+  fuente: NT 10/17 (mayo 2017) §13.1
+  valores:
+  - codigo: I
+    descripcion: Interno
+  - codigo: E
+    descripcion: Externo
+  - codigo: C
+    descripcion: Común (interno y externo); valor general
+- codigo: NAE
+  nombre: Clasificación de producto funcional (N/A/E)
+  fuente: NT 10/17 (mayo 2017) §9.1.11
+  valores:
+  - codigo: N
+    descripcion: Normalizado
+  - codigo: A
+    descripcion: Producto de sustitución aceptable
+  - codigo: E
+    descripcion: Producto de sustitución de emergencia
+campos_articulo:
+- codigo_prisma: cdART
+  nombre: NOC del artículo
+  importancia: Obligatorio
+  campo_guia: '1'
+  tipo: Carácter
+  longitud: 13
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: NomArt
+  nombre: Nombre coloquial
+  importancia: Obligatorio
+  campo_guia: '9'
+  tipo: Carácter
+  longitud: 40
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: cdConjRep
+  nombre: Grupo estructural
+  importancia: Obligatorio
+  campo_guia: '15'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: D107
+- codigo_prisma: cdSegArt
+  nombre: Código de Seguridad
+  importancia: Recomendado
+  campo_guia: '19'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: Valor por defecto "U"
+  tabla_referencia: D106
+- codigo_prisma: snRepaArt
+  nombre: Reparable (S/N)
+  importancia: Obligatorio
+  campo_guia: '25'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: snConsuArt
+  nombre: Consumible (S/N)
+  importancia: Obligatorio
+  campo_guia: '26'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: cdUsumExtrArt
+  nombre: Unidad de suministro externa
+  importancia: Obligatorio
+  campo_guia: '37'
+  tipo: Carácter
+  longitud: 2
+  decimales: null
+  relacionado_con: 39 al 46
+  suministrado_por_contratista: S
+  tabla_referencia: D155
+- codigo_prisma: snCtrlUniArt
+  nombre: Control unitario (S/N)
+  importancia: Obligatorio
+  campo_guia: '59'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: '47'
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: imEstdArt
+  nombre: Precio estándar
+  importancia: Obligatorio
+  campo_guia: '18'
+  tipo: Numérico
+  longitud: 9
+  decimales: 2
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: snDocuAdjUArt
+  nombre: Documentación adjunta (S/N)
+  importancia: Recomendado
+  campo_guia: '30'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: N
+  tabla_referencia: null
+- codigo_prisma: caPesoArt
+  nombre: Peso
+  importancia: Recomendado
+  campo_guia: '40'
+  tipo: Numérico
+  longitud: 7
+  decimales: 2
+  relacionado_con: '15'
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: cdUnidPesoArt
+  nombre: Unidad de peso
+  importancia: Recomendado
+  campo_guia: '41'
+  tipo: Carácter
+  longitud: 2
+  decimales: null
+  relacionado_con: '15'
+  suministrado_por_contratista: S
+  tabla_referencia: D112
+- codigo_prisma: caLargoArt
+  nombre: Largo
+  importancia: Recomendado
+  campo_guia: '42'
+  tipo: Numérico
+  longitud: 7
+  decimales: 2
+  relacionado_con: '15'
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: caAnchoArt
+  nombre: Ancho
+  importancia: Recomendado
+  campo_guia: '43'
+  tipo: Numérico
+  longitud: 7
+  decimales: 2
+  relacionado_con: '15'
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: caAltoArt
+  nombre: Alto
+  importancia: Recomendado
+  campo_guia: '44'
+  tipo: Numérico
+  longitud: 7
+  decimales: 2
+  relacionado_con: '15'
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: cdUnidLongArt
+  nombre: Unidad longitudinal
+  importancia: Recomendado
+  campo_guia: '45'
+  tipo: Carácter
+  longitud: 2
+  decimales: null
+  relacionado_con: '15'
+  suministrado_por_contratista: S
+  tabla_referencia: D112
+- codigo_prisma: caVoluArt
+  nombre: Volumen
+  importancia: Recomendado
+  campo_guia: '46'
+  tipo: Numérico
+  longitud: 6
+  decimales: null
+  relacionado_con: '15'
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: cdUnidVoluArt
+  nombre: Unidad de volumen
+  importancia: Recomendado
+  campo_guia: '47'
+  tipo: Carácter
+  longitud: 2
+  decimales: null
+  relacionado_con: '15'
+  suministrado_por_contratista: S
+  tabla_referencia: D112
+- codigo_prisma: cdCtrlUniArt
+  nombre: Código control unitario
+  importancia: Obligatorio
+  campo_guia: '60'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: D113
+- codigo_prisma: snCtrlVidaArt
+  nombre: Control de vida (S/N)
+  importancia: Obligatorio
+  campo_guia: '63'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: 64-65
+  suministrado_por_contratista: S
+  tabla_referencia: D114
+- codigo_prisma: snMtN1Art
+  nombre: Manto. individual escalón 1º (S/N)
+  importancia: Obligatorio
+  campo_guia: '58'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: snMtN2Art
+  nombre: Manto. individual escalón 2º (S/N)
+  importancia: Obligatorio
+  campo_guia: '58'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: snMtN3Art
+  nombre: Manto. individual escalón 3º (S/N)
+  importancia: Obligatorio
+  campo_guia: '58'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: snMtN4Art
+  nombre: Manto. individual escalón 4º (S/N)
+  importancia: Obligatorio
+  campo_guia: '58'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: vaUsoArt
+  nombre: Coste en € / hora de uso
+  importancia: Recomendado
+  campo_guia: '56'
+  tipo: Numérico
+  longitud: 2
+  decimales: 2
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: snCnfgArt
+  nombre: Control de configuración (S/N)
+  importancia: Obligatorio
+  campo_guia: '57'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: snMtPreArt
+  nombre: Mantenimiento preventivo (S/N)
+  importancia: Obligatorio
+  campo_guia: '53'
+  tipo: Carácter
+  longitud: 1
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: cdUniVidaA
+  nombre: Código Unidad Vida
+  importancia: Obligatorio
+  campo_guia: '64'
+  tipo: Carácter
+  longitud: 2
+  decimales: null
+  relacionado_con: 63-65
+  suministrado_por_contratista: S
+  tabla_referencia: D114
+- codigo_prisma: caVidaArt
+  nombre: Cantidad Vida
+  importancia: Obligatorio
+  campo_guia: '65'
+  tipo: Numérico
+  longitud: 8
+  decimales: null
+  relacionado_con: 63-64
+  suministrado_por_contratista: S
+  tabla_referencia: null
+- codigo_prisma: cdPolEl
+  nombre: Código POL
+  importancia: Obligatorio
+  campo_guia: N/A
+  tipo: Carácter
+  longitud: 6
+  decimales: null
+  relacionado_con: null
+  suministrado_por_contratista: S
+  tabla_referencia: POL

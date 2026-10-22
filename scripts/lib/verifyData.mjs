@@ -17,12 +17,20 @@ export function backendPythonOrNotRun() {
   return found.python;
 }
 
-export function purgeVerifyData(python, { users = [], materials = [] }) {
+/** A backend script (from backend/) with the backend's Python; its exit
+ *  code, and its output logged under `label`. */
+export function runBackendScript(python, label, args) {
+  const res = spawnSync(python, args, { cwd: BACKEND_DIR, env: pythonEnv(), encoding: 'utf8' });
+  console.log(`${label}: ${(res.stdout || res.stderr || '').trim() || `exit ${res.status}`}`);
+  return res.status;
+}
+
+export function purgeVerifyData(python, { users = [], materials = [], importJobs = [] }) {
   const args = [path.join('scripts', 'purge_verify_data.py')];
   if (users.length) args.push('--users', ...users);
   if (materials.length) args.push('--materials', ...materials);
-  const res = spawnSync(python, args, { cwd: BACKEND_DIR, env: pythonEnv(), encoding: 'utf8' });
-  console.log(`cleanup: ${(res.stdout || res.stderr || '').trim() || `exit ${res.status}`}`);
+  if (importJobs.length) args.push('--import-jobs', ...importJobs);
+  runBackendScript(python, 'cleanup', args);
 }
 
 /** A tiny API client signed in as `email` (no browser). */

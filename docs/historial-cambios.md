@@ -166,3 +166,62 @@ verify, CI y docs; CI en verde, run 39862479697).
 idempotente sin pisar estados, permisos de `/api/modules`, `/activity` y `/members` (ajeno → 404),
 `/activity` sin antes/después; `verify-navigation`, `verify-auth-settings` y `verify-health` en verde
 con capturas de escritorio y móvil.
+
+## E03 — Tablas de referencia y motor de importación/exportación Excel
+
+**Qué.**
+- Fleco de E01: `create_admin_user.py` y `seed_dev_data.py` comprueban la política (longitud mínima
+  y 72 bytes) en cuanto se escribe la contraseña y la vuelven a pedir; si las dos entradas no
+  coinciden piden las dos; Ctrl+C sale con una línea y código 130 (`_common.new_password` y
+  `cancellable`). Con contraseña en variable de entorno no hay reintento. Las preguntas se hacen
+  fuera de `asyncio.run()`: dentro, el primer Ctrl+C no interrumpe un `getpass` bloqueado.
+- Backend: migración `0004` (`reference_table`, `reference_value`, `article_field_definition`,
+  `import_job`) que carga `app/seeds/reference_tables_seed.yaml` (15 tablas, 30 campos) con
+  `app/services/reference_seed.py`, también desde `scripts/load_reference_tables.py`. API
+  `/api/reference-tables` (lectura para todos; alta, edición, activar/desactivar y reordenar solo
+  admin, con versión y auditoría; sin borrado), `/api/article-fields`, exportar e importar.
+  `reference.resolve()`, `must_be_in()` + `validate_references()` para los esquemas de E10–E19.
+- Motor `app/io_excel/` genérico: plantilla declarativa (1 o 2 filas de cabecera), normalización,
+  lectura defensiva, exportación exacta, análisis (nuevos / modificados campo a campo / sin cambios /
+  errores / avisos) y `ImportTarget`. Dos fases en `app/services/import_jobs.py`; primer consumidor,
+  la plantilla "Tabla de referencia". Parámetro `import` (tamaños, filas, caducidad).
+- Frontend: Ajustes → Tablas de referencia y Campos del artículo (admin) y las mismas vistas de solo
+  lectura para todos en `/tablas-referencia` y `/campos-articulo` (menú de usuario); rejilla con
+  búsqueda y filtro de estado, edición en línea optimista, alta, activar/desactivar con
+  confirmación, atributos por nombre; Exportar/Importar; `ImportWizard` reutilizable.
+
+**Decisiones.**
+- La semilla se versiona con dos cambios: `atributos_definicion` (nombre, tipo y opciones de cada
+  atributo, para mostrarlos, validarlos y llevarlos a columnas) y el `09` de D114 entre comillas. La
+  carga rechaza cualquier código que no sea texto, así que un `09` o un `0` sin comillas nunca se
+  guardan como número.
+- Una recarga nunca modifica un valor existente (lista las diferencias); nombre, fuente, nota y
+  esquema de atributos de la tabla, y los campos del artículo, siguen a la semilla porque no se
+  editan en la app.
+- Normalización de celdas (`app/io_excel/cells.py`): se deshacen los escapes `_xHHHH_` de Excel; se
+  quitan los espacios de los extremos (los de dentro se quedan); celda vacía = sin valor. Texto: un
+  número se escribe sin ".0" y, con `zero_pad`, como código de ese ancho (`2` → `"02"`, con aviso;
+  en D114, cuyos códigos numéricos son todos de dos cifras). Entero: `2.0` vale, `2.5` es error.
+  Decimal: "." o "," como separador, nunca los dos; más decimales de los declarados es error, nunca
+  se redondea. S/N en cualquier caja o VERDADERO/FALSO. Fecha: celda de fecha o AAAAMMDD. Un texto
+  largo es error de la fila (HR6). Las opciones de un atributo se exportan por nombre ("No temporal")
+  y se leen por nombre o código.
+- Exportación: textos y códigos como celdas de texto con formato `@` (también como formato de la
+  columna), un texto que empieza por "=" sigue siendo texto; enteros y decimales como números.
+- Seguridad: solo `.xlsx`; un `.xlsx` con `vbaProject.bin` se rechaza; tamaño y tamaño
+  descomprimido (del directorio del zip, sin expandir) antes de guardar; openpyxl `read_only` con
+  `data_only` (y una segunda pasada para detectar fórmulas sin valor) y `defusedxml`. El fichero se
+  guarda en `IMPORT_STAGING_DIR` con nombre generado y se borra al terminar el análisis.
+- Aplicar comprueba la versión de cada registro analizado: si cambió, 409 `import_stale` y hay que
+  volver a analizar. Un análisis colgado caduca a los `import.stale_minutes`.
+- Las tablas viven fuera de Ajustes para que el analista las lea; el admin las edita en Ajustes.
+- El alta de un valor no es optimista (id y posición del servidor): misma excepción que usuarios.
+
+**Commits.** (se anota el de cierre)
+
+**Tests.** `npm run check:all` verde: 232 tests de backend (semilla con recuentos exactos y
+cada validación, recarga idempotente que no pisa ediciones, códigos como texto, API y permisos, sin
+borrado físico, `must_be_in`, motor: cabeceras de 1 y 2 filas, cada tipo, errores, `.xlsm`, macros,
+tamaños, fórmulas sin valor, round-trip D155 161 sin cambios, 2 modificados con su diff, analizar
+no escribe, aplicar con errores 409, análisis caducado) y 6 `test:js`; `verify-reference-tables`,
+`verify-navigation`, `verify-auth-settings` y `verify-health` en verde.

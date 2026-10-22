@@ -25,6 +25,9 @@ __pycache__/
 # JWT signing keys (E01), generated locally, never committed
 backend/keys/
 
+# Excel files waiting to be analysed (E03, IMPORT_STAGING_DIR)
+backend/var/
+
 # Real customer files (D13): only private/README.md is versioned
 private/*
 !private/README.md

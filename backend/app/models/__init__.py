@@ -3,16 +3,30 @@
 
 from app.models.app_parameter import AppParameter
 from app.models.audit_log import AuditLog
+from app.models.import_job import IMPORT_JOB_STATUSES, ImportJob
 from app.models.login_failure import LoginFailure
 from app.models.material import Material
 from app.models.module import MODULE_STATUSES, ModuleCatalog, ModuleGroup, ModuleRequirement
+from app.models.reference import (
+    ATTRIBUTE_TYPES,
+    REFERENCE_CODE_MAX_LENGTH,
+    REFERENCE_DEFINITION_MAX_LENGTH,
+    REFERENCE_DESCRIPTION_MAX_LENGTH,
+    ArticleFieldDefinition,
+    ReferenceTable,
+    ReferenceValue,
+)
 from app.models.refresh_token import RefreshToken
 from app.models.role import Permission, Role, RolePermission, UserMaterialRole
 from app.models.user import User
 
 __all__ = [
+    "ATTRIBUTE_TYPES",
     "AppParameter",
+    "ArticleFieldDefinition",
     "AuditLog",
+    "IMPORT_JOB_STATUSES",
+    "ImportJob",
     "LoginFailure",
     "MODULE_STATUSES",
     "Material",
@@ -20,6 +34,11 @@ __all__ = [
     "ModuleGroup",
     "ModuleRequirement",
     "Permission",
+    "REFERENCE_CODE_MAX_LENGTH",
+    "REFERENCE_DEFINITION_MAX_LENGTH",
+    "REFERENCE_DESCRIPTION_MAX_LENGTH",
+    "ReferenceTable",
+    "ReferenceValue",
     "RefreshToken",
     "Role",
     "RolePermission",

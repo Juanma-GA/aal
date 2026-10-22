@@ -9,6 +9,8 @@ const SETTINGS_TABS = [
   { path: 'roles', label: 'settings.tabs.roles' },
   { path: 'auditoria', label: 'settings.tabs.audit' },
   { path: 'modulos', label: 'settings.tabs.modules' },
+  { path: 'tablas-referencia', label: 'settings.tabs.referenceTables' },
+  { path: 'campos-articulo', label: 'settings.tabs.articleFields' },
   { path: 'parametros', label: 'settings.tabs.parameters' },
 ] as const;
 

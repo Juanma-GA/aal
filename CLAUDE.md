@@ -170,10 +170,16 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   recargar y la vista móvil. Credenciales por entorno: `VERIFY_ADMIN_EMAIL`, `VERIFY_ADMIN_PASSWORD` y
   `DEV_ANALISTA_PASSWORD`. Deja la base como estaba (material `[verify] …` borrado, FTA de vuelta a
   "planificado", preferencias del analista restauradas).
+- **`verify-reference-tables.mjs`** (E03): el admin abre D114 (13 valores con su tipo por nombre),
+  edita en línea una descripción de D112, exporta D112, el script lo cambia con openpyxl
+  (`backend/scripts/verify_edit_xlsx.py`), lo importa, ve 1 modificado y aplica; el analista ve las
+  tablas sin edición. Mismas credenciales que `verify-navigation`. Deja la base como estaba: guarda
+  D112 antes y la restaura después, versiones incluidas (`purge_verify_data.py --save-reference` /
+  `--restore-reference`), y borra su `import_job`.
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
-  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` con Chrome
+  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` con Chrome
   contra uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
@@ -205,8 +211,7 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
 ## Estructura prevista
 
 Las carpetas del §4 del plan que todavía no tienen contenido no se crean; llegan con su encargo:
-`backend/app/repositories/`, `backend/app/validacion/` (motor NT), `backend/app/io_excel/`
-(plantillas NT/SIGLE) y `backend/tests/fixtures/`.
+`backend/app/repositories/`, `backend/app/validacion/` (motor NT) y `backend/tests/fixtures/`.
 
 ## Historial de cambios
 
@@ -256,7 +261,8 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   `es.json` (`test-i18n-keys` los exige todos), mostrados con `catalogLabel()`.
 - **Mutaciones (HR20)**: `useOptimisticMutation` (lista en caché, rollback y toast; un 409 de versión
   ofrece recargar). Crear un usuario o material y restablecer una contraseña no son optimistas: el id
-  y la contraseña temporal los da el servidor (excepción documentada de HR20).
+  y la contraseña temporal los da el servidor (excepción documentada de HR20); tampoco el alta de un
+  valor de referencia (id y posición del servidor).
 - **Catálogo de módulos (E02, D7)**: grupos y módulos del PALI salen de
   `backend/app/seeds/module_catalog_seed.yaml` (textos de la especificación del cliente), que carga
   `app/services/module_catalog.py` desde la migración `0003` o con `scripts/load_module_catalog.py`.
@@ -267,6 +273,24 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   módulo** en un encargo: su página bajo `/materiales/:materialId/...`, su ruta en la semilla
   (`ruta:`, con `:materialId`) y `estado: disponible`, y un `scripts/load_module_catalog.py` (o una
   migración que lo cargue) para las BD ya creadas.
+- **Tablas de referencia (E03, RNF-07)**: `reference_table` / `reference_value` /
+  `article_field_definition`, de `backend/app/seeds/reference_tables_seed.yaml` (cargador
+  `app/services/reference_seed.py`, migración `0004` y `scripts/load_reference_tables.py`). Una recarga
+  añade tablas y valores, **nunca modifica un valor existente** (lista las diferencias); nombre,
+  fuente, nota, `atributos_definicion` y campos del artículo siguen a la semilla. Códigos siempre
+  texto (un código no texto en el YAML para la carga). Un valor nunca se borra: se desactiva. Lectura
+  para cualquiera (`/tablas-referencia`, `/campos-articulo`; en Ajustes para el admin), edición solo
+  admin. En los esquemas de los módulos: `Annotated[str | None, must_be_in("D112")]` y
+  `await validate_references(db, body, current=…)` (`app/services/reference.py`; activos para datos
+  nuevos, el valor ya guardado sigue valiendo).
+- **Excel (E03, `backend/app/io_excel/`)**: una plantilla declarativa (`template.py`: hoja, 1 o 2 filas
+  de cabecera, columnas con tipo, longitud, obligatoriedad, tabla de referencia, clave) sirve para
+  exportar (`writer.py`, códigos como texto `@`) e importar en dos fases: `POST …/import` → análisis
+  en segundo plano (`app/services/import_jobs.py`, `import_job`, sondeo `GET /api/import-jobs/{id}`)
+  → `POST /api/import-jobs/{id}/apply` (sin errores, una transacción, auditoría por registro; 409 si
+  algo cambió). Reglas de normalización en `cells.py`; nunca se recorta (HR6). Un consumidor nuevo
+  implementa `ImportTarget` (`targets.py`, `register()`), como `app/services/reference_import.py`, y
+  usa `src/components/import/ImportWizard.tsx` con su `start`. Límites: parámetro `import`.
 - **URLs por material (E02)**: las páginas de un material cuelgan de `/materiales/:materialId`
   (`src/layouts/MaterialLayout.tsx`: un material sin acceso es el 404 humanizado; abrir uno por URL lo
   hace material activo). `/` lleva al material activo (o al primero, o a "sin materiales"); `/ajustes`

@@ -24,6 +24,13 @@ dependencies = [
     "email-validator>=2.2",
     # The module catalog seed (app/seeds/module_catalog_seed.yaml).
     "pyyaml>=6.0",
+    # Excel import/export (E03, app/io_excel).
+    "openpyxl>=3.1",
+    # openpyxl parses the sheet XML with defusedxml when it is installed (no
+    # entity expansion in an uploaded workbook).
+    "defusedxml>=0.7",
+    # FastAPI's UploadFile (the Excel imports).
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]

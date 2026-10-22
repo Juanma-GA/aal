@@ -38,7 +38,9 @@ export async function errorFromResponse(response: Response): Promise<ApiError> {
 // session): never retried after a refresh.
 const NO_RETRY = ['/auth/login', '/auth/refresh', '/auth/logout'];
 
-export async function apiFetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** The response of a call, after one refresh-and-retry on a 401; a
+ *  refused call is thrown as ApiError. */
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   let response = await send(path, init, useAuthStore.getState().accessToken);
   if (response.status === 401 && !NO_RETRY.includes(path)) {
     if (await refreshAccessToken()) {
@@ -47,8 +49,27 @@ export async function apiFetchJson<T>(path: string, init: RequestInit = {}): Pro
     if (response.status === 401) useAuthStore.getState().signOut();
   }
   if (!response.ok) throw await errorFromResponse(response);
+  return response;
+}
+
+export async function apiFetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await apiFetch(path, init);
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+/** A file the server answers (an Excel export), with the name it gives. */
+export async function apiFetchFile(path: string): Promise<{ blob: Blob; fileName: string | null }> {
+  const response = await apiFetch(path);
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  return { blob: await response.blob(), fileName: /filename="([^"]+)"/.exec(disposition)?.[1] ?? null };
+}
+
+/** A file sent as multipart/form-data (the browser sets the boundary). */
+export function apiUpload<T>(path: string, file: File): Promise<T> {
+  const body = new FormData();
+  body.append('file', file);
+  return apiFetchJson<T>(path, { method: 'POST', body });
 }
 
 export function apiSend<T>(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {

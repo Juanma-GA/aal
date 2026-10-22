@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     # The addresses the browser uses. Never "*" (refused below).
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    # --- Excel imports (E03) ---
+    # Where an uploaded workbook waits while it is analysed, relative to
+    # backend/ (var/ is not in git). Never under public/: the file is saved
+    # with a generated name and removed once the analysis ends. Size limits
+    # are parameters ("import", app/services/parameters.py).
+    import_staging_dir: str = "var/imports"
+
     # --- AACF ---
     # The framework copy's VERSION file, answered by GET /api/version. A
     # relative path is taken from backend/.

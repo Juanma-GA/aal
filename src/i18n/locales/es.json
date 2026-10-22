@@ -59,7 +59,35 @@
     "module_not_found": "El módulo no existe en el catálogo.",
     "module_status_unknown": "Ese estado de módulo no existe.",
     "module_route_required": "Un módulo disponible necesita su ruta.",
-    "module_route_invalid": "La ruta debe ser una dirección de la app que empiece por /."
+    "module_route_invalid": "La ruta debe ser una dirección de la app que empiece por /.",
+    "attribute_invalid": "El atributo «{{attribute}}» no tiene un valor válido.",
+    "attribute_option_invalid": "El valor de «{{attribute}}» no es una de sus opciones.",
+    "attribute_required": "Falta el atributo «{{attribute}}», que es obligatorio.",
+    "attribute_unknown": "La tabla no tiene el atributo «{{attribute}}».",
+    "excel_corrupt": "El fichero está dañado y no se puede leer.",
+    "excel_empty": "El fichero está vacío.",
+    "excel_file_name_too_long": "El nombre del fichero es demasiado largo (máximo {{max}} caracteres).",
+    "excel_has_macros": "El fichero contiene macros y no se importa. Guárdalo como libro de Excel (.xlsx) sin macros.",
+    "excel_not_xlsx": "El fichero no es un libro de Excel (.xlsx).",
+    "excel_too_large": "El fichero pasa del tamaño máximo ({{max_mb}} MB).",
+    "excel_too_large_uncompressed": "El contenido del fichero pasa del tamaño máximo descomprimido ({{max_mb}} MB).",
+    "excel_too_many_rows": "El fichero tiene más de {{max}} filas de datos. Divídelo en varios.",
+    "excel_wrong_extension": "Solo se importan libros de Excel .xlsx (no .xlsm ni .xls).",
+    "import_failed": "El análisis del fichero ha fallado.",
+    "import_interrupted": "El análisis se interrumpió (el servidor se reinició). Vuelve a subir el fichero.",
+    "import_job_not_found": "Esa importación no existe o no es tuya.",
+    "import_not_allowed": "No tienes permiso para aplicar esta importación.",
+    "import_stale": "Los datos han cambiado desde el análisis (fila {{row}}). Vuelve a analizar el fichero.",
+    "import_has_errors": "La importación tiene errores: corrígelos en el fichero y vuelve a analizarlo.",
+    "import_already_applied": "Esta importación ya se aplicó.",
+    "import_not_analyzed": "La importación no está analizada: no se puede aplicar.",
+    "reference_order_mismatch": "El nuevo orden debe incluir todos los valores de la tabla.",
+    "reference_table_not_editable": "Esta tabla de referencia no se puede editar.",
+    "reference_table_not_found": "La tabla de referencia no existe.",
+    "reference_value_exists": "Ya hay un valor con ese código en la tabla.",
+    "reference_value_inactive": "El valor de «{{field}}» está desactivado en la tabla {{table}}.",
+    "reference_value_not_found": "El valor no existe en esta tabla.",
+    "reference_value_unknown": "El valor de «{{field}}» no está en la tabla {{table}}."
   },
   "actions": {
     "retry": "Reintentar",
@@ -113,7 +141,9 @@
     "noMaterials": "Sin materiales asignados",
     "settings": "Ajustes",
     "userMenu": "Menú de {{name}}",
-    "admin": "Administrador"
+    "admin": "Administrador",
+    "referenceTables": "Tablas de referencia",
+    "articleFields": "Campos del artículo"
   },
   "material": {
     "activeTitle": "Material activo",
@@ -173,7 +203,9 @@
       "roles": "Roles y permisos",
       "audit": "Auditoría",
       "parameters": "Parámetros",
-      "modules": "Módulos"
+      "modules": "Módulos",
+      "referenceTables": "Tablas de referencia",
+      "articleFields": "Campos del artículo"
     },
     "users": {
       "search": "Buscar por nombre o email",
@@ -258,7 +290,8 @@
       "groups": {
         "auth": "Autenticación",
         "audit": "Auditoría",
-        "panel": "Panel del material"
+        "panel": "Panel del material",
+        "import": "Importación de Excel"
       },
       "labels": {
         "access_token_minutes": "Duración del token de acceso (minutos)",
@@ -270,7 +303,11 @@
         "login_limit.max_failures_per_ip": "Intentos fallidos máximos por dirección",
         "page_size": "Filas por página",
         "max_page_size": "Máximo de filas por página",
-        "activity_items": "Acciones en \"Actividad reciente\""
+        "activity_items": "Acciones en \"Actividad reciente\"",
+        "max_file_mb": "Tamaño máximo del fichero (MB)",
+        "max_uncompressed_mb": "Tamaño máximo descomprimido (MB)",
+        "max_rows": "Filas de datos como máximo",
+        "stale_minutes": "Minutos tras los que un análisis se da por interrumpido"
       }
     },
     "modules": {
@@ -310,7 +347,14 @@
       "material_role.removed": "Rol quitado",
       "app_parameter.updated": "Parámetro cambiado",
       "module.updated": "Módulo cambiado",
-      "module_catalog.loaded": "Catálogo de módulos recargado"
+      "module_catalog.loaded": "Catálogo de módulos recargado",
+      "import.applied": "Importación aplicada",
+      "reference_table.reordered": "Tabla de referencia reordenada",
+      "reference_tables.loaded": "Tablas de referencia cargadas",
+      "reference_value.activated": "Valor de referencia activado",
+      "reference_value.deactivated": "Valor de referencia desactivado",
+      "reference_value.created": "Valor de referencia creado",
+      "reference_value.updated": "Valor de referencia editado"
     },
     "entities": {
       "user": "Usuario",
@@ -319,7 +363,10 @@
       "app_parameter": "Parámetro",
       "system": "Sistema",
       "module": "Módulo",
-      "module_catalog": "Catálogo de módulos"
+      "module_catalog": "Catálogo de módulos",
+      "import_job": "Importación",
+      "reference_table": "Tabla de referencia",
+      "reference_value": "Valor de referencia"
     }
   },
   "nav": {
@@ -382,5 +429,112 @@
     "material": "El material no existe o no tienes acceso a él.",
     "module": "El módulo no existe en el catálogo del PALI.",
     "home": "Ir al inicio"
+  },
+  "reference": {
+    "title": "Tablas de referencia",
+    "hint": "Tablas SIGLE y de la NT 10/17 que usan los módulos. Un valor nunca se borra: se desactiva y sigue valiendo para los datos que ya lo usan.",
+    "table": "Tabla",
+    "code": "Código",
+    "name": "Nombre",
+    "source": "Fuente",
+    "values": "Valores",
+    "valuesCount": "{{active}} activos de {{total}}",
+    "description": "Descripción",
+    "definition": "Definición",
+    "state": "Estado",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "search": "Buscar por código, descripción o definición",
+    "allStates": "Todos",
+    "onlyActive": "Solo activos",
+    "onlyInactive": "Solo inactivos",
+    "empty": "No hay valores que coincidan.",
+    "newValue": "Nuevo valor",
+    "newValueTitle": "Nuevo valor en {{table}}",
+    "newValueHint": "El código no se puede cambiar después. El valor se añade al final de la tabla.",
+    "deactivate": "Desactivar",
+    "activate": "Activar",
+    "deactivateTitle": "¿Desactivar {{code}}?",
+    "deactivateHint": "No se podrá elegir en datos nuevos, pero sigue en la tabla y vale para los datos que ya lo usan.",
+    "activateTitle": "¿Activar {{code}}?",
+    "activateHint": "Se podrá volver a elegir en datos nuevos.",
+    "editing": "Editando {{code}}",
+    "yes": "Sí",
+    "no": "No",
+    "none": "—",
+    "export": "Exportar a Excel",
+    "import": "Importar desde Excel",
+    "importTitle": "Importar {{table}} desde Excel",
+    "readOnly": "Solo lectura: la edición es de un administrador.",
+    "note": "Nota",
+    "notFound": "La tabla de referencia no existe.",
+    "back": "Todas las tablas"
+  },
+  "articleFields": {
+    "title": "Campos del artículo",
+    "hint": "Los 30 campos del Fichero Carga (MAR06) con los que E12 validará los artículos. Solo lectura.",
+    "prismaCode": "Código PRISMA",
+    "name": "Nombre",
+    "importance": "Importancia",
+    "guideField": "Campo de la guía",
+    "type": "Tipo",
+    "length": "Longitud",
+    "decimals": "Decimales",
+    "relatedTo": "Relacionado con",
+    "suppliedBy": "Lo aporta el contratista",
+    "referenceTable": "Tabla de referencia"
+  },
+  "import": {
+    "chooseFile": "Fichero de Excel (.xlsx)",
+    "chooseHint": "Se analiza primero: nada cambia hasta que revises el informe y pulses Aplicar.",
+    "analyze": "Analizar",
+    "analyzing": "Analizando el fichero…",
+    "failed": "No se ha podido analizar el fichero",
+    "tabs": {
+      "new": "Nuevos",
+      "modified": "Modificados",
+      "unchanged": "Sin cambios",
+      "errors": "Errores",
+      "warnings": "Avisos"
+    },
+    "row": "Fila",
+    "key": "Clave",
+    "field": "Campo",
+    "before": "Antes",
+    "after": "Después",
+    "where": "Dónde",
+    "message": "Mensaje",
+    "cell": "Fila {{row}}, columna {{column}}",
+    "rowOnly": "Fila {{row}}",
+    "fileLevel": "Fichero",
+    "nothing": "Nada en esta pestaña.",
+    "summary": "{{rows}} filas: {{new}} nuevas, {{modified}} modificadas, {{unchanged}} sin cambios.",
+    "blocked": "Hay errores: corrígelos en el fichero y vuelve a analizarlo. No se puede aplicar.",
+    "apply": "Aplicar",
+    "applying": "Aplicando…",
+    "another": "Analizar otro fichero",
+    "done": "Importación aplicada",
+    "doneSummary": "{{new}} valores nuevos y {{modified}} modificados.",
+    "issues": {
+      "duplicate_key": "Clave repetida: ya aparece en la fila {{first_row}}.",
+      "extra_column_ignored": "Columna «{{found}}» que no es de la plantilla: se ignora.",
+      "formula_value_used": "La celda tiene una fórmula: se usa el valor que Excel guardó.",
+      "formula_without_value": "La celda tiene una fórmula sin valor guardado. Ábrelo en Excel, guárdalo y vuelve a subirlo.",
+      "header_mismatch": "Cabecera distinta de la plantilla: se esperaba «{{expected}}» y hay «{{found}}».",
+      "inactive_in_table": "«{{value}}» está desactivado en la tabla {{table}}.",
+      "not_a_choice": "Valor no permitido. Valores posibles: {{allowed}}.",
+      "not_a_date": "No es una fecha AAAAMMDD válida.",
+      "not_decimal": "No es un número decimal.",
+      "not_in_table": "«{{value}}» no está en la tabla {{table}}.",
+      "not_integer": "No es un número entero.",
+      "not_text": "Se esperaba un texto.",
+      "not_yes_no": "Debe ser S o N.",
+      "number_read_as_code": "El número {{value}} se ha leído como el código «{{code}}».",
+      "required": "Falta un valor obligatorio.",
+      "sheet_missing": "El libro no tiene la hoja «{{sheet}}».",
+      "too_long": "Texto de {{length}} caracteres: el máximo es {{max}}. No se recorta.",
+      "too_many_decimals": "Más de {{max}} decimales. No se redondea.",
+      "too_many_digits": "Más de {{max}} cifras."
+    }
   }
 }
