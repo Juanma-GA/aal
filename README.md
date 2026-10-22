@@ -18,7 +18,9 @@ cd backend
 python -m venv .venv
 .venv/bin/python -m pip install --require-hashes -r requirements-dev.lock.txt   # Windows: .venv\Scripts\python.exe
 cp .env.example .env
+.venv/bin/python scripts/generate_rsa_keypair.py   # claves JWT (backend/keys/, fuera de git)
 .venv/bin/python -m alembic upgrade head
+.venv/bin/python scripts/create_admin_user.py admin@empresa.es   # pide la contraseña
 .venv/bin/uvicorn app.main:app --port 8000
 cd ..
 npm ci

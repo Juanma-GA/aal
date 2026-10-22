@@ -39,7 +39,7 @@ export function hardcodedText(source) {
   for (const m of code.matchAll(JSX_TEXT)) {
     // TypeScript, not JSX text: code punctuation, or a type operator after a
     // generic (ComponentProps<'span'> & VariantProps<...>).
-    if (/[;=()]/.test(m[1]) || /^\s*[&|]/.test(m[1])) continue;
+    if (/[;=()]/.test(m[1]) || /^\s*[&|,]/.test(m[1])) continue;
     found.push({ line: lineOf(code, m.index), text: m[1].trim() });
   }
   for (const m of code.matchAll(VISIBLE_ATTR)) found.push({ line: lineOf(code, m.index), text: m[0] });
@@ -68,6 +68,7 @@ check('t() is fine', hardcodedText("<p>{t('status.connected')}</p>").length === 
 check('alt={t()} is fine', hardcodedText("<img alt={t('app.logoAlt')} />").length === 0);
 check('an arrow function is fine', hardcodedText('const f = () => a < b;').length === 0);
 check('generics are fine', hardcodedText('const s = useState<string>(x); const m = new Map<string, Row>();').length === 0);
+check('an object literal after a JSX value is fine', hardcodedText('icons={{ a: <X />,\n info: <Y /> }}').length === 0);
 check('a type intersection after a generic is fine', hardcodedText("React.ComponentProps<'span'> &\n  VariantProps<typeof v>").length === 0);
 check('a comment is fine', hardcodedText('// <p>Texto</p>').length === 0);
 check('flags a hex', rawColours('<div style={{ color: "#2E74B5" }} />').length === 1);

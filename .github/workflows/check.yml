@@ -75,14 +75,29 @@ jobs:
           .venv/bin/python -m pip install --require-hashes -r requirements-dev.lock.txt
       - name: Frontend dependencies (exact lockfile)
         run: npm ci
-      - name: App database and test database
+      - name: JWT keys, app database and test database
         working-directory: backend
         run: |
+          .venv/bin/python scripts/generate_rsa_keypair.py
           .venv/bin/python -m alembic upgrade head
           cd .. && npm run test:db:create
+      # Throw-away passwords for this job's own database, generated here and
+      # masked in the log: no credential is written in this file (D17).
+      - name: Admin and development data
+        working-directory: backend
+        run: |
+          for name in VERIFY_ADMIN_PASSWORD DEV_ANALISTA_PASSWORD DEV_REVISOR_PASSWORD DEV_OBSERVADOR_PASSWORD; do
+            value="Ci-$(openssl rand -hex 16)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+            export "$name=$value"
+          done
+          echo "VERIFY_ADMIN_EMAIL=admin@aal-ci.es" >> "$GITHUB_ENV"
+          INITIAL_ADMIN_PASSWORD="$VERIFY_ADMIN_PASSWORD" .venv/bin/python scripts/create_admin_user.py admin@aal-ci.es
+          .venv/bin/python scripts/seed_dev_data.py
       - name: npm run check:all
         run: npm run check:all
-      - name: verify-health (real Chromium, backend and Vite)
+      - name: verify-health and verify-auth-settings (real Chromium, backend and Vite)
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
           SHOTS_DIR: ${{ runner.temp }}/shots
@@ -95,10 +110,11 @@ jobs:
             sleep 1
           done
           node scripts/verify-health.mjs
+          node scripts/verify-auth-settings.mjs
       - name: Screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: verify-health
+          name: verify-screenshots
           path: ${{ runner.temp }}/shots
           if-no-files-found: ignore

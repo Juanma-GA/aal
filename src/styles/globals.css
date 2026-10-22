@@ -42,6 +42,8 @@
   /* em&e accent: links, focus, highlights. */
   --brand: oklch(0.5 0.13 250);
   --brand-foreground: oklch(0.98 0.003 255);
+  /* Behind a modal dialog or a side panel. */
+  --overlay: oklch(0.15 0.01 255 / 0.5);
   /* Behind the logo (graphite artwork): keeps it legible in dark mode. */
   --logo-surface: oklch(1 0 0 / 0);
   /* Status. */
@@ -76,6 +78,7 @@
   --ring: oklch(0.72 0.12 250);
 
   --logo-surface: oklch(0.97 0.003 255);
+  --overlay: oklch(0.05 0.005 255 / 0.65);
   --brand: oklch(0.74 0.11 250);
   --brand-foreground: oklch(0.18 0.01 255);
   --success: oklch(0.75 0.13 150);
@@ -112,6 +115,7 @@
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-logo-surface: var(--logo-surface);
+  --color-overlay: var(--overlay);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);

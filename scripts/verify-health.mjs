@@ -1,4 +1,5 @@
 // E00: the home page shows the API's real state, in a real browser.
+// The page is the login page (the status card is there for anyone).
 //   1. With the backend up: "API conectada", the app's and the AACF's
 //      version exactly as GET /api/version answers them, the database
 //      operational and its migration; the logo loaded; the Inter font in
@@ -96,8 +97,9 @@ try {
   console.log('screenshot:', shot('verify-health-error.png'));
   await page.unroute('**/api/health');
 
-  // The route above answers 503 on purpose; the browser logs that response.
-  const unexpected = consoleErrors.filter((e) => !/503/.test(e));
+  // The route above answers 503 on purpose, and without a session the
+  // silent refresh answers 401: the browser logs both responses.
+  const unexpected = consoleErrors.filter((e) => !/\b(503|401)\b/.test(e));
   assert(unexpected.length === 0, `no console errors${unexpected.length ? `: ${unexpected.join(' | ')}` : ''}`);
   assert(foreign.length === 0, `no request to another domain${foreign.length ? `: ${foreign.join(', ')}` : ''}`);
   console.log('verify-health: ALL OK');

@@ -64,9 +64,21 @@ Requisitos: Node 22, Python 3.11+ y PostgreSQL 16.
 python -m venv .venv                     # o: uv venv .venv
 .venv/bin/python -m pip install --require-hashes -r requirements-dev.lock.txt    # Windows: .venv\Scripts\python.exe
 cp .env.example .env                     # y ajustar DATABASE_URL si hace falta
+.venv/bin/python scripts/generate_rsa_keypair.py          # claves JWT en backend/keys/ (una vez; no están en git)
 .venv/bin/python -m alembic upgrade head
+.venv/bin/python scripts/create_admin_user.py admin@empresa.es   # contraseña: INITIAL_ADMIN_PASSWORD o se pide
+.venv/bin/python scripts/seed_dev_data.py                 # material sintético + analista/revisor/observador
 .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+`seed_dev_data.py` crea "Material de desarrollo (sintético)" y `analista.dev@aal-dev.es`,
+`revisor.dev@aal-dev.es` y `observador.dev@aal-dev.es`; sus contraseñas salen de
+`DEV_ANALISTA_PASSWORD`, `DEV_REVISOR_PASSWORD` y `DEV_OBSERVADOR_PASSWORD` o se piden (nunca como
+argumento). Se niega con `ENVIRONMENT=production`.
+
+Para reiniciar uvicorn en el entorno remoto: guardar su PID al arrancarlo (`… & echo $! > uvicorn.pid`)
+y matarlo por PID. `pkill -f uvicorn` o un `ps | grep` dentro del mismo comando que lo arranca matan
+también al propio shell (el patrón está en su línea de órdenes).
 
 **Frontend** (desde la raíz): `npm ci` y `npx vite --port 5173 --strictPort` (el proxy `/api` de
 `vite.config.ts` va al 8000).
@@ -147,8 +159,16 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   `encoding="utf-8"`, ninguna ruta `/tmp` / `.venv/bin` ni programa de Linux (`subprocess` con `ps`,
   `psql`…, `shell=True`, `os.system`), ningún secreto como argumento y lockfiles universales con hash.
   `.gitattributes` fija LF en `scripts/`, fixtures y migraciones.
-- **CI** (`.github/workflows/check.yml`): escaneo de secretos con gitleaks; Postgres 16 como servicio,
-  `npm ci` + `npm run check:all`; y `verify-health` con Chrome contra uvicorn y Vite.
+- **`verify-auth-settings.mjs`** (E01): el admin crea un usuario, le da Observador en el material de
+  desarrollo, el usuario cambia la contraseña obligatoria, ve su material con el badge y nada de
+  edición ni Ajustes, y el admin lo ve en Auditoría. Credenciales del admin por entorno:
+  `VERIFY_ADMIN_EMAIL` y `VERIFY_ADMIN_PASSWORD` (sin ellas, 2 "NOT RUN"). Deja la base como estaba:
+  borra su usuario (dominio `@verify.aal-dev.es`) con `backend/scripts/purge_verify_users.py`; solo
+  quedan sus filas de `audit_log`, que es de solo añadir.
+- **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
+  contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
+  `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
+  job (enmascaradas); y `verify-health` + `verify-auth-settings` con Chrome contra uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
 
@@ -206,4 +226,33 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   `shadcn-ui/ui`, `apps/v4/registry/new-york-v4/ui/`); solo clases de tokens (`bg-primary`,
   `text-muted-foreground`, `bg-success`…) definidos en `src/styles/globals.css`; textos con `t()`;
   tokens de máquina con `humanize()`.
-- **Rutas FastAPI**: sin `from __future__ import annotations`; `app/main.py` solo ensambla.
+- **Rutas FastAPI**: sin `from __future__ import annotations`; `app/main.py` solo ensambla. Los
+  cuerpos de petición heredan de `StrictModel` (`app/schemas/common.py`: campos inesperados → 422) y
+  un 422 de validación nunca devuelve los valores enviados (`validation_error_handler`).
+- **Autenticación (D4)**: el access token (RS256, `iss`/`aud`) vive solo en memoria
+  (`src/stores/authStore.ts`, Zustand sin `persist`); el refresh token, en la cookie `aal_refresh`
+  (HttpOnly, Secure, SameSite=Strict, Path=/api/auth), guardado en BD como SHA-256, rota en cada
+  refresh y su reutilización revoca la familia (`app/services/sessions.py`). El frontend serializa
+  los refrescos (una promesa por pestaña y Web Locks entre pestañas: `src/services/session.ts`) para
+  no disparar esa detección por error. Duraciones, política de contraseñas y límite de intentos son
+  el parámetro `auth` (`PARAMETER_DEFAULTS`), contados en BD (`login_failure`).
+- **El día del SSO + MFA corporativo**: toda la firma y validación del JWT está en
+  `backend/app/core/security.py`. Solo cambia de dónde salen las claves públicas
+  (`_verification_keys()`: el JWKS del IdP en lugar de `keys/jwt_public.pem`) y los valores de
+  `JWT_ISSUER` / `JWT_AUDIENCE`; el login propio se retira. La autorización (`app/api/deps.py`:
+  `current_user`, `require_admin`, `require_material_permission`) y la matriz no cambian, siempre que
+  el `sub` del IdP se asocie al `app_user` (por email, en ese encargo).
+- **Permisos (D5)**: la matriz vive en BD (`role_permission`, sembrada en la migración 0002 con los
+  permisos de E10–E19); ninguna regla de rol se escribe en código. Una ruta de material pide su
+  permiso con `require_material_permission("confunfis.editar")` (un material ajeno o inexistente →
+  404; sin el permiso → 403). En el frontend, `useMaterialPermission("…")` oculta lo que no se puede
+  hacer; el servidor lo impide igual. Nombres de roles, permisos, áreas y acciones de auditoría en
+  `es.json` (`test-i18n-keys` los exige todos), mostrados con `catalogLabel()`.
+- **Mutaciones (HR20)**: `useOptimisticMutation` (lista en caché, rollback y toast; un 409 de versión
+  ofrece recargar). Crear un usuario o material y restablecer una contraseña no son optimistas: el id
+  y la contraseña temporal los da el servidor (excepción documentada de HR20).
+- **shadcn/ui con React 18**: el registro `new-york-v4` asume React 19 (`ref` como prop). Un
+  componente que recibe un `ref` de Radix (`asChild`, `FormControl`, `Presence`) se convierte a
+  `React.forwardRef` (ya: `button`, `input`, `switch` y los overlays de `dialog`, `sheet`,
+  `alert-dialog`); los `verify-*` fallan con el aviso "Function components cannot be given refs".
+  Los textos de los componentes (p. ej. "Close") pasan por `t()`.
