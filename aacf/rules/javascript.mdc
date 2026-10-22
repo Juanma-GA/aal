@@ -1,0 +1,45 @@
+---
+description: JavaScript/TypeScript coding standards
+globs: "**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+# JavaScript / TypeScript Rules
+
+## TypeScript
+- Strict mode enabled (`strict: true` in tsconfig)
+- Explicit return types on exported functions
+- Prefer `interface` over `type` for object shapes
+- Use `unknown` over `any`; narrow types explicitly
+- Prefer `const` over `let`; never use `var`
+
+## React
+- Functional components only (no class components)
+- Custom hooks for reusable logic (prefix: `use`)
+- Memoize expensive computations (`useMemo`, `useCallback`)
+- Keys on list items (never index as key for dynamic lists)
+- No `localStorage`/`sessionStorage` — use Zustand + DB persistence
+
+## State Management
+- Zustand for global state
+- React Query / SWR for server state
+- Local state (`useState`) only for UI-only state
+- Never duplicate server state in client store
+
+## API Calls
+- Centralized API client (single `api.ts` module)
+- Type-safe request/response interfaces
+- Error handling in service layer, not components
+- Loading/error states in UI for all async operations
+
+## Styling
+- Tailwind CSS utility classes
+- shadcn/ui for component library
+- No inline styles except dynamic values
+- Responsive design (mobile-first)
+
+## Security
+- Never trust client-side validation alone
+- Sanitize dynamic content before rendering
+- CORS configuration matches allowed origins
+- No secrets in frontend code (use backend proxy)

@@ -1,0 +1,38 @@
+{
+  "app": {
+    "title": "AAL — Análisis de Apoyo Logístico",
+    "logoAlt": "Logotipo de em&e group"
+  },
+  "home": {
+    "title": "Estado del sistema",
+    "description": "Conexión con la API y la base de datos de AAL."
+  },
+  "status": {
+    "loading": "Comprobando la API…",
+    "connected": "API conectada",
+    "disconnected": "API no disponible",
+    "database": "Base de datos",
+    "databaseOk": "Operativa",
+    "migration": "Migración de la base de datos",
+    "migrationUpToDate": "{{current}} (al día)",
+    "migrationBehind": "{{current}}; el código espera {{head}}",
+    "migrationNone": "sin migraciones aplicadas"
+  },
+  "version": {
+    "app": "Versión de la aplicación",
+    "aacf": "Versión del AACF",
+    "unavailable": "No disponible"
+  },
+  "errors": {
+    "internal_error": "Error interno del servidor.",
+    "database_unavailable": "La base de datos no está disponible.",
+    "database_not_migrated": "La base de datos no está al día con el código: hay que aplicar las migraciones.",
+    "network_error": "No se puede contactar con el servidor.",
+    "http_error": "El servidor ha respondido con un error ({{status}}).",
+    "unknown": "Error del servidor: {{code}}.",
+    "ref": "Referencia del error: {{ref}}"
+  },
+  "actions": {
+    "retry": "Reintentar"
+  }
+}

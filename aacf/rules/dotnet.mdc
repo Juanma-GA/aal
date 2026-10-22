@@ -1,0 +1,43 @@
+---
+description: .NET coding standards
+globs: "**/*.{cs,csproj}"
+alwaysApply: false
+---
+
+# .NET Rules
+
+## General
+- .NET 8+ / C# 12+
+- Nullable reference types enabled
+- Use `async`/`await` for all I/O
+- Follow Microsoft naming conventions (PascalCase methods, camelCase locals)
+
+## Architecture
+- Clean Architecture or Vertical Slices
+- Dependency injection via built-in DI container
+- Repository pattern for data access
+- MediatR for CQRS if applicable
+
+## ASP.NET Core
+- Minimal APIs or Controllers (project preference)
+- FluentValidation for request validation
+- Strongly-typed configuration (`IOptions<T>`)
+- Structured logging with Serilog
+
+## Entity Framework Core
+- Code-first migrations
+- No raw SQL in controllers
+- AsNoTracking for read-only queries
+- Explicit includes (no lazy loading)
+
+## Security
+- Authentication via Keycloak OIDC (JwtBearer)
+- Authorization policies (not role checks in controllers)
+- Anti-forgery tokens for form submissions
+- Health checks endpoint exposed
+
+## Testing
+- xUnit for test framework
+- FluentAssertions for assertions
+- Moq or NSubstitute for mocking
+- Integration tests with WebApplicationFactory

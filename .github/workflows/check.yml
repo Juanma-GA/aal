@@ -1,0 +1,85 @@
+# Every push and PR: secret scan, then npm run check:all on Postgres 16, then
+# the browser check against the real backend and Vite.
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        env:
+          GITLEAKS_VERSION: 8.28.0
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
+          ./gitleaks git --redact --verbose --exit-code 1 .
+
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aal
+          POSTGRES_PASSWORD: aal
+          POSTGRES_DB: aal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Backend virtualenv (hashed lockfile)
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install --require-hashes -r requirements-dev.lock.txt
+      - name: Frontend dependencies (exact lockfile)
+        run: npm ci
+      - name: App database and test database
+        working-directory: backend
+        run: |
+          .venv/bin/python -m alembic upgrade head
+          cd .. && npm run test:db:create
+      - name: npm run check:all
+        run: npm run check:all
+      - name: verify-health (real Chromium, backend and Vite)
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          SHOTS_DIR: ${{ runner.temp }}/shots
+        run: |
+          mkdir -p "$SHOTS_DIR"
+          (cd backend && .venv/bin/uvicorn app.main:app --port 8000 > "$RUNNER_TEMP/uvicorn.log" 2>&1 &)
+          (npx vite --port 5173 --strictPort > "$RUNNER_TEMP/vite.log" 2>&1 &)
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5173/api/version > /dev/null && break
+            sleep 1
+          done
+          node scripts/verify-health.mjs
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-health
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: ignore

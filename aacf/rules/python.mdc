@@ -1,0 +1,45 @@
+---
+description: Python coding standards
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python Rules
+
+## Style
+- Python 3.12+ features allowed
+- Type hints on all function signatures
+- Docstrings for public functions (Google style)
+- Use `async`/`await` for I/O operations
+- Prefer `pathlib` over `os.path`
+- Use f-strings over `.format()` or `%`
+
+## Dependencies
+- Use `pyproject.toml` for dependency management
+- Pin exact versions in production
+- Use `uv` or `pip-compile` for lock files
+- No requirements.txt (use pyproject.toml)
+
+## Error Handling
+- Specific exceptions, never bare `except:`
+- Custom exception classes for business errors
+- Use `logging` module, not `print()`
+- Structured logging with context (JSON)
+
+## Database
+- SQLAlchemy 2.0 async style
+- Alembic for migrations
+- Connection pooling with asyncpg
+- Never raw SQL in route handlers
+
+## Testing
+- pytest for all tests
+- pytest-asyncio for async tests
+- Fixtures for database setup/teardown
+- Mock external services, not internal logic
+
+## FastAPI Specifics
+- Pydantic models for request/response validation
+- Dependency injection for services
+- Background tasks for async operations
+- Status codes: 200 success, 201 created, 400 bad request, 401 unauthorized, 403 forbidden, 404 not found, 500 internal error

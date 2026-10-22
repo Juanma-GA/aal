@@ -1,0 +1,23 @@
+# Development only: PostgreSQL 16 for the backend (DATABASE_URL in
+# backend/.env.example points here). The app itself runs with uvicorn and
+# Vite (CLAUDE.md, "Cómo levantar el entorno"); production uses nginx +
+# FastAPI on a server, not this file.
+#
+#   docker compose up -d        # start
+#   docker compose down         # stop (the data stays in the volume)
+services:
+  postgres:
+    image: postgres:16
+    container_name: aal-postgres
+    environment:
+      POSTGRES_USER: aal
+      POSTGRES_PASSWORD: aal
+      POSTGRES_DB: aal
+    ports:
+      - "5432:5432"
+    volumes:
+      - aal-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  aal-postgres-data:

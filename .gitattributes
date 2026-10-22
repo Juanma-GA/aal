@@ -1,0 +1,21 @@
+# Line endings (adapted from brdp-manager).
+#
+# On Windows git usually checks text files out with CRLF (core.autocrlf).
+# The files below are compared byte by byte by the checks or read by the
+# import tests, so they are LF on every checkout. Only these paths: the rest
+# of the repo keeps git's default. scripts/test-windows-safety.mjs checks
+# the two main lines are here.
+scripts/**                        text eol=lf
+backend/tests/fixtures/**         text eol=lf
+backend/alembic/**                text eol=lf
+src/i18n/locales/*.json           text eol=lf
+*.sh                              text eol=lf
+
+# Binary: never converted.
+*.png   binary
+*.xlsx  binary
+*.xls   binary
+*.docx  binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary

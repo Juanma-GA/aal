@@ -1,0 +1,34 @@
+---
+description: Global coding standards for all Atexis projects
+globs: **/*
+alwaysApply: true
+---
+
+# Atexis Global Rules
+
+## Security
+- NEVER hardcode credentials, tokens, or secrets
+- ALWAYS validate and sanitize user input
+- Use parameterized queries for database access
+- Apply principle of least privilege
+- Log security events to audit trail
+
+## Code Quality
+- Write clear, readable code over clever code
+- Follow existing project conventions and patterns
+- Handle all error cases explicitly
+- Use strong typing (TypeScript strict mode, Python type hints)
+- No TODO/FIXME in committed code
+
+## Architecture
+- Respect separation of concerns
+- Business logic belongs in services, not in route handlers
+- Database access only through repository/model layer
+- Configuration from environment, never hardcoded
+- All state in database, not localStorage/sessionStorage
+
+## Data Handling
+- Respect data classification levels
+- Never log PII or sensitive data
+- Encrypt sensitive data at rest
+- Use secure transport (HTTPS/TLS) for all communications

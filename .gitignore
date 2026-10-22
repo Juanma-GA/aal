@@ -1,0 +1,39 @@
+# Dependencies and builds
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.local
+
+# Environment files: the committed templates are .env.example and
+# backend/.env.example
+.env
+.env.*
+!.env.example
+backend/.env
+!backend/.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# JWT signing keys (E01), generated locally, never committed
+backend/keys/
+
+# Real customer files (D13): only private/README.md is versioned
+private/*
+!private/README.md
+
+# Logs and editors
+logs/
+*.log
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.sw?

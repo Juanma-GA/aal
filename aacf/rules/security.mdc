@@ -1,0 +1,45 @@
+---
+description: Security rules for all AI-assisted development
+globs: **/*
+alwaysApply: true
+---
+
+# Security Rules
+
+## Authentication & Authorization
+- Use Keycloak OIDC for authentication
+- Verify JWT tokens on every request
+- Check role-based permissions before data access
+- Implement session timeout and token rotation
+- Never trust client-side role claims without server verification
+
+## Input Validation
+- Validate ALL inputs at system boundaries
+- Use schema validation (Pydantic, Zod, etc.)
+- Reject unexpected fields (strict mode)
+- Limit string lengths, numeric ranges
+- Sanitize file names and paths (prevent traversal)
+
+## SQL Injection Prevention
+- ALWAYS use parameterized queries or ORM
+- NEVER concatenate user input into SQL strings
+- Use allowlists for dynamic table/column names
+- Log suspicious query patterns
+
+## XSS Prevention
+- Use framework default escaping (React JSX)
+- Never use dangerouslySetInnerHTML without sanitization
+- Set Content-Security-Policy headers
+- Validate URLs before rendering links
+
+## SSRF Prevention
+- Validate all user-provided URLs
+- Block private IP ranges (10.x, 172.16-31.x, 192.168.x)
+- Use allowlists for external service URLs
+- Never follow redirects to internal addresses
+
+## Secrets Management
+- Environment variables for all secrets
+- Fernet encryption for secrets stored in DB
+- Rotate credentials on schedule
+- Never log or return secrets in API responses
