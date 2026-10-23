@@ -23,7 +23,7 @@ from app.api.routes.users import confirmation_required, user_not_found, version_
 from app.core.errors import error_detail
 from app.db.base import get_db
 from app.models import AuditLog, Material, Role, User, UserMaterialRole
-from app.schemas.materials import ActivityEntry, MaterialCreate, MaterialOut, MaterialUpdate, MemberAssign, MemberOut
+from app.schemas.materials import ActivityEntry, MaterialCreate, MaterialOut, MaterialUpdate, MemberAssign, MemberOut, format_problems
 from app.services import audit
 from app.services.parameters import get_parameter
 from app.services.permissions import MaterialAccess, accessible_materials, material_access
@@ -46,6 +46,7 @@ def _out(access: MaterialAccess) -> MaterialOut:
         version=m.version,
         role=access.role,
         permissions=sorted(access.permissions),
+        format_problems=format_problems(m.noc, m.ncage),
     )
 
 

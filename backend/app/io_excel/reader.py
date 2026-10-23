@@ -119,7 +119,7 @@ def _check_headers(template: Template, header_rows: list[tuple[Any, ...]], resul
         for i, col in enumerate(template.columns):
             found = _header_text(cells[i] if i < len(cells) else None)
             expected = col.headers[r]
-            merged = found == "" and i > 0 and template.columns[i - 1].headers[r] == expected
+            merged = found == "" and (col.extra or (i > 0 and template.columns[i - 1].headers[r] == expected))
             if found.casefold() != expected.casefold() and not merged:
                 result.errors.append(
                     Issue("header_mismatch", {"expected": expected, "found": found}, row=r + 1, column=get_column_letter(i + 1))
@@ -159,7 +159,14 @@ def read_rows(template: Template, data: bytes, limits: Limits) -> ReadResult:
                     continue
                 if len(result.rows) >= limits.max_rows:
                     raise ExcelFileError("excel_too_many_rows", max=limits.max_rows)
-                result.rows.append(_parse_row(template, row_number, raw, formula_row))
+                parsed = _parse_row(template, row_number, raw, formula_row)
+                beyond = [i for i, v in enumerate(raw_row[width:], start=width) if v is not None and not (isinstance(v, str) and not v.strip())]
+                if beyond:
+                    # Never dropped in silence (HR7): the row says where.
+                    parsed.warnings.append(
+                        Issue("extra_cells_ignored", {"columns": ", ".join(get_column_letter(i + 1) for i in beyond)}, row=row_number)
+                    )
+                result.rows.append(parsed)
         except ExcelFileError:
             raise
         except Exception:
@@ -167,7 +174,8 @@ def read_rows(template: Template, data: bytes, limits: Limits) -> ReadResult:
     finally:
         values_book.close()
         formulas_book.close()
-    _check_duplicate_keys(template, result)
+    if template.unique_keys:
+        _check_duplicate_keys(template, result)
     return result
 
 

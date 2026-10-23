@@ -21,6 +21,8 @@ export interface ImportReport {
   new: { row: number; key: string; values: Record<string, string> }[];
   modified: { row: number; key: string; changes: ImportChange[] }[];
   unchanged: { row: number; key: string }[];
+  /** Only for a target whose import replaces the whole set (CONF_FUN). */
+  removed?: { row: null; key: string; values: Record<string, string> }[] | null;
   errors: ImportIssue[];
   warnings: ImportIssue[];
 }
@@ -30,6 +32,7 @@ export interface ImportCounts {
   new: number;
   modified: number;
   unchanged: number;
+  removed: number;
   errors: number;
   rows_with_errors: number;
   warnings: number;
@@ -41,7 +44,7 @@ export interface ImportJob {
   params: Record<string, string>;
   status: ImportJobStatus;
   file_name: string;
-  counts: Partial<ImportCounts>;
+  counts: Partial<ImportCounts> & Record<string, number>;
   report: ImportReport | null;
   error_code: string | null;
   error_params: Record<string, string | number>;

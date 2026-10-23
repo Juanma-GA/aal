@@ -115,9 +115,13 @@ async def run_analysis(job_id: uuid.UUID) -> None:
             target = get_target(job.template)
             template = await target.template(db, job.params)
             read = await asyncio.to_thread(read_rows, template, path.read_bytes(), await limits(db))
-            stored = await target.stored(db, job.params, template)
-            references = {t: await codes_by_state(db, t) for t in {c.ref_table for c in template.columns if c.ref_table}}
-            report = analyze(template, read, stored, references)
+            own_analysis = getattr(target, "analyze", None)
+            if own_analysis is not None:
+                report = await own_analysis(db, job.params, template, read)
+            else:
+                stored = await target.stored(db, job.params, template)
+                references = {t: await codes_by_state(db, t) for t in {c.ref_table for c in template.columns if c.ref_table}}
+                report = analyze(template, read, stored, references)
             outcome = {"status": "analyzed", "report": report, "counts": report["counts"], "analyzed_at": datetime.now(timezone.utc)}
         except ExcelFileError as exc:
             outcome = {"status": "failed", "error_code": exc.code, "report": {"error_params": exc.params}}
@@ -175,7 +179,7 @@ async def apply(db: AsyncSession, job_id: uuid.UUID, user: User, ip: str | None)
     if job.counts.get("errors"):
         raise _conflict("import_has_errors")
     template = await target.template(db, job.params)
-    if [c["field"] for c in job.report["columns"]] != [c.field for c in template.columns]:
+    if job.report.get("template_fields") != [c.field for c in template.columns]:
         # The template changed since the analysis (a table's attributes).
         raise _conflict("import_template_changed")
     await target.apply(db, job, template, user, ip)
@@ -191,5 +195,16 @@ async def apply(db: AsyncSession, job_id: uuid.UUID, user: User, ip: str | None)
         ip=ip,
     )
     await db.commit()
+    after = getattr(target, "after_apply", None)
+    if after is not None:
+        # The import is committed: a failure here is logged, never a 500
+        # that would make the person retry an import already applied.
+        try:
+            await after(db)
+            await db.commit()
+        except Exception:
+            ref = new_error_ref()
+            logger.exception("ref=%s import job %s: after_apply failed", ref, job.id, extra={"ref": ref})
+            await db.rollback()
     await db.refresh(job)
     return job

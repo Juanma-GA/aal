@@ -112,7 +112,7 @@ try {
   await page.screenshot({ path: shot('verify-navigation-1-panel.png'), fullPage: true });
 
   // ── 3. Three groups of the sidebar, and the CONFUNFIS card ─────────────
-  for (const [group, module] of [['base', 'catalogo-normalizado'], ['paal', 'candidatos'], ['pramt', 'amfec']]) {
+  for (const [group, module] of [['base', 'tabla-partes'], ['paal', 'candidatos'], ['pramt', 'amfec']]) {
     await page.getByTestId(`sidebar-group-${group}`).waitFor();
     await page.getByTestId(`sidebar-module-${module}`).click();
     await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/${module}`);
@@ -120,6 +120,12 @@ try {
     await page.locator('main h2', { hasText: name }).waitFor();
     assert((await page.getByTestId('module-card').count()) === 1, `${group}: the card of ${name}`);
   }
+  // An available module opens its own page: the common SNS catalog (E10),
+  // outside the material.
+  await page.getByTestId('sidebar-module-catalogo-normalizado').click();
+  await page.waitForURL(`${BASE_URL}/configuracion-funcional`);
+  await page.getByTestId('catalog-page').waitFor();
+  assert(true, 'base: "Configuración funcional normalizada" opens the common catalog');
   await page.getByTestId('sidebar-module-confunfis').click();
   await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/confunfis`);
   await page.locator('main h2', { hasText: 'Configuración funcional física' }).waitFor();

@@ -44,6 +44,10 @@ check('finds the keys the app uses', used.size >= 10, String(used.size));
 for (const key of used) check(`es.json has "${key}"`, ['string', 'object'].includes(typeof lookup(es, key)));
 
 for (const [key, value] of leaves(es)) check(`es.json "${key}" is not empty`, typeof value === 'string' && value.trim() !== '');
+// Words that only exist with their accent (E10: "articulos" was missing
+// one): none of the texts may carry them without it.
+const NEED_ACCENT = /\b(articulos?|codigos?|numeros?|sesion|contrasena|configuracion|funcion|informacion|descripcion|categorias?|subcategorias?|catalogos?|modulos?|parametros?|auditoria|analisis|accion|tambien|logistico|tecnico|aplicacion|importacion|exportacion|anadir|edicion|validacion|fisica|electronica|pagina|minimo|maximo|busqueda|ultimos?)\b/i;
+for (const [key, value] of leaves(es)) check(`es.json "${key}" has its accents`, !NEED_ACCENT.test(String(value)), String(value));
 
 // The backend's sanitized error codes.
 const codes = new Set();

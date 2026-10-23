@@ -4,8 +4,8 @@ JSON. The normalization rules, all of them here (E03 §2.2):
 - Excel's own escapes (_xHHHH_) are undone; spaces before and after a text
   are removed (inside it they stay); an empty or blank cell is no value.
 - TEXT: a number is written as text without ".0" (2.0 -> "2"); with
-  `zero_pad` it is a code of that width ("2" -> "02", reported as a
-  warning). With `choices`, the code or the label (any case) give the code.
+  `zero_pad`, a number or a text of fewer digits is a code of that width
+  ("2" -> "02", reported as a warning); with `upper`, in upper case. With `choices`, the code or the label (any case) give the code.
   True/False or a date in a text column is an error.
 - INTEGER: an integer number or text of digits (with a sign); 2.0 is 2;
   2.5 is an error.
@@ -65,14 +65,13 @@ def _text(col: Column, raw: Any) -> Normalized:
     warning = None
     if isinstance(raw, bool) or isinstance(raw, (datetime, date)):
         raise CellError("not_text")
-    if isinstance(raw, (int, float)):
-        text = _number_text(raw)
-        if col.zero_pad and text.isdigit() and len(text) < col.zero_pad:
-            padded = text.zfill(col.zero_pad)
-            warning = ("number_read_as_code", {"value": text, "code": padded})
-            text = padded
-    else:
-        text = str(raw)
+    text = _number_text(raw) if isinstance(raw, (int, float)) else str(raw)
+    if col.zero_pad and text.isdigit() and len(text) < col.zero_pad:
+        padded = text.zfill(col.zero_pad)
+        warning = ("number_read_as_code", {"value": text, "code": padded})
+        text = padded
+    if col.upper:
+        text = text.upper()
     if col.choices:
         for code, label in col.choices:
             if text.casefold() in (code.casefold(), label.casefold()):

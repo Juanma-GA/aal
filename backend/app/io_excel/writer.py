@@ -45,11 +45,11 @@ def _number_format(col) -> str:
     return TEXT_FORMAT
 
 
-def _group_runs(template: Template) -> list[tuple[int, int]]:
+def _group_runs(columns) -> list[tuple[int, int]]:
     """(first, last) column indexes of each run of equal groups."""
     runs: list[tuple[int, int]] = []
-    for i, col in enumerate(template.columns):
-        if runs and template.columns[runs[-1][0]].headers[0] == col.headers[0]:
+    for i, col in enumerate(columns):
+        if runs and columns[runs[-1][0]].headers[0] == col.headers[0]:
             runs[-1] = (runs[-1][0], i)
         else:
             runs.append((i, i))
@@ -58,29 +58,30 @@ def _group_runs(template: Template) -> list[tuple[int, int]]:
 
 def write_workbook(template: Template, rows: Iterable[dict[str, Any]]) -> bytes:
     """`rows` are field -> value (as cells.normalize returns them)."""
+    columns = template.written_columns
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = template.sheet
 
     for r in range(template.header_rows):
-        for i, col in enumerate(template.columns):
+        for i, col in enumerate(columns):
             cell = sheet.cell(row=r + 1, column=i + 1)
             cell.font, cell.fill = _HEADER_FONT, _HEADER_FILL
             cell.alignment = Alignment(vertical="center", wrap_text=True)
             cell.value = excel_text(col.headers[r])
             cell.data_type = "s"
     if template.header_rows == 2:
-        for first, last in _group_runs(template):
+        for first, last in _group_runs(columns):
             if last > first:
                 sheet.merge_cells(start_row=1, start_column=first + 1, end_row=1, end_column=last + 1)
 
-    for i, col in enumerate(template.columns):
+    for i, col in enumerate(columns):
         dimension = sheet.column_dimensions[get_column_letter(i + 1)]
         dimension.width = col.width or max(12, len(col.title) + 2)
         dimension.number_format = _number_format(col)
 
     for row_number, values in enumerate(rows, start=template.first_data_row):
-        for i, col in enumerate(template.columns):
+        for i, col in enumerate(columns):
             value = values.get(col.field)
             if value is None:
                 continue

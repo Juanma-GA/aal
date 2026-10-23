@@ -235,3 +235,75 @@ borrado físico, `must_be_in`, motor: cabeceras de 1 y 2 filas, cada tipo, error
 tamaños, fórmulas sin valor, round-trip D155 161 sin cambios, 2 modificados con su diff, analizar
 no escribe, aplicar con errores 409, análisis caducado) y 6 `test:js`; `verify-reference-tables`,
 `verify-navigation`, `verify-auth-settings` y `verify-health` en verde.
+
+## E10 — Configuración funcional normalizada (catálogo SNS)
+
+**Qué.**
+- Flecos:
+  - Material: NOC y NCAGE se normalizan (mayúsculas, sin espacios) antes de validarse, en backend y
+    formulario; un material guardado antes sin formato se conserva y el listado lo marca con
+    "Formato no válido" (`format_problems`). La validación de formato existía desde E01: lo nuevo es
+    normalizar y avisar.
+  - i18n: los textos de `es.json` ya decían "artículos" ("articulos" solo queda en códigos internos
+    de permisos). `test-i18n-keys` vigila ahora una lista de palabras que solo existen con tilde.
+  - `demo/` versionada con los cuatro adjuntos (D14) y `scripts/seed_demo_materials.py`, que crea
+    los 5 materiales del LEEME con los tres usuarios de desarrollo y es idempotente.
+  - Panel: "Estado de la herramienta" · "Módulos del PALI disponibles en la aplicación".
+- Backend:
+  - Migración `0005` (`catalog_version`, `material_category`, `material_subcategory`,
+    `sns_position`, `subcategory_sns`, `sns_extra_name`); el módulo `catalogo-normalizado` pasa a
+    disponible con ruta `/configuracion-funcional`.
+  - Plantilla `io_excel` "CONF_FUN (Anexo II)", con su análisis propio contra la versión activa:
+    nuevos, modificados campo a campo, sin cambios, eliminados y avisos CN-001…CN-006.
+  - Aplicar crea una versión nueva y la deja activa; las anteriores se conservan.
+  - API de lectura: versiones, categorías, árbol por niveles, búsqueda paginada, ficha del SNS,
+    avisos, diff entre versiones y exportación (versión o subcategoría).
+  - El motor Excel admite ahora una columna extra sin cabecera, mayúsculas, claves repetidas,
+    `analyze()` y `after_apply()` propios del consumidor, y avisa de datos fuera de la plantilla.
+- Frontend: pantalla en tres paneles (categorías → subcategorías; árbol virtualizado con carga
+  perezosa; ficha), buscador, selector de versión, "Importar nueva versión" (admin), "Avisos de la
+  versión", "Comparar versiones" y "Exportar a Excel". El `ImportWizard` gana la pestaña "Eliminados"
+  y paginación.
+
+**Decisiones.**
+- **Categorías y subcategorías comunes a todas las versiones y reconciliadas:** se añaden las
+  nuevas, se actualiza un nombre que cambie y nunca se borra ninguna. E11 ligará cada CUF a
+  subcategorías estables.
+- **Ruta del módulo fuera del material** (`/configuracion-funcional`): el sidebar de cualquier
+  material la abre; la página no cambia de material activo.
+- **CN-002 y CN-003 dan 2 en la demo, no 1.**
+  - `B34510` es CONJUNTO por su código y está declarado SUBCONJUNTO, así que es también CN-002.
+  - `D53000` cuelga de `D50000`, que no está en el fichero, así que es también CN-003.
+  - Las reglas se aplican tal cual (HR7); `demo/` no se toca. Los tests fijan 2 y 2.
+- **Un nombre distinto en otra subcategoría** se guarda como nombre adicional con origen
+  `OTRA_SUBCATEGORIA`. CN-001 queda para el mismo SNS con otro nombre dentro de la misma
+  subcategoría, filas ELEMENTO incluidas.
+- **Las filas sin categoría (CN-004)** se guardan, cuentan como SNS y no entran en CN-002 ni CN-003
+  (no tienen árbol).
+- **CN-005** une la descripción y la novena columna con ", " y quita las comillas sobrantes.
+- **El diff compara además las filas de cada SNS** (subcategoría, nivel, nombre y descripción): un
+  cambio en una sola subcategoría también cuenta.
+- **Recuentos y tiempos del fichero real:** no ejecutado, porque `private/CONF_FUN_V3_0.xlsx` no
+  está en este entorno (`verify-conf-fun-real` sale con 2). Con un fichero sintético de 7 750 filas:
+  análisis 3,4–3,8 s en segundo plano, aplicar 1,1–1,3 s y raíz del árbol 118 ms (con `ANALYZE` tras
+  la carga masiva).
+
+**Revisión (code-reviewer y security-reviewer).** Sin bloqueantes. Corregido:
+- el diff no veía el cambio de una fila concreta;
+- la primera importación podía cruzarse con otra (ahora hay un bloqueo consultivo);
+- la exportación y el armado del catálogo bloqueaban la API (ahora van en un hilo);
+- el diff cargaba objetos ORM completos;
+- el `ImportWizard` pintaba miles de filas;
+- se perdían en silencio datos más allá de la novena columna;
+- se aceptaba un nivel desactivado;
+- `repair_split` con una descripción vacía;
+- un fallo de `ANALYZE` daba 500;
+- el endpoint de etiqueta y notas no tenía interfaz (se retira);
+- un error del árbol se tragaba;
+- el purge solo borra versiones `verify-…` y restaura los nombres de categorías.
+
+**Commits.** (se anota el de cierre)
+
+**Tests.** `npm run check:all` verde (ver el informe). `verify-conf-fun`, `verify-navigation` (ahora
+abre también el catálogo desde el sidebar), `verify-reference-tables`, `verify-auth-settings` y
+`verify-health` en verde.

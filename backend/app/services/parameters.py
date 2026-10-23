@@ -60,6 +60,11 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
         # process stopped) and marked failed the next time it is read.
         "stale_minutes": 30,
     },
+    # The normalized functional configuration (E10): search and diff pages.
+    "catalog": {
+        "page_size": 50,
+        "max_page_size": 200,
+    },
     # Settings -> Auditoría.
     "audit": {
         "page_size": 50,

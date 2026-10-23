@@ -88,7 +88,11 @@
     "reference_value_inactive": "El valor de «{{field}}» está desactivado en la tabla {{table}}.",
     "reference_value_not_found": "El valor no existe en esta tabla.",
     "reference_value_unknown": "El valor de «{{field}}» no está en la tabla {{table}}.",
-    "import_template_changed": "La plantilla de la tabla ha cambiado desde el análisis. Vuelve a analizar el fichero."
+    "import_template_changed": "La plantilla de la tabla ha cambiado desde el análisis. Vuelve a analizar el fichero.",
+    "catalog_version_changed": "Se ha importado otra versión del catálogo desde este análisis. Vuelve a analizar el fichero.",
+    "catalog_version_not_found": "Esa versión del catálogo no existe.",
+    "sns_not_found": "Ese SNS no está en esta versión del catálogo.",
+    "subcategory_not_found": "Esa subcategoría no existe."
   },
   "actions": {
     "retry": "Reintentar",
@@ -144,7 +148,8 @@
     "userMenu": "Menú de {{name}}",
     "admin": "Administrador",
     "referenceTables": "Tablas de referencia",
-    "articleFields": "Campos del artículo"
+    "articleFields": "Campos del artículo",
+    "catalog": "Configuración funcional normalizada"
   },
   "material": {
     "activeTitle": "Material activo",
@@ -255,7 +260,8 @@
       "removeTitle": "¿Quitar a {{name}} de este material?",
       "removeHint": "Perderá el acceso al material.",
       "empty": "No hay materiales.",
-      "noMembers": "Este material todavía no tiene miembros."
+      "noMembers": "Este material todavía no tiene miembros.",
+      "invalidFormat": "Formato no válido"
     },
     "roles": {
       "hint": "Matriz sembrada en la base de datos. En esta versión es de solo lectura.",
@@ -292,7 +298,8 @@
         "auth": "Autenticación",
         "audit": "Auditoría",
         "panel": "Panel del material",
-        "import": "Importación de Excel"
+        "import": "Importación de Excel",
+        "catalog": "Configuración funcional normalizada"
       },
       "labels": {
         "access_token_minutes": "Duración del token de acceso (minutos)",
@@ -355,7 +362,8 @@
       "reference_value.activated": "Valor de referencia activado",
       "reference_value.deactivated": "Valor de referencia desactivado",
       "reference_value.created": "Valor de referencia creado",
-      "reference_value.updated": "Valor de referencia editado"
+      "reference_value.updated": "Valor de referencia editado",
+      "catalog_version.imported": "Versión del catálogo importada"
     },
     "entities": {
       "user": "Usuario",
@@ -367,7 +375,8 @@
       "module_catalog": "Catálogo de módulos",
       "import_job": "Importación",
       "reference_table": "Tabla de referencia",
-      "reference_value": "Valor de referencia"
+      "reference_value": "Valor de referencia",
+      "catalog_version": "Versión del catálogo"
     }
   },
   "nav": {
@@ -383,8 +392,8 @@
     "team": "Equipo del material",
     "teamHint": "Quién trabaja en este material y con qué rol.",
     "noTeam": "Este material todavía no tiene miembros.",
-    "progress": "Avance del AAL",
-    "progressHint": "Módulos del PALI por estado, por fase y por grupo.",
+    "progress": "Estado de la herramienta",
+    "progressHint": "Módulos del PALI disponibles en la aplicación",
     "groupProgress": "{{done}} de {{total}} disponibles · {{building}} en desarrollo",
     "groupProgressLabel": "Módulos disponibles de {{group}}",
     "activity": "Actividad reciente",
@@ -496,7 +505,8 @@
       "modified": "Modificados",
       "unchanged": "Sin cambios",
       "errors": "Errores",
-      "warnings": "Avisos"
+      "warnings": "Avisos",
+      "removed": "Eliminados"
     },
     "row": "Fila",
     "key": "Clave",
@@ -535,7 +545,112 @@
       "sheet_missing": "El libro no tiene la hoja «{{sheet}}».",
       "too_long": "Texto de {{length}} caracteres: el máximo es {{max}}. No se recorta.",
       "too_many_decimals": "Más de {{max}} decimales. No se redondea.",
-      "too_many_digits": "Más de {{max}} cifras."
-    }
+      "too_many_digits": "Más de {{max}} cifras.",
+      "not_two_digits": "El código debe tener dos cifras.",
+      "subcategory_incomplete": "La fila tiene categoría o subcategoría, pero no las dos.",
+      "sns_invalid": "«{{value}}» no es un SNS: son 6 caracteres, letras mayúsculas y cifras.",
+      "cn_001": "{{sns}} tiene varios nombres en la misma subcategoría: {{names}} (filas {{rows}}).",
+      "cn_002": "{{sns}} está declarado {{declared}}, pero por su código es {{derived}}.",
+      "cn_003": "El padre de {{sns}} ({{parent}}) no está en el catálogo.",
+      "cn_004": "{{sns}} no tiene categoría ni subcategoría.",
+      "cn_005": "La descripción de {{sns}} venía partida en dos columnas: se ha unido.",
+      "cn_006": "La descripción de {{sns}} está pendiente ({{mark}}).",
+      "extra_cells_ignored": "Hay datos fuera de la plantilla (columnas {{columns}}): no se importan."
+    },
+    "page": "Página {{page}} de {{pages}} · {{total}} filas"
+  },
+  "catalog": {
+    "title": "Configuración funcional normalizada",
+    "hint": "Catálogo de posiciones funcionales SNS por categoría y subcategoría de material (NT 10/17, Anexo II). Es común a todos los materiales y solo cambia importando una versión nueva.",
+    "version": "Versión del catálogo",
+    "versionLabel": "Versión {{number}} · {{label}}",
+    "active": "activa",
+    "import": "Importar nueva versión",
+    "importTitle": "Importar una versión del catálogo (CONF_FUN)",
+    "exportVersion": "Versión completa",
+    "exportSubcategory": "Subcategoría {{code}}",
+    "exportChooseSubcategory": "Subcategoría (elige una)",
+    "empty": "Todavía no se ha importado ninguna versión del catálogo.",
+    "emptyAdmin": "Todavía no hay catálogo: impórtalo con «Importar nueva versión».",
+    "tabs": {
+      "catalogo": "Catálogo",
+      "avisos": "Avisos de la versión",
+      "comparar": "Comparar versiones"
+    },
+    "categories": "Categorías y subcategorías",
+    "snsCount": "{{count}} SNS",
+    "uncategorized": "{{count}} filas sin categoría (ver avisos).",
+    "chooseSubcategory": "Elige una subcategoría para ver su árbol.",
+    "chooseSns": "Elige un SNS para ver su ficha.",
+    "tree": "Árbol SNS de la subcategoría",
+    "expand": "Desplegar {{sns}}",
+    "collapse": "Plegar {{sns}}",
+    "pending": "Descripción pendiente",
+    "search": "Buscar SNS por código o nombre",
+    "results": "{{count}} resultados",
+    "page": "Página {{page}} de {{pages}}",
+    "sns": "SNS",
+    "description": "Descripción",
+    "declared": "declarado",
+    "extraNames": "Nombres adicionales",
+    "origins": {
+      "elemento": "Fila ELEMENTO",
+      "cn001": "Otro nombre (CN-001)",
+      "otherSubcategory": "Nombre en otra subcategoría"
+    },
+    "parent": "Padre",
+    "noParent": "Es un sistema: no tiene padre.",
+    "parentMissing": "Su padre ({{sns}}) no está en el catálogo.",
+    "children": "Hijos ({{count}})",
+    "appearances": "Dónde aparece",
+    "noSubcategory": "Sin subcategoría",
+    "row": "fila {{row}}",
+    "levels": {
+      "SISTEMA": "Sistema",
+      "SUBSISTEMA": "Subsistema",
+      "SUBSUBSISTEMA": "Subsubsistema",
+      "CONJUNTO": "Conjunto",
+      "SUBCONJUNTO": "Subconjunto",
+      "ELEMENTO": "Elemento"
+    },
+    "warningsHint": "Incoherencias del propio catálogo detectadas al importarlo. Ninguna fila se descarta: todas siguen en la versión.",
+    "warnings": {
+      "cn_001": {
+        "title": "CN-001 · SNS con varios nombres",
+        "hint": "Un SNS que aparece en la misma subcategoría con otro nombre (también una fila ELEMENTO). Los demás nombres se guardan como nombres adicionales."
+      },
+      "cn_002": {
+        "title": "CN-002 · Nivel declarado distinto del código",
+        "hint": "El nivel funcional del fichero no es el que corresponde al código SNS (NT §6)."
+      },
+      "cn_003": {
+        "title": "CN-003 · SNS sin padre",
+        "hint": "El padre que se deduce del código no está en el catálogo."
+      },
+      "cn_004": {
+        "title": "CN-004 · Fila sin categoría",
+        "hint": "La fila no tiene categoría ni subcategoría: no aparece en ningún árbol."
+      },
+      "cn_005": {
+        "title": "CN-005 · Descripción partida",
+        "hint": "La descripción venía en dos columnas por unas comillas sin escapar en el origen: se ha unido."
+      },
+      "cn_006": {
+        "title": "CN-006 · Descripción pendiente",
+        "hint": "Filas con la descripción «PTE» o que empieza por «TBD»."
+      }
+    },
+    "compareNeedsTwo": "Para comparar hacen falta al menos dos versiones.",
+    "compareFrom": "Desde la versión",
+    "compareTo": "Hasta la versión",
+    "changeKind": "Cambio",
+    "allChanges": "Todos",
+    "changes": {
+      "new": "Nuevos",
+      "modified": "Modificados",
+      "removed": "Eliminados",
+      "unchanged": "Sin cambios"
+    },
+    "noDifferences": "No hay diferencias."
   }
 }

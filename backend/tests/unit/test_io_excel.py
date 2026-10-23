@@ -71,7 +71,7 @@ def col(name: str) -> Column:
 
 @pytest.mark.parametrize(
     "raw, expected",
-    [(2, "02"), (2.0, "02"), ("  AB ", "AB"), ("7", "7"), (12, "12")],
+    [(2, "02"), (2.0, "02"), ("  AB ", "AB"), ("7", "07"), (12, "12")],
 )
 def test_text_codes(raw, expected):
     assert normalize(col("code"), raw).value == expected

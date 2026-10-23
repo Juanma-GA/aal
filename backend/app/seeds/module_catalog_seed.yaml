@@ -61,7 +61,8 @@ modulos:
   nombre: Configuración funcional normalizada
   orden: 2
   fase: '1'
-  estado: planificado
+  estado: disponible
+  ruta: /configuracion-funcional
   encargo: E10
   objetivo: Mantener el catálogo de posiciones funcionales SNS por categoría y subcategoría de material (NT 10/17 §8, Anexo
     II), con versiones e importación desde Excel.

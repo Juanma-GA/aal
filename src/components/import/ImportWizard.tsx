@@ -22,7 +22,10 @@ import { applyImportJob, fetchImportJob } from '@/services/importsApi';
 import type { ImportIssue, ImportJob, ImportReport } from '@/types/imports';
 
 const POLL_MS = 1000;
-const TABS = ['new', 'modified', 'unchanged', 'errors', 'warnings'] as const;
+// Rows per page of a report tab: a first real CONF_FUN import has thousands
+// of new SNS, and the whole list is still there page by page (HR6).
+const PAGE_SIZE = 200;
+const TABS = ['new', 'modified', 'unchanged', 'removed', 'errors', 'warnings'] as const;
 type Tab = (typeof TABS)[number];
 
 interface Props {
@@ -35,6 +38,27 @@ interface Props {
   onApplied?: (job: ImportJob) => void;
 }
 
+/** One page of `items`, and the controls to move (none for a single page). */
+function usePage<T>(items: T[]): [T[], React.ReactNode] {
+  const { t } = useTranslation();
+  const [page, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const current = Math.min(page, pages - 1);
+  const controls =
+    pages > 1 ? (
+      <div className="flex items-center justify-end gap-2 py-2 text-sm">
+        <Button size="sm" variant="outline" disabled={current === 0} onClick={() => setPage(current - 1)}>
+          {t('actions.previous')}
+        </Button>
+        {t('import.page', { page: current + 1, pages, total: items.length })}
+        <Button size="sm" variant="outline" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>
+          {t('actions.next')}
+        </Button>
+      </div>
+    ) : null;
+  return [items.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE), controls];
+}
+
 function useIssueText() {
   const { t } = useTranslation();
   return (issue: ImportIssue) => t(`import.issues.${issue.code}`, { ...issue.params, defaultValue: '' }) || humanize(issue.code);
@@ -43,8 +67,10 @@ function useIssueText() {
 function Issues({ issues, testId }: { issues: ImportIssue[]; testId: string }): React.JSX.Element {
   const { t } = useTranslation();
   const text = useIssueText();
+  const [shown, controls] = usePage(issues);
   if (issues.length === 0) return <p className="py-4 text-sm text-muted-foreground">{t('import.nothing')}</p>;
   return (
+    <>
     <Table data-testid={testId}>
       <TableHeader>
         <TableRow>
@@ -54,7 +80,7 @@ function Issues({ issues, testId }: { issues: ImportIssue[]; testId: string }): 
         </TableRow>
       </TableHeader>
       <TableBody>
-        {issues.map((issue, i) => (
+        {shown.map((issue, i) => (
           <TableRow key={`${issue.row ?? 0}-${issue.column ?? ''}-${issue.code}-${i}`}>
             <TableCell className="whitespace-nowrap">
               {issue.row === null
@@ -69,6 +95,8 @@ function Issues({ issues, testId }: { issues: ImportIssue[]; testId: string }): 
         ))}
       </TableBody>
     </Table>
+    {controls}
+    </>
   );
 }
 
@@ -77,10 +105,14 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
   const [tab, setTab] = useState<Tab>(counts.errors ? 'errors' : counts.modified ? 'modified' : counts.new ? 'new' : 'unchanged');
   const valueColumns = report.columns.filter((c) => c.field !== report.columns[0]?.field);
   const empty = <p className="py-4 text-sm text-muted-foreground">{t('import.nothing')}</p>;
+  const [newRows, newPages] = usePage(report.new);
+  const [modifiedRows, modifiedPages] = usePage(report.modified);
+  const [unchangedRows, unchangedPages] = usePage(report.unchanged);
+  const [removedRows, removedPages] = usePage(report.removed ?? []);
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
       <TabsList className="flex-wrap">
-        {TABS.map((name) => (
+        {TABS.filter((name) => name !== 'removed' || report.removed).map((name) => (
           <TabsTrigger key={name} value={name} data-testid={`import-tab-${name}`}>
             {t(`import.tabs.${name}`)}
             <Badge variant={name === 'errors' && counts.errors ? 'destructive' : 'secondary'} data-testid={`import-count-${name}`}>
@@ -101,7 +133,7 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.new.map((row) => (
+                {newRows.map((row) => (
                   <TableRow key={row.row}>
                     <TableCell>{row.row}</TableCell>
                     <TableCell className="font-mono">{row.key}</TableCell>
@@ -111,6 +143,7 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
               </TableBody>
             </Table>
           )}
+          {newPages}
         </TabsContent>
         <TabsContent value="modified">
           {report.modified.length === 0 ? empty : (
@@ -125,7 +158,7 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.modified.flatMap((row) =>
+                {modifiedRows.flatMap((row) =>
                   row.changes.map((change, i) => (
                     <TableRow key={`${row.row}-${change.field}`}>
                       <TableCell>{i === 0 ? row.row : ''}</TableCell>
@@ -139,6 +172,7 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
               </TableBody>
             </Table>
           )}
+          {modifiedPages}
         </TabsContent>
         <TabsContent value="unchanged">
           {report.unchanged.length === 0 ? empty : (
@@ -150,7 +184,7 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {report.unchanged.map((row) => (
+                {unchangedRows.map((row) => (
                   <TableRow key={row.row}>
                     <TableCell>{row.row}</TableCell>
                     <TableCell className="font-mono">{row.key}</TableCell>
@@ -159,6 +193,28 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
               </TableBody>
             </Table>
           )}
+          {unchangedPages}
+        </TabsContent>
+        <TabsContent value="removed">
+          {!report.removed?.length ? empty : (
+            <Table data-testid="import-removed">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('import.key')}</TableHead>
+                  {valueColumns.map((c) => <TableHead key={c.field}>{c.header}</TableHead>)}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {removedRows.map((row) => (
+                  <TableRow key={row.key}>
+                    <TableCell className="font-mono">{row.key}</TableCell>
+                    {valueColumns.map((c) => <TableCell key={c.field} className="whitespace-normal">{row.values[c.field] ?? ''}</TableCell>)}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {removedPages}
         </TabsContent>
         <TabsContent value="errors">
           <Issues issues={report.errors} testId="import-errors" />

@@ -75,6 +75,12 @@ Los ficheros reales del cliente (NT "USO OFICIAL", CONFUNFIS con NOC reales…) 
 usan **fixtures sintéticos** con la misma forma y anomalías. Un `verify-*` que necesite ficheros reales
 y no los tenga sale con **código 2 ("NOT RUN")**, nunca 1.
 
+**Datos de demo (D14).** `demo/` está versionada porque **todos sus datos son inventados** (material
+VTL 4X4 TRAMONTANA, NOC/NPC con `X` en la 7.ª posición, NCAGE `DEMO1`…`DEMO5`): no contiene nada del
+cliente. `demo/LEEME_DATOS_DEMO.md` es la referencia de la demo (materiales, ficheros por encargo,
+ejemplos NT y anomalías con sus recuentos); los encargos la usan como fixture y criterio de
+verificación, y **no se modifica** (un caso de test más va en un fixture aparte).
+
 ## Estructura
 
 ```
@@ -85,6 +91,7 @@ backend/app/         api/routes, core, db, models, schemas, services, seeds, io_
 backend/alembic/     migraciones
 backend/scripts/     create_test_db.py, check_test_db.py
 backend/tests/       unit/, integration/ (con _testdb.py y conftest.py)
+demo/                datos de demo inventados (D14), versionados
 docs/                plan/, encargos/, instalacion/ (certificado corporativo, PowerShell), historial-cambios.md
 aacf/                copia del framework
 private/             IGNORADO: ficheros reales del cliente

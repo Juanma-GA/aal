@@ -33,6 +33,8 @@ export interface Material {
   version: number;
   role: string | null;
   permissions: string[];
+  /** Stored identifiers without their format (saved before E10). */
+  format_problems: ('noc' | 'ncage')[];
 }
 
 export interface MaterialFields {

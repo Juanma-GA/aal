@@ -25,15 +25,18 @@ interface FormValues {
 }
 
 const optional = (value: string): string | null => (value.trim() === '' ? null : value.trim());
+// NOC and NCAGE are checked as the server checks them: upper case, without
+// any space (NT 10/17 §9.1.3).
+const code = (value: string): string => value.replace(/\s+/g, '').toUpperCase();
 
 export function MaterialFormDialog({ open, material, onOpenChange, onSubmit }: Props): React.JSX.Element {
   const { t } = useTranslation();
   // The same formats the server checks (backend/app/schemas/materials.py).
   const schema = z.object({
-    noc: z.string().trim().regex(/^([0-9A-Z]{13})?$/, t('validation.noc')),
+    noc: z.string().transform(code).pipe(z.string().regex(/^([0-9A-Z]{13})?$/, t('validation.noc'))),
     name: z.string().trim().min(1, t('validation.required')).max(200, t('validation.maxLength', { max: 200 })),
     part_number: z.string().trim().max(32, t('validation.maxLength', { max: 32 })),
-    ncage: z.string().trim().regex(/^([0-9A-Z]{5})?$/, t('validation.ncage')),
+    ncage: z.string().transform(code).pipe(z.string().regex(/^([0-9A-Z]{5})?$/, t('validation.ncage'))),
     description: z.string().max(4000, t('validation.maxLength', { max: 4000 })),
   });
   const form = useForm<FormValues>({ resolver: zodResolver(schema) });

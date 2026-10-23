@@ -102,6 +102,9 @@ class ImportReportOut(BaseModel):
     new: list[dict[str, Any]]
     modified: list[dict[str, Any]]
     unchanged: list[dict[str, Any]]
+    # Records the file no longer has (a target whose import replaces the
+    # whole set, the CONF_FUN catalog); absent otherwise.
+    removed: list[dict[str, Any]] | None = None
     errors: list[ImportIssueOut]
     warnings: list[ImportIssueOut]
 

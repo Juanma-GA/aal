@@ -208,7 +208,7 @@ async def test_a_template_changed_since_the_analysis_stops_applying(client, admi
     job = (await analyse(client, admin, "NAE", edit(await export(client, admin, "NAE"), {"B2": "Otro"}, "NAE"))).json()
     async with async_session_factory() as session:
         stored = await session.get(ImportJob, job["id"])
-        stored.report = {**stored.report, "columns": stored.report["columns"][:-1]}
+        stored.report = {**stored.report, "template_fields": stored.report["template_fields"][:-1]}
         await session.commit()
     res = await client.post(f"/api/import-jobs/{job['id']}/apply", headers=admin)
     assert (res.status_code, res.json()["detail"]["code"]) == (409, "import_template_changed")

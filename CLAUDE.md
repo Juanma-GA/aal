@@ -34,7 +34,9 @@ P/N + NCAGE (D16).
 en Windows como entorno de desarrollo: ver "Red corporativa y Windows".
 
 **D13**: los ficheros reales del cliente van solo a `private/` (ignorado); los tests usan fixtures
-sintéticos; un `verify-*` que necesite ficheros reales sale con código 2 ("NOT RUN").
+sintéticos; un `verify-*` que necesite ficheros reales sale con código 2 ("NOT RUN"). **D14**: `demo/`
+sí va al repo porque todos sus datos son inventados; `demo/LEEME_DATOS_DEMO.md` es la referencia de la
+demo y `demo/` no se modifica.
 
 ## Rama de trabajo única (D18)
 
@@ -67,6 +69,7 @@ cp .env.example .env                     # y ajustar DATABASE_URL si hace falta
 .venv/bin/python -m alembic upgrade head
 .venv/bin/python scripts/create_admin_user.py admin@empresa.es   # contraseña: INITIAL_ADMIN_PASSWORD o se pide
 .venv/bin/python scripts/seed_dev_data.py                 # material sintético + analista/revisor/observador
+.venv/bin/python scripts/seed_demo_materials.py           # los 5 materiales de demo/LEEME_DATOS_DEMO.md
 .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -176,10 +179,16 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   tablas sin edición. Mismas credenciales que `verify-navigation`. Deja la base como estaba: guarda
   D112 antes y la restaura después, versiones incluidas (`purge_verify_data.py --save-reference` /
   `--restore-reference`), y borra su `import_job`.
+- **`verify-conf-fun.mjs`** (E10): el admin importa `demo/CONF_FUN_DEMO.xlsx` (informe con los
+  recuentos), recorre Vehículos de ruedas hasta `A21031`, busca `A27010` y `A21030` (ruedas y cadenas),
+  abre "Avisos de la versión", y el analista ve el catálogo sin "Importar". Deja la base como estaba
+  (`purge_verify_data.py --catalog-versions`). **`verify-conf-fun-real.mjs`**: importa
+  `private/CONF_FUN_V3_0.xlsx` por la API, coteja las cifras del encargo y mide tiempos; sin el fichero,
+  2 (NOT RUN). No está en la CI.
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
-  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` con Chrome
+  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` con Chrome
   contra uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
@@ -290,7 +299,16 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   → `POST /api/import-jobs/{id}/apply` (sin errores, una transacción, auditoría por registro; 409 si
   algo cambió). Reglas de normalización en `cells.py`; nunca se recorta (HR6). Un consumidor nuevo
   implementa `ImportTarget` (`targets.py`, `register()`), como `app/services/reference_import.py`, y
-  usa `src/components/import/ImportWizard.tsx` con su `start`. Límites: parámetro `import`.
+  usa `src/components/import/ImportWizard.tsx` con su `start`. Límites: parámetro `import`. Un
+  consumidor cuyos registros no son una fila cada uno (CONF_FUN) define su propio `analyze()` y,
+  si hace carga masiva, `after_apply()` (estadísticas de la tabla).
+- **Configuración funcional normalizada (E10)**: catálogo SNS común (no cuelga de ningún material),
+  por versiones (`catalog_version`, una sola activa; las anteriores se conservan). Cada importación de
+  CONF_FUN crea una versión; categorías y subcategorías (`material_category`/`material_subcategory`)
+  son comunes a todas y se reconcilian sin borrar. Nivel y padre salen del código
+  (`app/services/catalog.py` y `src/lib/sns.ts`, la misma regla); avisos CN-001…CN-006 guardados en la
+  versión. Ruta `/configuracion-funcional`, fuera de `/materiales/:id`: el sidebar de cualquier material
+  la abre. El árbol se pide por niveles (`GET …/tree?subcategory&parent`) y se virtualiza.
 - **URLs por material (E02)**: las páginas de un material cuelgan de `/materiales/:materialId`
   (`src/layouts/MaterialLayout.tsx`: un material sin acceso es el 404 humanizado; abrir uno por URL lo
   hace material activo). `/` lleva al material activo (o al primero, o a "sin materiales"); `/ajustes`

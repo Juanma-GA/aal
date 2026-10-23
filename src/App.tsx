@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { CHANGE_PASSWORD_PATH, RequireAdmin, RequireAuth } from '@/components/auth/guards';
 import { AppLayout } from '@/layouts/AppLayout';
+import { CATALOG_PATH, CatalogPage } from '@/pages/catalog/CatalogPage';
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage';
 import { MaterialLayout } from '@/layouts/MaterialLayout';
 import { ModulePage } from '@/pages/ModulePage';
@@ -46,6 +47,7 @@ export function App(): React.JSX.Element {
               <Route path={REFERENCE_TABLES_PATH} element={<ReferenceTablesPage />} />
               <Route path={`${REFERENCE_TABLES_PATH}/:code`} element={<ReferenceTablesPage />} />
               <Route path={ARTICLE_FIELDS_PATH} element={<ArticleFieldsPage />} />
+              <Route path={CATALOG_PATH} element={<CatalogPage />} />
               <Route element={<RequireAdmin />}>
                 <Route path="/ajustes" element={<SettingsLayout />}>
                   <Route index element={<Navigate to="usuarios" replace />} />

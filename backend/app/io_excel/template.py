@@ -50,6 +50,12 @@ class Column:
     # TEXT only: (stored code, label written in the file). The file shows
     # the label; the code or the label are both read back (any case).
     choices: tuple[tuple[str, str], ...] = ()
+    # TEXT only: read in upper case ("a21031" -> "A21031").
+    upper: bool = False
+    # A column past the template's own, without a header: read when the
+    # file has it (a text split by an unescaped quote in the source, CONF_FUN
+    # CN-005), never written. Its header cell is accepted empty.
+    extra: bool = False
     # Column width in the export (Excel character units).
     width: float | None = None
 
@@ -65,6 +71,10 @@ class Template:
     sheet: str
     columns: tuple[Column, ...]
     header_rows: int = 1
+    # A key may repeat (a catalog where a code appears in several rows): the
+    # consumer's own analysis groups the rows, the reader does not refuse
+    # them as duplicates.
+    unique_keys: bool = True
 
     def __post_init__(self) -> None:
         if self.header_rows not in (1, 2):
@@ -77,12 +87,20 @@ class Template:
         for c in self.columns:
             if len(c.headers) != self.header_rows:
                 raise ValueError(f"column {c.field}: {self.header_rows} headers expected")
-            if (c.zero_pad or c.choices) and c.type != ColumnType.TEXT:
-                raise ValueError(f"column {c.field}: zero_pad and choices are for text columns")
+            if (c.zero_pad or c.choices or c.upper) and c.type != ColumnType.TEXT:
+                raise ValueError(f"column {c.field}: zero_pad, choices and upper are for text columns")
+        extras = [i for i, c in enumerate(self.columns) if c.extra]
+        if extras and extras != list(range(len(self.columns) - len(extras), len(self.columns))):
+            raise ValueError("extra columns go last")
 
     @property
     def first_data_row(self) -> int:
         return self.header_rows + 1
+
+    @property
+    def written_columns(self) -> tuple[Column, ...]:
+        """The columns of the export (all but the extra ones)."""
+        return tuple(c for c in self.columns if not c.extra)
 
     @property
     def key_columns(self) -> tuple[Column, ...]:

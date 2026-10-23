@@ -43,7 +43,7 @@ async def test_create_get_edit_delete(client, factory, admin_h):
 
 
 async def test_noc_and_ncage_formats_and_unique_noc(client, factory, admin_h):
-    for bad in ({"noc": "123"}, {"noc": "12345678901234"}, {"ncage": "AB"}, {"noc": "abcdefghijklm"}, {"name": ""}):
+    for bad in ({"noc": "123"}, {"noc": "232033213530"}, {"noc": "12345678901234"}, {"ncage": "AB"}, {"noc": "23203321353-3"}, {"ncage": "01-6B"}, {"name": ""}):
         res = await client.post("/api/materials", json={"name": "x", **bad}, headers=admin_h)
         assert res.status_code == 422, bad
     await _create(client, factory, admin_h, noc="9999999999999")
@@ -81,3 +81,20 @@ async def test_members_of_unknown_user_or_material(client, factory, admin_h):
     material = await _create(client, factory, admin_h)
     assert (await client.put(f"/api/materials/{material['id']}/members/{uuid.uuid4()}", json={"role": "analista"}, headers=admin_h)).json()["detail"]["code"] == "user_not_found"
     assert (await client.get(f"/api/materials/{uuid.uuid4()}/members", headers=admin_h)).json()["detail"]["code"] == "material_not_found"
+
+
+async def test_noc_and_ncage_are_normalized_before_checking(client, factory, admin_h):
+    created = await _create(client, factory, admin_h, noc=" 2320 3321 35303 ", ncage="0136b", part_number="pn libre 1")
+    assert (created["noc"], created["ncage"], created["part_number"]) == ("2320332135303", "0136B", "pn libre 1")
+    npc = await _create(client, factory, admin_h, noc="232033k058269")
+    assert npc["noc"] == "232033K058269" and npc["format_problems"] == []
+    res = await client.patch(f"/api/materials/{npc['id']}", json={"version": 1, "ncage": " "}, headers=admin_h)
+    assert res.status_code == 200 and res.json()["ncage"] is None
+
+
+async def test_an_existing_material_without_the_format_is_kept_and_flagged(client, factory, admin_h):
+    # Saved before E10 checked the format (straight in the database).
+    old = await factory.material(noc="2320-33213530", ncage="ab-12")
+    listed = {m["id"]: m for m in (await client.get("/api/materials", headers=admin_h)).json()}
+    assert listed[str(old.id)]["noc"] == "2320-33213530"
+    assert listed[str(old.id)]["format_problems"] == ["noc", "ncage"]

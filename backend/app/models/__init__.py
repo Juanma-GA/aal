@@ -3,6 +3,7 @@
 
 from app.models.app_parameter import AppParameter
 from app.models.audit_log import AuditLog
+from app.models.catalog import CatalogVersion, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, SubcategorySns
 from app.models.import_job import IMPORT_JOB_STATUSES, ImportJob
 from app.models.login_failure import LoginFailure
 from app.models.material import Material
@@ -25,11 +26,14 @@ __all__ = [
     "AppParameter",
     "ArticleFieldDefinition",
     "AuditLog",
+    "CatalogVersion",
     "IMPORT_JOB_STATUSES",
     "ImportJob",
     "LoginFailure",
     "MODULE_STATUSES",
     "Material",
+    "MaterialCategory",
+    "MaterialSubcategory",
     "ModuleCatalog",
     "ModuleGroup",
     "ModuleRequirement",
@@ -42,6 +46,9 @@ __all__ = [
     "RefreshToken",
     "Role",
     "RolePermission",
+    "SnsExtraName",
+    "SnsPosition",
+    "SubcategorySns",
     "User",
     "UserMaterialRole",
 ]

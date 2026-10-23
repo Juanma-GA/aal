@@ -17,6 +17,14 @@ a value the check added is removed. The import jobs it ran are removed.
     python scripts/purge_verify_data.py --save-reference D112 --snapshot FICHERO
     python scripts/purge_verify_data.py --restore-reference --snapshot FICHERO
     python scripts/purge_verify_data.py --import-jobs <id>
+
+A catalog version a check imported (E10; only one whose file name starts
+with "verify-") is removed with its SNS; the newest version left becomes
+the active one again, categories and subcategories no version uses any more
+are removed, and the names of the others come back from that version (an
+import may have renamed them).
+
+    python scripts/purge_verify_data.py --catalog-versions <id>
 """
 
 import argparse
@@ -32,12 +40,24 @@ from sqlalchemy import delete, select, update
 
 from app.core.config import get_settings
 from app.db.base import async_session_factory, engine
-from app.models import ImportJob, LoginFailure, Material, ReferenceTable, ReferenceValue, User
+from app.models import (
+    CatalogVersion,
+    ImportJob,
+    LoginFailure,
+    Material,
+    MaterialCategory,
+    MaterialSubcategory,
+    ReferenceTable,
+    ReferenceValue,
+    SubcategorySns,
+    User,
+)
 
 _VALUE_COLUMNS = ("description", "definition", "attributes", "is_active", "sort_order", "version")
 
 VERIFY_DOMAIN = "@verify.aal-dev.es"
 VERIFY_MATERIAL_PREFIX = "[verify] "
+VERIFY_FILE_PREFIX = "verify-"
 
 
 async def save_reference(tables: list[str], snapshot: Path) -> int:
@@ -72,8 +92,41 @@ async def restore_reference(snapshot: Path) -> int:
     return 0
 
 
-async def purge(emails: list[str], materials: list[str], jobs: list[uuid.UUID]) -> int:
+async def purge_catalog_versions(db, versions: list[uuid.UUID]) -> int:
+    marked = CatalogVersion.file_name.startswith(VERIFY_FILE_PREFIX)
+    others = (await db.execute(select(CatalogVersion.number).where(CatalogVersion.id.in_(versions), ~marked))).scalars().all()
+    if others:
+        print(f'Solo versiones importadas por un verify (fichero "{VERIFY_FILE_PREFIX}…"); no: {others}', file=sys.stderr)
+        return 1
+    deleted = await db.execute(delete(CatalogVersion).where(CatalogVersion.id.in_(versions), marked))
+    print(f"Versiones del catálogo eliminadas: {deleted.rowcount}")
+    await db.flush()
+    newest = (await db.execute(select(CatalogVersion).order_by(CatalogVersion.number.desc()).limit(1))).scalar_one_or_none()
+    if newest is not None and (await db.execute(select(CatalogVersion).where(CatalogVersion.is_active))).scalar_one_or_none() is None:
+        newest.is_active = True
+        print(f"Versión activa de nuevo: {newest.number}")
+    used = select(SubcategorySns.subcategory_code).where(SubcategorySns.subcategory_code.is_not(None))
+    await db.execute(delete(MaterialSubcategory).where(MaterialSubcategory.code.not_in(used)))
+    await db.execute(delete(MaterialCategory).where(MaterialCategory.code.not_in(select(MaterialSubcategory.category_code))))
+    if newest is not None:
+        rows = (
+            await db.execute(
+                select(SubcategorySns.subcategory_code, SubcategorySns.category_code, SubcategorySns.category_name, SubcategorySns.subcategory_name)
+                .where(SubcategorySns.version_id == newest.id, SubcategorySns.subcategory_code.is_not(None))
+                .order_by(SubcategorySns.row_number)
+            )
+        ).all()
+        for code, name in {r.category_code: r.category_name for r in reversed(rows)}.items():
+            await db.execute(update(MaterialCategory).where(MaterialCategory.code == code).values(name=name))
+        for code, name in {r.subcategory_code: r.subcategory_name for r in reversed(rows)}.items():
+            await db.execute(update(MaterialSubcategory).where(MaterialSubcategory.code == code).values(name=name))
+    return 0
+
+
+async def purge(emails: list[str], materials: list[str], jobs: list[uuid.UUID], versions: list[uuid.UUID]) -> int:
     async with async_session_factory() as db:
+        if versions and await purge_catalog_versions(db, versions):
+            return 1
         if jobs:
             await db.execute(delete(ImportJob).where(ImportJob.id.in_(jobs)))
             print(f"Importaciones eliminadas: {len(jobs)}")
@@ -97,6 +150,7 @@ def main() -> int:
     parser.add_argument("--users", nargs="*", default=[], help=f"emails {VERIFY_DOMAIN}")
     parser.add_argument("--materials", nargs="*", default=[], help=f'nombres que empiezan por "{VERIFY_MATERIAL_PREFIX}"')
     parser.add_argument("--import-jobs", nargs="*", default=[], type=uuid.UUID, help="ids de importaciones")
+    parser.add_argument("--catalog-versions", nargs="*", default=[], type=uuid.UUID, help="ids de versiones del catálogo")
     parser.add_argument("--save-reference", nargs="*", default=[], help="tablas de referencia que guardar")
     parser.add_argument("--restore-reference", action="store_true", help="devuelve las tablas guardadas")
     parser.add_argument("--snapshot", type=Path, help="fichero de --save-reference / --restore-reference")
@@ -116,7 +170,7 @@ def main() -> int:
         return asyncio.run(save_reference(args.save_reference, args.snapshot))
     if args.restore_reference:
         return asyncio.run(restore_reference(args.snapshot))
-    return asyncio.run(purge(emails, args.materials, args.import_jobs))
+    return asyncio.run(purge(emails, args.materials, args.import_jobs, args.catalog_versions))
 
 
 if __name__ == "__main__":

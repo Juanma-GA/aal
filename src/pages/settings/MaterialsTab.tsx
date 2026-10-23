@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { MaterialFormDialog } from '@/components/settings/MaterialFormDialog';
 import { MembersSheet } from '@/components/settings/MembersSheet';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +15,23 @@ import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { notifyError } from '@/lib/notify';
 import { createMaterial, deleteMaterial, fetchMaterials, updateMaterial } from '@/services/adminApi';
 import type { Material, MaterialFields } from '@/types/auth';
+
+/** A stored NOC / NCAGE, with a warning when it lacks its format (saved
+ *  before the check existed: never corrected silently). */
+function CodeCell({ value, invalid, hint }: { value: string | null; invalid: boolean; hint: string }): React.JSX.Element {
+  const { t } = useTranslation();
+  if (value === null) return <>{t('material.empty')}</>;
+  return (
+    <span className="inline-flex items-center gap-2">
+      {value}
+      {invalid ? (
+        <Badge variant="outline" className="border-warning text-warning font-sans" title={hint} data-testid="format-warning">
+          {t('settings.materials.invalidFormat')}
+        </Badge>
+      ) : null}
+    </span>
+  );
+}
 
 export function MaterialsTab(): React.JSX.Element {
   const { t } = useTranslation();
@@ -87,9 +105,13 @@ export function MaterialsTab(): React.JSX.Element {
             (materials.data ?? []).map((m) => (
               <TableRow key={m.id} data-testid={`material-row-${m.name}`}>
                 <TableCell className="font-medium">{m.name}</TableCell>
-                <TableCell className="font-mono">{m.noc ?? t('material.empty')}</TableCell>
+                <TableCell className="font-mono">
+                  <CodeCell value={m.noc} invalid={m.format_problems.includes('noc')} hint={t('validation.noc')} />
+                </TableCell>
                 <TableCell className="font-mono">{m.part_number ?? t('material.empty')}</TableCell>
-                <TableCell className="font-mono">{m.ncage ?? t('material.empty')}</TableCell>
+                <TableCell className="font-mono">
+                  <CodeCell value={m.ncage} invalid={m.format_problems.includes('ncage')} hint={t('validation.ncage')} />
+                </TableCell>
                 <TableCell className="text-right">
                   <Button variant="outline" size="sm" onClick={() => setMembers(m)} data-testid={`members-${m.name}`}>
                     {t('settings.materials.members')}

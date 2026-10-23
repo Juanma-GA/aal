@@ -67,6 +67,8 @@ def analyze(
     references = references or {}
     report: dict[str, Any] = {
         "columns": [{"field": c.field, "header": c.title} for c in template.columns],
+        # What apply checks the template against (app/services/import_jobs.py).
+        "template_fields": [c.field for c in template.columns],
         "new": [],
         "modified": [],
         "unchanged": [],

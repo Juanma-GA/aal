@@ -21,11 +21,14 @@ def test_the_real_seed_passes(seed):
     assert covered >= set(REQUIRED_RF)
 
 
-def test_initial_states_of_e02(seed):
+def test_states_of_the_seed(seed):
     states = {m.code: (m.status, m.route) for m in seed.modules}
     assert states["panel"] == ("disponible", "/materiales/:materialId")
     assert states["materiales"] == ("en_desarrollo", None)
-    assert {s for code, (s, _) in states.items() if code not in ("panel", "materiales")} == {"planificado"}
+    # E10: common to every material, outside /materiales/:materialId.
+    assert states["catalogo-normalizado"] == ("disponible", "/configuracion-funcional")
+    on = ("panel", "materiales", "catalogo-normalizado")
+    assert {s for code, (s, _) in states.items() if code not in on} == {"planificado"}
 
 
 def _with(seed, code, **changes):
