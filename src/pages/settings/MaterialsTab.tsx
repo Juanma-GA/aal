@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { NavRow } from '@/components/layout/NavRow';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
+import { CopyMaterialDialog } from '@/components/settings/CopyMaterialDialog';
 import { MaterialFormDialog } from '@/components/settings/MaterialFormDialog';
 import { MembersSheet } from '@/components/settings/MembersSheet';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +43,7 @@ export function MaterialsTab(): React.JSX.Element {
   const [editing, setEditing] = useState<Material | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<Material | null>(null);
   const [members, setMembers] = useState<Material | null>(null);
+  const [copying, setCopying] = useState<Material | null>(null);
 
   const edit = useOptimisticMutation<Material, { material: Material; fields: MaterialFields }, Material>({
     queryKey: materialsKey,
@@ -92,18 +95,21 @@ export function MaterialsTab(): React.JSX.Element {
             <TableHead>
               <span className="sr-only">{t('actions.more')}</span>
             </TableHead>
+            <TableHead>
+              <span className="sr-only">{t('actions.open')}</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {(materials.data ?? []).length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-muted-foreground">
+              <TableCell colSpan={6} className="text-muted-foreground">
                 {t('settings.materials.empty')}
               </TableCell>
             </TableRow>
           ) : (
             (materials.data ?? []).map((m) => (
-              <TableRow key={m.id} data-testid={`material-row-${m.name}`}>
+              <NavRow key={m.id} to={`/materiales/${m.id}/ficha`} label={t('settings.materials.open', { name: m.name })} data-testid={`material-row-${m.name}`}>
                 <TableCell className="font-medium">{m.name}</TableCell>
                 <TableCell className="font-mono">
                   <CodeCell value={m.noc} invalid={m.format_problems.includes('noc')} hint={t('validation.noc')} />
@@ -124,17 +130,21 @@ export function MaterialsTab(): React.JSX.Element {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onSelect={() => setEditing(m)}>{t('actions.edit')}</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setCopying(m)} data-testid={`copy-${m.name}`}>
+                        {t('settings.materials.copy')}
+                      </DropdownMenuItem>
                       <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(m)}>
                         {t('actions.delete')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
-              </TableRow>
+              </NavRow>
             ))
           )}
         </TableBody>
       </Table>
+      <CopyMaterialDialog source={copying} onOpenChange={(open) => !open && setCopying(null)} />
       <MaterialFormDialog open={editing !== undefined} material={editing ?? null} onOpenChange={(open) => !open && setEditing(undefined)} onSubmit={submit} />
       <ConfirmDialog
         open={deleting !== null}

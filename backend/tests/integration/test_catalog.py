@@ -13,7 +13,7 @@ import pytest_asyncio
 from sqlalchemy import delete, func, select, update
 
 from app.db.base import async_session_factory
-from app.models import AuditLog, CatalogVersion, MaterialCategory, MaterialSubcategory, ModuleCatalog, ReferenceValue, SnsPosition
+from app.models import AuditLog, CatalogVersion, MaterialCategory, MaterialSubcategory, MaterialSubcategoryLink, ModuleCatalog, ReferenceValue, SnsPosition
 from excel_compare import workbook_differences
 from helpers import bearer, login
 
@@ -35,6 +35,7 @@ async def catalog(factory):
 
     async def wipe():
         async with async_session_factory() as session:
+            await session.execute(delete(MaterialSubcategoryLink))
             await session.execute(delete(CatalogVersion))
             await session.execute(delete(MaterialSubcategory))
             await session.execute(delete(MaterialCategory))

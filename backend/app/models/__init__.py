@@ -6,7 +6,7 @@ from app.models.audit_log import AuditLog
 from app.models.catalog import CatalogVersion, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, SubcategorySns
 from app.models.import_job import IMPORT_JOB_STATUSES, ImportJob
 from app.models.login_failure import LoginFailure
-from app.models.material import Material
+from app.models.material import SNS_REQUEST_STATES, Material, MaterialSubcategoryLink, SnsRequest
 from app.models.module import MODULE_STATUSES, ModuleCatalog, ModuleGroup, ModuleRequirement
 from app.models.reference import (
     ATTRIBUTE_TYPES,
@@ -34,6 +34,7 @@ __all__ = [
     "Material",
     "MaterialCategory",
     "MaterialSubcategory",
+    "MaterialSubcategoryLink",
     "ModuleCatalog",
     "ModuleGroup",
     "ModuleRequirement",
@@ -46,8 +47,10 @@ __all__ = [
     "RefreshToken",
     "Role",
     "RolePermission",
+    "SNS_REQUEST_STATES",
     "SnsExtraName",
     "SnsPosition",
+    "SnsRequest",
     "SubcategorySns",
     "User",
     "UserMaterialRole",

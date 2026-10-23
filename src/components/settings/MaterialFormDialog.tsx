@@ -21,6 +21,7 @@ interface FormValues {
   name: string;
   part_number: string;
   ncage: string;
+  grupo_clase: string;
   description: string;
 }
 
@@ -37,6 +38,7 @@ export function MaterialFormDialog({ open, material, onOpenChange, onSubmit }: P
     name: z.string().trim().min(1, t('validation.required')).max(200, t('validation.maxLength', { max: 200 })),
     part_number: z.string().trim().max(32, t('validation.maxLength', { max: 32 })),
     ncage: z.string().transform(code).pipe(z.string().regex(/^([0-9A-Z]{5})?$/, t('validation.ncage'))),
+    grupo_clase: z.string().transform(code).pipe(z.string().regex(/^([0-9]{4})?$/, t('validation.grupoClase'))),
     description: z.string().max(4000, t('validation.maxLength', { max: 4000 })),
   });
   const form = useForm<FormValues>({ resolver: zodResolver(schema) });
@@ -47,12 +49,20 @@ export function MaterialFormDialog({ open, material, onOpenChange, onSubmit }: P
         name: material?.name ?? '',
         part_number: material?.part_number ?? '',
         ncage: material?.ncage ?? '',
+        grupo_clase: material?.grupo_clase ?? '',
         description: material?.description ?? '',
       });
     }
   }, [open, material, form]);
   const submit = (v: FormValues) =>
-    onSubmit({ noc: optional(v.noc), name: v.name.trim(), part_number: optional(v.part_number), ncage: optional(v.ncage), description: v.description });
+    onSubmit({
+      noc: optional(v.noc),
+      name: v.name.trim(),
+      part_number: optional(v.part_number),
+      ncage: optional(v.ncage),
+      grupo_clase: optional(v.grupo_clase),
+      description: v.description,
+    });
   const text = (name: keyof FormValues, mono = false) => (
     <FormField
       control={form.control}
@@ -82,6 +92,7 @@ export function MaterialFormDialog({ open, material, onOpenChange, onSubmit }: P
               {text('part_number', true)}
               {text('ncage', true)}
             </div>
+            {text('grupo_clase', true)}
             {text('description')}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

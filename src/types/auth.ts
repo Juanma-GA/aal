@@ -35,6 +35,9 @@ export interface Material {
   permissions: string[];
   /** Stored identifiers without their format (saved before E10). */
   format_problems: ('noc' | 'ncage')[];
+  grupo_clase: string | null;
+  catalog_version_id: string | null;
+  copied_from_material_id: string | null;
 }
 
 export interface MaterialFields {
@@ -43,6 +46,7 @@ export interface MaterialFields {
   part_number: string | null;
   ncage: string | null;
   description: string;
+  grupo_clase?: string | null;
 }
 
 export interface UserMaterial {

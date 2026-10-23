@@ -25,6 +25,10 @@ are removed, and the names of the others come back from that version (an
 import may have renamed them).
 
     python scripts/purge_verify_data.py --catalog-versions <id>
+
+The requests for a new SNS a check created (E11) are removed for good.
+
+    python scripts/purge_verify_data.py --sns-requests <id>
 """
 
 import argparse
@@ -47,8 +51,10 @@ from app.models import (
     Material,
     MaterialCategory,
     MaterialSubcategory,
+    MaterialSubcategoryLink,
     ReferenceTable,
     ReferenceValue,
+    SnsRequest,
     SubcategorySns,
     User,
 )
@@ -106,7 +112,8 @@ async def purge_catalog_versions(db, versions: list[uuid.UUID]) -> int:
         newest.is_active = True
         print(f"Versión activa de nuevo: {newest.number}")
     used = select(SubcategorySns.subcategory_code).where(SubcategorySns.subcategory_code.is_not(None))
-    await db.execute(delete(MaterialSubcategory).where(MaterialSubcategory.code.not_in(used)))
+    linked = select(MaterialSubcategoryLink.subcategory_code)
+    await db.execute(delete(MaterialSubcategory).where(MaterialSubcategory.code.not_in(used), MaterialSubcategory.code.not_in(linked)))
     await db.execute(delete(MaterialCategory).where(MaterialCategory.code.not_in(select(MaterialSubcategory.category_code))))
     if newest is not None:
         rows = (
@@ -123,8 +130,11 @@ async def purge_catalog_versions(db, versions: list[uuid.UUID]) -> int:
     return 0
 
 
-async def purge(emails: list[str], materials: list[str], jobs: list[uuid.UUID], versions: list[uuid.UUID]) -> int:
+async def purge(emails: list[str], materials: list[str], jobs: list[uuid.UUID], versions: list[uuid.UUID], requests: list[uuid.UUID]) -> int:
     async with async_session_factory() as db:
+        if requests:
+            deleted = await db.execute(delete(SnsRequest).where(SnsRequest.id.in_(requests)))
+            print(f"Solicitudes de SNS eliminadas: {deleted.rowcount}")
         if versions and await purge_catalog_versions(db, versions):
             return 1
         if jobs:
@@ -151,6 +161,7 @@ def main() -> int:
     parser.add_argument("--materials", nargs="*", default=[], help=f'nombres que empiezan por "{VERIFY_MATERIAL_PREFIX}"')
     parser.add_argument("--import-jobs", nargs="*", default=[], type=uuid.UUID, help="ids de importaciones")
     parser.add_argument("--catalog-versions", nargs="*", default=[], type=uuid.UUID, help="ids de versiones del catálogo")
+    parser.add_argument("--sns-requests", nargs="*", default=[], type=uuid.UUID, help="ids de solicitudes de SNS")
     parser.add_argument("--save-reference", nargs="*", default=[], help="tablas de referencia que guardar")
     parser.add_argument("--restore-reference", action="store_true", help="devuelve las tablas guardadas")
     parser.add_argument("--snapshot", type=Path, help="fichero de --save-reference / --restore-reference")
@@ -170,7 +181,7 @@ def main() -> int:
         return asyncio.run(save_reference(args.save_reference, args.snapshot))
     if args.restore_reference:
         return asyncio.run(restore_reference(args.snapshot))
-    return asyncio.run(purge(emails, args.materials, args.import_jobs, args.catalog_versions))
+    return asyncio.run(purge(emails, args.materials, args.import_jobs, args.catalog_versions, args.sns_requests))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { CATALOG_PATH, CatalogPage } from '@/pages/catalog/CatalogPage';
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage';
 import { MaterialLayout } from '@/layouts/MaterialLayout';
+import { MaterialCufPage } from '@/pages/material/MaterialCufPage';
 import { ModulePage } from '@/pages/ModulePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PanelPage } from '@/pages/PanelPage';
@@ -41,6 +42,7 @@ export function App(): React.JSX.Element {
               <Route index element={<RootPage />} />
               <Route path="/materiales/:materialId" element={<MaterialLayout />}>
                 <Route index element={<PanelPage />} />
+                <Route path="ficha" element={<MaterialCufPage />} />
                 <Route path="modulos/:code" element={<ModulePage />} />
               </Route>
               <Route path={CHANGE_PASSWORD_PATH} element={<ChangePasswordPage />} />

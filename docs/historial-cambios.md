@@ -307,3 +307,54 @@ no escribe, aplicar con errores 409, análisis caducado) y 6 `test:js`; `verify-
 **Tests.** `npm run check:all` verde: 268 tests de backend y 7 `test:js`. `verify-conf-fun`, `verify-navigation` (ahora
 abre también el catálogo desde el sidebar), `verify-reference-tables`, `verify-auth-settings` y
 `verify-health` en verde.
+
+## E11 — Materiales / CUF: subcategorías, configuración normalizada, variantes y solicitudes de SNS
+
+**Qué.**
+- Flecos:
+  - Usabilidad: token `--link` (azul, AA en claro y oscuro, `test-contrast`) en todos los enlaces.
+    Filas navegables (`NavRow`) en Tablas de referencia, Materiales, Módulos y la nueva pestaña
+    "Versiones" del catálogo. "Campos del artículo" compacto, sin scroll horizontal (tipo con su
+    longitud, detalle en tooltip).
+  - Demo: `demo/LEEME_DATOS_DEMO.md` sustituido (CN-002 = 2, CN-003 = 2).
+- Backend:
+  - Migración `0006`: `material.catalog_version_id`, `grupo_clase` y `copied_from_material_id`;
+    `material_subcategory_link`; `sns_request`. "Materiales / CUF" pasa a disponible en
+    `/materiales/:materialId/ficha`.
+  - Subcategorías del CUF (`material.editar`, solo las que tienen SNS en su versión).
+  - Cambio de versión del catálogo con informe de impacto y confirmación (admin).
+  - Configuración normalizada calculada: árbol por niveles con su origen, recuentos, búsqueda y
+    exportación CONF_FUN.
+  - "Crear a partir de otro" con registro de copiadores.
+  - Solicitudes de SNS: borrador → enviada → aceptada/rechazada; los borradores se descartan con
+    borrado lógico; exportación de las enviadas.
+  - `seed_demo_materials.py`: asigna las subcategorías si hay catálogo y crea el Puesto de mando
+    como copia del Tramontana.
+- Frontend:
+  - Ficha del CUF (datos, familia, versión, equipo, subcategorías con mutación optimista).
+  - Pestañas "Configuración normalizada" (árbol de E10 reutilizado con insignias de origen) y
+    "Solicitudes de SNS".
+  - "Crear a partir de otro" en Ajustes → Materiales; subcategorías y número de SNS en el Panel.
+- `scripts/import-demo-catalog.mjs` (importa la demo por la API si no es ya la activa) y
+  `verify-materials` en la CI.
+
+**Decisiones.**
+- **La configuración normalizada no se guarda:** se calcula de la versión del CUF y sus
+  subcategorías.
+- **Exportación de la configuración normalizada:** lleva las filas del fichero de esas
+  subcategorías (69 para el Tramontana, porque `000000` está en tres y hay dos repeticiones CN-001).
+  Los SNS únicos son 65.
+- **Al cambiar de versión, las subcategorías que no existen en la nueva salen del CUF.** Están en el
+  informe de impacto y en la auditoría.
+- **Las variantes y el "Variante de" solo se muestran si el usuario tiene acceso a ese material.**
+- **El alta de una solicitud y "Crear a partir de otro" no son optimistas** (el id lo da el
+  servidor); sí lo son los cambios de subcategorías y los pasos de una solicitud.
+- **Quitar una subcategoría usada por la CONFUNFIS** queda preparado
+  (`SUBCATEGORY_REMOVAL_GUARDS`, con un test que lo documenta). El bloqueo real llega en E13.
+- **Grupo-Clase** es informativo (4 cifras) y lo edita el admin en el formulario del material.
+
+**Commits.** (se anota el de cierre)
+
+**Tests.** `npm run check:all` verde (ver el informe). `verify-materials`, `verify-reference-tables`
+(entra por la fila), `verify-conf-fun`, `verify-navigation` (ahora fija el material activo del
+analista y espera "Materiales / CUF" disponible), `verify-auth-settings` y `verify-health` en verde.

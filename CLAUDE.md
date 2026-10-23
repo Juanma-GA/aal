@@ -185,10 +185,15 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   (`purge_verify_data.py --catalog-versions`). **`verify-conf-fun-real.mjs`**: importa
   `private/CONF_FUN_V3_0.xlsx` por la API, coteja las cifras del encargo y mide tiempos; sin el fichero,
   2 (NOT RUN). No está en la CI.
+- **`verify-materials.mjs`** (E11): con el catálogo de demo importado (`scripts/import-demo-catalog.mjs`) y
+  `seed_demo_materials.py`, el analista abre la ficha del Tramontana, quita 0102 (62 SNS) y la vuelve a
+  poner (65), busca `E12300` en la configuración normalizada, crea y envía una solicitud de SNS, y el admin
+  crea un CUF "a partir de otro" y comprueba que es independiente. Deja la base como estaba (subcategorías
+  devueltas; solicitud y CUF `[verify] …` borrados).
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
-  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` con Chrome
+  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) con Chrome
   contra uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
@@ -309,6 +314,16 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   (`app/services/catalog.py` y `src/lib/sns.ts`, la misma regla); avisos CN-001…CN-006 guardados en la
   versión. Ruta `/configuracion-funcional`, fuera de `/materiales/:id`: el sidebar de cualquier material
   la abre. El árbol se pide por niveles (`GET …/tree?subcategory&parent`) y se virtualiza.
+- **CUF (E11)**: cada material tiene su `catalog_version_id` (la activa al crearse; la cambia el admin
+  tras ver el impacto, con `confirm`), sus subcategorías (`material_subcategory_link`, las edita quien
+  tiene `material.editar`) y su configuración normalizada, **calculada, nunca guardada**: la unión de los
+  SNS de sus subcategorías con su origen (`app/services/cuf.py`). Puntos de extensión:
+  `SUBCATEGORY_REMOVAL_GUARDS` (E13 impedirá quitar una subcategoría cuyos SNS usa la CONFUNFIS) y
+  `MATERIAL_COPIERS` (`register_copier`: E12–E15 añaden lo suyo a "Crear a partir de otro" sin tocar el
+  endpoint). Ficha en `/materiales/:materialId/ficha`.
+- **Listas navegables y enlaces (E11)**: toda fila que abre algo es un `NavRow`
+  (`src/components/layout/NavRow.tsx`: fila entera clicable con chevron); los enlaces usan el token
+  `text-link` (contraste AA en ambos temas, `scripts/test-contrast.mjs`), nunca `text-primary`.
 - **URLs por material (E02)**: las páginas de un material cuelgan de `/materiales/:materialId`
   (`src/layouts/MaterialLayout.tsx`: un material sin acceso es el 404 humanizado; abrir uno por URL lo
   hace material activo). `/` lleva al material activo (o al primero, o a "sin materiales"); `/ajustes`

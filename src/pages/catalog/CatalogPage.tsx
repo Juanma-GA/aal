@@ -5,12 +5,13 @@
 // so a link opens the same view and nothing is kept in the browser (HR1).
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { CatalogSearch } from '@/components/catalog/CatalogSearch';
 import { CategoryPanel } from '@/components/catalog/CategoryPanel';
 import { CompareView } from '@/components/catalog/CompareView';
+import { VersionsTable } from '@/components/catalog/VersionsTable';
 import { SnsCard } from '@/components/catalog/SnsCard';
 import { SnsTree } from '@/components/catalog/SnsTree';
 import { WarningsView } from '@/components/catalog/WarningsView';
@@ -23,11 +24,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMe } from '@/hooks/useSession';
 import { saveFile } from '@/lib/download';
+import { catalogTree } from '@/lib/treeSources';
 import { notifyError } from '@/lib/notify';
 import { exportCatalog, fetchCatalogVersions, fetchCategories, startCatalogImport } from '@/services/catalogApi';
 
 export const CATALOG_PATH = '/configuracion-funcional';
-const TABS = ['catalogo', 'avisos', 'comparar'] as const;
+const TABS = ['catalogo', 'avisos', 'versiones', 'comparar'] as const;
 type Tab = (typeof TABS)[number];
 
 export function CatalogPage(): React.JSX.Element {
@@ -44,6 +46,8 @@ export function CatalogPage(): React.JSX.Element {
   const sns = params.get('sns');
   const tab: Tab = TABS.find((x) => x === params.get('tab')) ?? 'catalogo';
   const isAdmin = Boolean(me.data?.is_admin);
+  const versionId = version?.id ?? '';
+  const treeSource = useMemo(() => catalogTree(versionId, sub ?? ''), [versionId, sub]);
 
   const update = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -140,7 +144,7 @@ export function CatalogPage(): React.JSX.Element {
               <CategoryPanel categories={categories.data} selected={sub} onSelect={(code) => update({ sub: code })} />
               <div className="min-w-0">
                 {sub ? (
-                  <SnsTree key={`${version.id}-${sub}`} versionId={version.id} subcategory={sub} selected={sns} onSelect={openSns} />
+                  <SnsTree key={`${version.id}-${sub}`} {...treeSource} selected={sns} onSelect={openSns} />
                 ) : (
                   <p className="text-sm text-muted-foreground">{t('catalog.chooseSubcategory')}</p>
                 )}
@@ -150,6 +154,9 @@ export function CatalogPage(): React.JSX.Element {
           </TabsContent>
           <TabsContent value="avisos">
             <WarningsView versionId={version.id} onOpen={openSns} />
+          </TabsContent>
+          <TabsContent value="versiones">
+            <VersionsTable versions={list} current={version.id} onOpen={(v) => update({ v, sub: null, sns: null, tab: null })} />
           </TabsContent>
           <TabsContent value="comparar">
             <CompareView versions={list} onOpen={(s) => update({ sns: s, tab: null })} />

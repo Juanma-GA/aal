@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { modulesKey, useModules } from '@/hooks/useModules';
+import { NavRow } from '@/components/layout/NavRow';
+import { useActiveMaterial } from '@/hooks/useMaterials';
+import { moduleCardHref, modulesKey, useModules } from '@/hooks/useModules';
 import { notifyError } from '@/lib/notify';
 import { updateModule } from '@/services/modulesApi';
 import type { ModuleBrief, ModuleGroup, ModuleStatus } from '@/types/modules';
@@ -55,6 +57,7 @@ export function ModulesTab(): React.JSX.Element {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const modules = useModules();
+  const active = useActiveMaterial();
   const [group, setGroup] = useState(ALL);
   const [phase, setPhase] = useState(ALL);
   const [status, setStatus] = useState(ALL);
@@ -128,18 +131,26 @@ export function ModulesTab(): React.JSX.Element {
             <TableHead>
               <span className="sr-only">{t('actions.more')}</span>
             </TableHead>
+            <TableHead>
+              <span className="sr-only">{t('actions.open')}</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-muted-foreground">
+              <TableCell colSpan={7} className="text-muted-foreground">
                 {t('settings.modules.empty')}
               </TableCell>
             </TableRow>
           ) : (
             rows.map(({ group: g, module: m }) => (
-              <TableRow key={m.code} data-testid={`module-row-${m.code}`}>
+              <NavRow
+                key={m.code}
+                to={active ? moduleCardHref(m.code, active.id) : undefined}
+                label={t('settings.modules.openCard', { name: m.name })}
+                data-testid={`module-row-${m.code}`}
+              >
                 <TableCell className="font-medium whitespace-normal">{m.name}</TableCell>
                 <TableCell className="whitespace-normal">{g.name}</TableCell>
                 <TableCell>{t(`modules.phase.${m.phase}`)}</TableCell>
@@ -152,7 +163,7 @@ export function ModulesTab(): React.JSX.Element {
                     {t('settings.modules.change')}
                   </Button>
                 </TableCell>
-              </TableRow>
+              </NavRow>
             ))
           )}
         </TableBody>

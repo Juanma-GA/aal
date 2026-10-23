@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useCuf } from '@/hooks/useCuf';
 import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
 import { moduleHref, useModules } from '@/hooks/useModules';
 import { catalogLabel } from '@/lib/labels';
@@ -28,6 +29,7 @@ export function PanelPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const material = useMaterialOfPage();
   const modules = useModules();
+  const cuf = useCuf(material.id);
   const team = useQuery({ queryKey: ['materials', material.id, 'team'], queryFn: () => fetchTeam(material.id) });
   const activity = useQuery({ queryKey: ['materials', material.id, 'activity'], queryFn: () => fetchActivity(material.id) });
   const all = (modules.data ?? []).flatMap((g) => g.modules);
@@ -62,6 +64,24 @@ export function PanelPage(): React.JSX.Element {
                   {material.role ? catalogLabel(t, 'roles', material.role) : t('material.adminRole')}
                 </Badge>
               </div>
+            </div>
+            <div className="flex flex-col gap-2" data-testid="panel-subcategories">
+              <span className="text-sm text-muted-foreground">
+                {t('cuf.subcategories')} ·{' '}
+                <Link to={`/materiales/${material.id}/ficha?tab=configuracion`} className="text-link underline-offset-2 hover:underline" data-testid="panel-sns-count">
+                  {cuf.data ? t('cuf.snsCount', { count: cuf.data.sns_count }) : t('material.empty')}
+                </Link>
+              </span>
+              <ul className="flex flex-wrap gap-2">
+                {cuf.data?.subcategories.length === 0 ? <li className="text-sm text-muted-foreground">{t('cuf.noSubcategories')}</li> : null}
+                {(cuf.data?.subcategories ?? []).map((s) => (
+                  <li key={s.code}>
+                    <Badge variant="secondary">
+                      <span className="font-mono">{s.code}</span> {s.name}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
             </div>
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">{t('material.yourPermissions')}</span>

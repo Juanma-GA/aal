@@ -34,7 +34,7 @@ export function WarningsView({ versionId, onOpen }: { versionId: string; onOpen:
                 <ul className="flex flex-col gap-1 text-sm">
                   {items.map((w, i) => (
                     <li key={`${w.row ?? 0}-${i}`} className="flex flex-wrap gap-2">
-                      <button type="button" className="font-mono text-primary hover:underline" onClick={() => onOpen(String(w.params.sns))}>
+                      <button type="button" className="font-mono text-link underline-offset-2 hover:underline" onClick={() => onOpen(String(w.params.sns))}>
                         {String(w.params.sns)}
                       </button>
                       <span className="text-muted-foreground">{t('catalog.row', { row: w.row ?? 0 })}</span>

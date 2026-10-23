@@ -1,7 +1,8 @@
-// A subcategory's SNS tree (E10): loaded level by level (a node's children
-// are asked for when it is opened, never the whole catalog) and
-// virtualized (only the rows in view are in the page: the real catalog has
-// subcategories with hundreds of SNS).
+// An SNS tree: a catalog subcategory's (E10) or a CUF's normalized
+// configuration (E11). Loaded level by level (a node's children are asked
+// for when it is opened, never the whole set) and virtualized (only the
+// rows in view are in the page: the real catalog has subcategories with
+// hundreds of SNS).
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +12,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { notifyError } from '@/lib/notify';
 import { ancestors } from '@/lib/sns';
 import { cn } from '@/lib/utils';
-import { fetchTreeLevel } from '@/services/catalogApi';
 import type { TreeNode } from '@/types/catalog';
 
 const ROW_HEIGHT = 34;
@@ -19,22 +19,29 @@ const VIEW_HEIGHT = 560;
 const OVERSCAN = 8;
 const ROOT = '__root__';
 
-interface Props {
-  versionId: string;
-  subcategory: string;
-  selected: string | null;
-  onSelect: (sns: string) => void;
+export interface TreeSource<N extends TreeNode> {
+  /** Identifies the tree in the query cache. */
+  cacheKey: readonly unknown[];
+  /** The roots (no parent) or the children of `parent`. */
+  loadLevel: (parent?: string) => Promise<N[]>;
 }
 
-interface Visible {
-  node: TreeNode;
+type Props<N extends TreeNode> = TreeSource<N> & {
+  selected: string | null;
+  onSelect: (sns: string) => void;
+  /** Extra marks after a node's name (the CUF's subcategories of origin). */
+  renderExtra?: (node: N) => React.ReactNode;
+};
+
+interface Visible<N> {
+  node: N;
   depth: number;
 }
 
-export function SnsTree({ versionId, subcategory, selected, onSelect }: Props): React.JSX.Element {
+export function SnsTree<N extends TreeNode>({ cacheKey, loadLevel, selected, onSelect, renderExtra }: Props<N>): React.JSX.Element {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [levels, setLevels] = useState<Record<string, TreeNode[]>>({});
+  const [levels, setLevels] = useState<Record<string, N[]>>({});
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [scrollTop, setScrollTop] = useState(0);
   const viewport = useRef<HTMLDivElement>(null);
@@ -42,11 +49,12 @@ export function SnsTree({ versionId, subcategory, selected, onSelect }: Props): 
   const load = useCallback(
     (parent: string) =>
       queryClient.fetchQuery({
-        queryKey: ['catalog', versionId, 'tree', subcategory, parent],
-        queryFn: () => fetchTreeLevel(versionId, subcategory, parent === ROOT ? undefined : parent),
+        queryKey: [...cacheKey, parent],
+        queryFn: () => loadLevel(parent === ROOT ? undefined : parent),
         staleTime: Infinity,
       }),
-    [queryClient, versionId, subcategory],
+    // The caller memoizes both (a new tree is a new component, by key).
+    [queryClient, cacheKey, loadLevel],
   );
 
   useEffect(() => {
@@ -78,7 +86,7 @@ export function SnsTree({ versionId, subcategory, selected, onSelect }: Props): 
     };
   }, [selected, rootsLoaded, load, t]);
 
-  const toggle = (node: TreeNode) => {
+  const toggle = (node: N) => {
     if (open.has(node.sns)) {
       setOpen((current) => new Set([...current].filter((s) => s !== node.sns)));
       return;
@@ -92,7 +100,7 @@ export function SnsTree({ versionId, subcategory, selected, onSelect }: Props): 
   };
 
   const visible = useMemo(() => {
-    const out: Visible[] = [];
+    const out: Visible<N>[] = [];
     const walk = (parent: string, depth: number) => {
       for (const node of levels[parent] ?? []) {
         out.push({ node, depth });
@@ -150,6 +158,7 @@ export function SnsTree({ versionId, subcategory, selected, onSelect }: Props): 
               <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(node.sns)}>
                 <span className="font-mono text-xs">{node.sns}</span>
                 <span className="truncate">{node.name}</span>
+                {renderExtra ? renderExtra(node) : null}
                 <span className="ml-auto shrink-0 text-xs text-muted-foreground">{t(`catalog.levels.${node.level}`)}</span>
                 {node.description_pending ? (
                   <Badge variant="outline" className="shrink-0 border-warning text-warning">

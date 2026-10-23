@@ -7,7 +7,6 @@ level by level: a request never sends the whole catalog."""
 import asyncio
 import re
 import uuid
-from collections import Counter
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import distinct, func, or_, select
@@ -40,6 +39,7 @@ from app.schemas.reference import ImportJobOut
 from app.services import import_jobs
 from app.services.catalog import WARNING_CODES
 from app.services.catalog_import import KIND, TEMPLATE, comparable_positions, compare, export_rows
+from app.services.catalog_tree import tree_level as level_of_tree
 from app.services.parameters import get_parameter
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
@@ -65,7 +65,7 @@ def _version_out(v: CatalogVersion, imported_by: str | None) -> CatalogVersionOu
     )
 
 
-async def _page_size(db: AsyncSession, page_size: int | None) -> int:
+async def catalog_page_size(db: AsyncSession, page_size: int | None) -> int:
     params = await get_parameter(db, "catalog")
     size = page_size or params["page_size"]
     if size > params["max_page_size"]:
@@ -75,7 +75,7 @@ async def _page_size(db: AsyncSession, page_size: int | None) -> int:
     return size
 
 
-def _like(text: str) -> str:
+def like_text(text: str) -> str:
     return re.sub(r"([\\%_])", r"\\\1", text)
 
 
@@ -127,31 +127,16 @@ async def tree_level(
     """One level of a subcategory's tree: its roots (no parent, or a parent
     that is not in the subcategory), or the children of `parent`."""
     await _version(db, version_id)
-    # The subcategory's SNS and their parents (a few thousand at most), so
-    # roots and child counts are worked out here; the codes go as a list,
-    # which the planner reads well even before the tables are analysed.
-    in_sub = set(
+    members = set(
         (
             await db.execute(
                 select(SubcategorySns.sns).where(SubcategorySns.version_id == version_id, SubcategorySns.subcategory_code == subcategory)
             )
         ).scalars()
     )
-    pairs = (
-        await db.execute(select(SnsPosition.sns, SnsPosition.parent_sns).where(SnsPosition.version_id == version_id, SnsPosition.sns.in_(in_sub)))
-    ).all() if in_sub else []
-    members = {sns for sns, _parent in pairs}
-    if parent is None:
-        wanted = {sns for sns, p in pairs if p is None or p not in members}
-    else:
-        wanted = {sns for sns, p in pairs if p == parent}
-    children = Counter(p for _sns, p in pairs if p in wanted)
-    nodes = (
-        await db.execute(select(SnsPosition).where(SnsPosition.version_id == version_id, SnsPosition.sns.in_(wanted)).order_by(SnsPosition.sns))
-    ).scalars().all() if wanted else []
     return [
-        TreeNode(sns=n.sns, name=n.name, level=n.level, description_pending=n.description_pending, child_count=children.get(n.sns, 0))
-        for n in nodes
+        TreeNode(sns=n.sns, name=n.name, level=n.level, description_pending=n.description_pending, child_count=count)
+        for n, count in await level_of_tree(db, version_id, members, parent)
     ]
 
 
@@ -179,15 +164,15 @@ async def search(
     """SNS of the version by code (from its start) or by any of its names
     or its description (anywhere), any case."""
     await _version(db, version_id)
-    size = await _page_size(db, page_size)
+    size = await catalog_page_size(db, page_size)
     text = q.strip()
-    by_extra = select(SnsExtraName.sns).where(SnsExtraName.version_id == version_id, SnsExtraName.name.ilike(f"%{_like(text)}%", escape="\\"))
+    by_extra = select(SnsExtraName.sns).where(SnsExtraName.version_id == version_id, SnsExtraName.name.ilike(f"%{like_text(text)}%", escape="\\"))
     where = (
         SnsPosition.version_id == version_id,
         or_(
-            SnsPosition.sns.ilike(f"{_like(text)}%", escape="\\"),
-            SnsPosition.name.ilike(f"%{_like(text)}%", escape="\\"),
-            SnsPosition.description.ilike(f"%{_like(text)}%", escape="\\"),
+            SnsPosition.sns.ilike(f"{like_text(text)}%", escape="\\"),
+            SnsPosition.name.ilike(f"%{like_text(text)}%", escape="\\"),
+            SnsPosition.description.ilike(f"%{like_text(text)}%", escape="\\"),
             SnsPosition.sns.in_(by_extra),
         ),
     )
@@ -291,7 +276,7 @@ async def diff_versions(
     and a page of the detail (one kind of change, or all)."""
     await _version(db, from_version)
     await _version(db, to_version)
-    size = await _page_size(db, page_size)
+    size = await catalog_page_size(db, page_size)
     old, new = await comparable_positions(db, from_version), await comparable_positions(db, to_version)
     diff = compare(old, new)
     items = [

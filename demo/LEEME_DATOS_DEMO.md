@@ -53,8 +53,8 @@ La hoja `TABLA DE PARTES` sigue la estructura de la NT §9.1.10 (ARTÍCULO NOC/P
 | Aviso | Caso |
 |---|---|
 | CN-001 SNS con varios nombres | `A21031` (SEGMENTOS / JUEGO DE SEGMENTOS) y `B33011` (NEUMÁTICO / VÁLVULA DE INFLADO, fila ELEMENTO) |
-| CN-002 nivel declarado ≠ nivel del código | `A22200` declarado CONJUNTO en vehículos de ruedas (por su código es SUBSUBSISTEMA) |
-| CN-003 SNS sin padre | `B34510` (no existe `B34500`) |
+| CN-002 nivel declarado ≠ nivel del código | 2: `A22200` declarado CONJUNTO en vehículos de ruedas (por su código es SUBSUBSISTEMA), y `B34510` declarado SUBCONJUNTO (por su código es CONJUNTO) |
+| CN-003 SNS sin padre | 2: `B34510` (no existe `B34500`) y `D53000` (no existe el sistema `D50000`) |
 | CN-004 fila sin categoría | `ZDM100` |
 | CN-005 descripción partida en dos columnas | `E11000` RADIO |
 | CN-006 descripción pendiente | 6 filas `PTE` (4 SNS: `A22140`, `A72000`, `B33012`, `L41130`) y 1 `TBD` |

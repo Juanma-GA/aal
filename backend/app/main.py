@@ -7,11 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.admin import router as admin_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.catalog import router as catalog_router
+from app.api.routes.cuf import router as cuf_router
 from app.api.routes.imports import router as imports_router
 from app.api.routes.materials import router as materials_router
 from app.api.routes.me import router as me_router
 from app.api.routes.modules import router as modules_router
 from app.api.routes.reference_tables import router as reference_tables_router
+from app.api.routes.sns_requests import router as sns_requests_router
 from app.api.routes.system import router as system_router
 from app.api.routes.users import router as users_router
 from app.core.config import get_settings
@@ -42,6 +44,8 @@ app.include_router(auth_router)
 app.include_router(me_router)
 app.include_router(users_router)
 app.include_router(materials_router)
+app.include_router(cuf_router)
+app.include_router(sns_requests_router)
 app.include_router(modules_router)
 app.include_router(reference_tables_router)
 app.include_router(imports_router)

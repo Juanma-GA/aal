@@ -10,6 +10,8 @@ from app.schemas.common import StrictModel
 # NOC: 13 characters; NCAGE: 5 (NT 10/17 §9.1.3). Upper-case letters and digits.
 NOC_PATTERN = r"^[0-9A-Z]{13}$"
 NCAGE_PATTERN = r"^[0-9A-Z]{5}$"
+# Grupo-Clase: four digits, informative (E11).
+GRUPO_CLASE_PATTERN = r"^[0-9]{4}$"
 
 
 def format_problems(noc: str | None, ncage: str | None) -> list[str]:
@@ -24,7 +26,7 @@ def format_problems(noc: str | None, ncage: str | None) -> list[str]:
     return problems
 
 
-def _code(value: object) -> object:
+def normalize_code(value: object) -> object:
     """NOC and NCAGE as they are checked: upper case, no spaces at all;
     empty is no value."""
     if isinstance(value, str):
@@ -49,6 +51,10 @@ class MaterialOut(BaseModel):
     permissions: list[str]
     # Stored identifiers without their format ("noc", "ncage").
     format_problems: list[str]
+    # E11.
+    grupo_clase: str | None
+    catalog_version_id: uuid.UUID | None
+    copied_from_material_id: uuid.UUID | None
 
 
 class MaterialFields(StrictModel):
@@ -57,11 +63,12 @@ class MaterialFields(StrictModel):
     part_number: str | None = Field(default=None, min_length=1, max_length=32)
     ncage: str | None = Field(default=None, pattern=NCAGE_PATTERN)
     description: str = Field(default="", max_length=4000)
+    grupo_clase: str | None = Field(default=None, pattern=GRUPO_CLASE_PATTERN)
 
-    @field_validator("noc", "ncage", mode="before")
+    @field_validator("noc", "ncage", "grupo_clase", mode="before")
     @classmethod
     def _normalize_codes(cls, value: object) -> object:
-        return _code(value)
+        return normalize_code(value)
 
 
 class MaterialCreate(MaterialFields):
@@ -75,11 +82,12 @@ class MaterialUpdate(StrictModel):
     part_number: str | None = Field(default=None, min_length=1, max_length=32)
     ncage: str | None = Field(default=None, pattern=NCAGE_PATTERN)
     description: str | None = Field(default=None, max_length=4000)
+    grupo_clase: str | None = Field(default=None, pattern=GRUPO_CLASE_PATTERN)
 
-    @field_validator("noc", "ncage", mode="before")
+    @field_validator("noc", "ncage", "grupo_clase", mode="before")
     @classmethod
     def _normalize_codes(cls, value: object) -> object:
-        return _code(value)
+        return normalize_code(value)
 
 
 class MemberOut(BaseModel):

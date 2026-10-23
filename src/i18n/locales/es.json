@@ -92,7 +92,12 @@
     "catalog_version_changed": "Se ha importado otra versión del catálogo desde este análisis. Vuelve a analizar el fichero.",
     "catalog_version_not_found": "Esa versión del catálogo no existe.",
     "sns_not_found": "Ese SNS no está en esta versión del catálogo.",
-    "subcategory_not_found": "Esa subcategoría no existe."
+    "subcategory_not_found": "Esa subcategoría no existe.",
+    "material_without_catalog": "El material no tiene versión del catálogo: un administrador debe asignarle una.",
+    "subcategory_not_in_version": "Estas subcategorías no tienen SNS en la versión del catálogo del material: {{codes}}.",
+    "subcategory_in_use": "No se pueden quitar estas subcategorías porque la CONFUNFIS usa sus SNS: {{codes}}.",
+    "sns_request_not_found": "Esa solicitud de SNS no existe.",
+    "sns_request_wrong_state": "No se puede hacer en una solicitud en estado «{{state}}»."
   },
   "actions": {
     "retry": "Reintentar",
@@ -114,7 +119,8 @@
     "next": "Siguiente",
     "clearFilters": "Quitar filtros",
     "remove": "Quitar",
-    "add": "Añadir"
+    "add": "Añadir",
+    "open": "Abrir"
   },
   "auth": {
     "loginTitle": "Entrar en AAL",
@@ -138,7 +144,9 @@
     "email": "Escribe un email válido.",
     "noc": "El NOC tiene 13 caracteres (letras mayúsculas y números).",
     "ncage": "El NCAGE tiene 5 caracteres (letras mayúsculas y números).",
-    "maxLength": "Como mucho {{max}} caracteres."
+    "maxLength": "Como mucho {{max}} caracteres.",
+    "grupoClase": "El Grupo-Clase tiene 4 cifras.",
+    "sns": "Un SNS tiene 6 caracteres (letras mayúsculas y cifras)."
   },
   "header": {
     "material": "Material",
@@ -163,7 +171,8 @@
       "name": "Nombre",
       "part_number": "P/N",
       "ncage": "NCAGE",
-      "description": "Descripción"
+      "description": "Descripción",
+      "grupo_clase": "Grupo-Clase"
     },
     "empty": "—"
   },
@@ -261,7 +270,14 @@
       "removeHint": "Perderá el acceso al material.",
       "empty": "No hay materiales.",
       "noMembers": "Este material todavía no tiene miembros.",
-      "invalidFormat": "Formato no válido"
+      "invalidFormat": "Formato no válido",
+      "open": "Abrir la ficha de {{name}}",
+      "copy": "Crear a partir de otro",
+      "copyTitle": "Crear un CUF a partir de {{name}}",
+      "copyHint": "Se copian la descripción, el Grupo-Clase, la versión del catálogo y las subcategorías. La copia es independiente del original.",
+      "copyMembers": "Copiar también los miembros con su rol",
+      "copyAction": "Crear la copia",
+      "copied": "Creado {{name}}"
     },
     "roles": {
       "hint": "Matriz sembrada en la base de datos. En esta versión es de solo lectura.",
@@ -331,7 +347,8 @@
       "change": "Cambiar",
       "changeTitle": "Cambiar el estado de {{name}}",
       "changeHint": "Un módulo disponible necesita su ruta; en otro estado, la ruta se quita.",
-      "routeHint": "Ruta de la app que empieza por /; :materialId se sustituye por el material, p. ej. /materiales/:materialId/confunfis."
+      "routeHint": "Ruta de la app que empieza por /; :materialId se sustituye por el material, p. ej. /materiales/:materialId/confunfis.",
+      "openCard": "Abrir la ficha de {{name}}"
     }
   },
   "audit": {
@@ -363,7 +380,16 @@
       "reference_value.deactivated": "Valor de referencia desactivado",
       "reference_value.created": "Valor de referencia creado",
       "reference_value.updated": "Valor de referencia editado",
-      "catalog_version.imported": "Versión del catálogo importada"
+      "catalog_version.imported": "Versión del catálogo importada",
+      "material.subcategories_changed": "Subcategorías del material cambiadas",
+      "material.catalog_version_changed": "Versión del catálogo del material cambiada",
+      "material.copied": "Material creado a partir de otro",
+      "sns_request.created": "Solicitud de SNS creada",
+      "sns_request.updated": "Solicitud de SNS editada",
+      "sns_request.sent": "Solicitud de SNS enviada",
+      "sns_request.accepted": "Solicitud de SNS aceptada",
+      "sns_request.rejected": "Solicitud de SNS rechazada",
+      "sns_request.discarded": "Solicitud de SNS descartada"
     },
     "entities": {
       "user": "Usuario",
@@ -376,7 +402,8 @@
       "import_job": "Importación",
       "reference_table": "Tabla de referencia",
       "reference_value": "Valor de referencia",
-      "catalog_version": "Versión del catálogo"
+      "catalog_version": "Versión del catálogo",
+      "sns_request": "Solicitud de SNS"
     }
   },
   "nav": {
@@ -478,7 +505,8 @@
     "readOnly": "Solo lectura: la edición es de un administrador.",
     "note": "Nota",
     "notFound": "La tabla de referencia no existe.",
-    "back": "Todas las tablas"
+    "back": "Todas las tablas",
+    "openTable": "Ver los valores de {{code}}"
   },
   "articleFields": {
     "title": "Campos del artículo",
@@ -492,7 +520,9 @@
     "decimals": "Decimales",
     "relatedTo": "Relacionado con",
     "suppliedBy": "Lo aporta el contratista",
-    "referenceTable": "Tabla de referencia"
+    "referenceTable": "Tabla de referencia",
+    "detail": "Detalle",
+    "detailOf": "Detalle de {{code}}"
   },
   "import": {
     "chooseFile": "Fichero de Excel (.xlsx)",
@@ -575,7 +605,8 @@
     "tabs": {
       "catalogo": "Catálogo",
       "avisos": "Avisos de la versión",
-      "comparar": "Comparar versiones"
+      "comparar": "Comparar versiones",
+      "versiones": "Versiones"
     },
     "categories": "Categorías y subcategorías",
     "snsCount": "{{count}} SNS",
@@ -651,6 +682,77 @@
       "removed": "Eliminados",
       "unchanged": "Sin cambios"
     },
-    "noDifferences": "No hay diferencias."
+    "noDifferences": "No hay diferencias.",
+    "file": "Fichero",
+    "importedAt": "Importada",
+    "importedBy": "Por",
+    "openVersion": "Abrir la versión {{number}}",
+    "results_one": "{{count}} resultado"
+  },
+  "cuf": {
+    "title": "Ficha del CUF",
+    "tabs": {
+      "ficha": "Ficha",
+      "configuracion": "Configuración normalizada",
+      "solicitudes": "Solicitudes de SNS"
+    },
+    "data": "Datos del CUF",
+    "variantOf": "Variante de",
+    "variants": "Variantes",
+    "subcategories": "Subcategorías",
+    "snsCount": "{{count}} SNS en la configuración normalizada",
+    "recalculating": "Recalculando la configuración normalizada…",
+    "noSubcategories": "Sin subcategorías.",
+    "noCatalog": "Sin versión del catálogo: un administrador debe asignarla.",
+    "addSubcategory": "Añadir subcategoría",
+    "searchSubcategory": "Buscar subcategoría",
+    "noMoreSubcategories": "No hay más subcategorías que coincidan.",
+    "removeSubcategory": "Quitar la subcategoría {{code}}",
+    "catalogVersion": "Versión del catálogo",
+    "catalogVersionHint": "La configuración normalizada sale de esta versión de la configuración funcional normalizada.",
+    "changeVersion": "Cambiar versión",
+    "changeVersionTitle": "Cambiar la versión del catálogo del CUF",
+    "changeVersionHint": "Revisa el impacto en la configuración normalizada antes de confirmar.",
+    "chooseVersion": "Elige la versión",
+    "impactSummary": "Pasa de {{before}} a {{after}} SNS.",
+    "impactAdded": "SNS que aparecen",
+    "impactRemoved": "SNS que desaparecen",
+    "impactSubcategories": "Subcategorías que no están en esa versión (salen del CUF)",
+    "confirmChange": "Confirmar el cambio",
+    "configHint": "Los «huecos» disponibles para la CONFUNFIS: la unión, sin duplicados, de los SNS de las subcategorías del CUF. Cada SNS muestra de qué subcategoría procede.",
+    "emptyConfig": "La configuración normalizada está vacía: añade subcategorías en la ficha.",
+    "requests": {
+      "hint": "Cuando la función de un componente no está en la configuración normalizada (NT §9.1.1).",
+      "new": "Nueva solicitud",
+      "export": "Exportar las enviadas",
+      "empty": "No hay solicitudes.",
+      "formTitle": "Solicitud de SNS nuevo",
+      "formHint": "La justificación es obligatoria. El código propuesto y el padre son opcionales.",
+      "proposedSns": "SNS propuesto",
+      "parentSns": "SNS padre",
+      "name": "Nombre",
+      "function": "Función o descripción",
+      "justification": "Justificación",
+      "state": "Estado",
+      "dates": "Fechas",
+      "response": "Respuesta",
+      "created": "Creada el {{date}} por {{by}}",
+      "sent": "Enviada el {{date}}",
+      "send": "Enviar",
+      "discard": "Descartar",
+      "discardTitle": "¿Descartar «{{name}}»?",
+      "discardHint": "El borrador deja de verse; queda en la auditoría.",
+      "accept": "Aceptar",
+      "reject": "Rechazar",
+      "acceptTitle": "Aceptar «{{name}}»",
+      "rejectTitle": "Rechazar «{{name}}»",
+      "resolveHint": "La respuesta es obligatoria y la verá quien la envió.",
+      "states": {
+        "borrador": "Borrador",
+        "enviada": "Enviada",
+        "aceptada": "Aceptada",
+        "rechazada": "Rechazada"
+      }
+    }
   }
 }

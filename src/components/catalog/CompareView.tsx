@@ -107,7 +107,7 @@ export function CompareView({ versions, onOpen }: { versions: CatalogVersion[]; 
                     <TableRow key={`${item.sns}-${c?.field ?? i}`}>
                       <TableCell>
                         {i === 0 ? (
-                          <button type="button" className="text-left text-primary hover:underline" onClick={() => onOpen(item.sns)}>
+                          <button type="button" className="text-left text-link underline-offset-2 hover:underline" onClick={() => onOpen(item.sns)}>
                             <span className="font-mono text-xs">{item.sns}</span> {item.name}
                           </button>
                         ) : null}

@@ -70,7 +70,9 @@ const foreign = await admin('POST', '/materials', { name: FOREIGN_NAME, descript
 // start: no folded group.
 const analyst = await apiSession(BASE_URL, ANALYST_EMAIL, ANALYST_PASSWORD);
 const analystPreferences = (await analyst('GET', '/auth/me')).ui_preferences;
-await analyst('PUT', '/me/ui-preferences', { sidebar_collapsed_groups: [] });
+// The analyst has several materials since E11: the check starts on the
+// development one (their preferences are given back at the end).
+await analyst('PUT', '/me/ui-preferences', { sidebar_collapsed_groups: [], active_material_id: devMaterial.id });
 
 async function signIn(page, email, password) {
   await page.goto(`${BASE_URL}/login`);
@@ -132,7 +134,9 @@ try {
   assert((await page.getByTestId('module-requirements').textContent()).includes('RF-02'), 'the card shows RF-02');
   const deps = await page.getByTestId('module-depends-on').textContent();
   assert(deps.includes('Materiales / CUF') && deps.includes('Artículos — datos básicos'), 'the card shows its dependencies');
-  assert((await page.getByTestId('module-depends-on').getByRole('img', { name: es.modules.status.en_desarrollo }).count()) === 1, 'each dependency shows its state');
+  // Materiales / CUF is available since E11; Artículos still planned.
+  const states = page.getByTestId('module-depends-on');
+  assert((await states.getByRole('img', { name: es.modules.status.disponible }).count()) === 1 && (await states.getByRole('img', { name: es.modules.status.planificado }).count()) === 1, 'each dependency shows its state');
   assert((await page.getByTestId('module-used-by').textContent()).includes('Tabla de partes'), 'the card shows who uses it');
   assert((await page.getByTestId('module-planned').textContent()).includes(es.modules.planned), 'the planned notice');
   assert((await page.getByTestId('module-card').getByRole('button').count()) === 0, 'no button on a planned module');

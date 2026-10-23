@@ -26,6 +26,9 @@ def material_snapshot(material: Material) -> dict:
         "part_number": material.part_number,
         "ncage": material.ncage,
         "description": material.description,
+        "grupo_clase": material.grupo_clase,
+        "catalog_version_id": str(material.catalog_version_id) if material.catalog_version_id else None,
+        "copied_from_material_id": str(material.copied_from_material_id) if material.copied_from_material_id else None,
         "deleted": material.deleted_at is not None,
     }
 

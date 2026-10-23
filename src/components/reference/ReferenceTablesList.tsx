@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { NavRow } from '@/components/layout/NavRow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useReferenceTables } from '@/hooks/useReferenceTables';
@@ -19,13 +20,21 @@ export function ReferenceTablesList({ base }: { base: string }): React.JSX.Eleme
             <TableHead>{t('reference.name')}</TableHead>
             <TableHead>{t('reference.source')}</TableHead>
             <TableHead className="text-right">{t('reference.values')}</TableHead>
+            <TableHead>
+              <span className="sr-only">{t('actions.open')}</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {tables.data.map((table) => (
-            <TableRow key={table.code} data-testid={`reference-row-${table.code}`}>
+            <NavRow
+              key={table.code}
+              to={`${base}/${encodeURIComponent(table.code)}`}
+              label={t('reference.openTable', { code: table.code })}
+              data-testid={`reference-row-${table.code}`}
+            >
               <TableCell className="font-mono">
-                <Link to={`${base}/${encodeURIComponent(table.code)}`} className="text-primary hover:underline">
+                <Link to={`${base}/${encodeURIComponent(table.code)}`} className="text-link underline-offset-2 hover:underline">
                   {table.code}
                 </Link>
               </TableCell>
@@ -34,7 +43,7 @@ export function ReferenceTablesList({ base }: { base: string }): React.JSX.Eleme
               <TableCell className="text-right" data-testid="reference-count">
                 {t('reference.valuesCount', { active: table.active_count, total: table.value_count })}
               </TableCell>
-            </TableRow>
+            </NavRow>
           ))}
         </TableBody>
       </Table>

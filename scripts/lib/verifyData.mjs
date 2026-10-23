@@ -25,12 +25,13 @@ export function runBackendScript(python, label, args) {
   return res.status;
 }
 
-export function purgeVerifyData(python, { users = [], materials = [], importJobs = [], catalogVersions = [] }) {
+export function purgeVerifyData(python, { users = [], materials = [], importJobs = [], catalogVersions = [], snsRequests = [] }) {
   const args = [path.join('scripts', 'purge_verify_data.py')];
   if (users.length) args.push('--users', ...users);
   if (materials.length) args.push('--materials', ...materials);
   if (importJobs.length) args.push('--import-jobs', ...importJobs);
   if (catalogVersions.length) args.push('--catalog-versions', ...catalogVersions);
+  if (snsRequests.length) args.push('--sns-requests', ...snsRequests);
   runBackendScript(python, 'cleanup', args);
 }
 

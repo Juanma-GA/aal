@@ -24,7 +24,7 @@ def test_the_real_seed_passes(seed):
 def test_states_of_the_seed(seed):
     states = {m.code: (m.status, m.route) for m in seed.modules}
     assert states["panel"] == ("disponible", "/materiales/:materialId")
-    assert states["materiales"] == ("en_desarrollo", None)
+    assert states["materiales"] == ("disponible", "/materiales/:materialId/ficha")
     # E10: common to every material, outside /materiales/:materialId.
     assert states["catalogo-normalizado"] == ("disponible", "/configuracion-funcional")
     on = ("panel", "materiales", "catalogo-normalizado")

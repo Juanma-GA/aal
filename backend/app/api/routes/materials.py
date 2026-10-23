@@ -22,7 +22,7 @@ from app.api.deps import current_user, material_not_found, require_admin, requir
 from app.api.routes.users import confirmation_required, user_not_found, version_conflict
 from app.core.errors import error_detail
 from app.db.base import get_db
-from app.models import AuditLog, Material, Role, User, UserMaterialRole
+from app.models import AuditLog, CatalogVersion, Material, Role, User, UserMaterialRole
 from app.schemas.materials import ActivityEntry, MaterialCreate, MaterialOut, MaterialUpdate, MemberAssign, MemberOut, format_problems
 from app.services import audit
 from app.services.parameters import get_parameter
@@ -47,6 +47,9 @@ def _out(access: MaterialAccess) -> MaterialOut:
         role=access.role,
         permissions=sorted(access.permissions),
         format_problems=format_problems(m.noc, m.ncage),
+        grupo_clase=m.grupo_clase,
+        catalog_version_id=m.catalog_version_id,
+        copied_from_material_id=m.copied_from_material_id,
     )
 
 
@@ -83,7 +86,9 @@ async def create_material(
 ) -> MaterialOut:
     if await _noc_in_use(db, body.noc):
         raise _noc_taken()
-    material = Material(**body.model_dump(), version=1)
+    # A new CUF works with the active catalog version (E11).
+    active = (await db.execute(select(CatalogVersion.id).where(CatalogVersion.is_active))).scalar_one_or_none()
+    material = Material(**body.model_dump(), catalog_version_id=active, version=1)
     db.add(material)
     try:
         await db.flush()

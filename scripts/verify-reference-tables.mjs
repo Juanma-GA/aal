@@ -94,7 +94,10 @@ try {
   await page.goto(`${BASE_URL}/ajustes/tablas-referencia`);
   await page.getByTestId('reference-tables').waitFor();
   assert((await page.getByTestId('reference-tables').locator('tbody tr').count()) === 15, 'Ajustes lists the 15 reference tables');
-  await page.getByTestId('reference-row-D114').getByRole('link', { name: 'D114' }).click();
+  // The whole row opens the table (E11): a click on its name, not the link.
+  const d114 = page.getByTestId('reference-row-D114');
+  assert((await d114.getAttribute('data-nav-row')) !== null && (await d114.getByRole('button', { name: es.reference.openTable.replace('{{code}}', 'D114') }).count()) === 1, 'the row says it opens (chevron)');
+  await d114.locator('td').nth(1).click();
   await page.getByTestId('reference-table-D114').waitFor();
   await rows(page).first().waitFor();
   assert((await rows(page).count()) === 13, 'D114 shows its 13 values');
@@ -166,7 +169,7 @@ try {
   await page.waitForURL('**/tablas-referencia');
   await page.getByTestId('reference-tables').waitFor();
   assert((await page.getByTestId('reference-tables').locator('tbody tr').count()) === 15, 'the analyst sees the 15 tables');
-  await page.getByTestId('reference-row-D112').getByRole('link', { name: 'D112' }).click();
+  await page.getByTestId('reference-row-D112').locator('td').nth(1).click();
   await rows(page).first().waitFor();
   await page.getByTestId('reference-read-only').waitFor();
   for (const id of ['edit-value', 'toggle-value', 'reference-import', 'reference-new-value']) {

@@ -10,7 +10,7 @@ const ORIGIN_KEYS = { ELEMENTO: 'elemento', 'CN-001': 'cn001', OTRA_SUBCATEGORIA
 
 function Link({ sns, name, onOpen }: { sns: string; name: string; onOpen: (sns: string) => void }): React.JSX.Element {
   return (
-    <button type="button" className="text-left text-primary hover:underline" onClick={() => onOpen(sns)} data-testid={`sns-link-${sns}`}>
+    <button type="button" className="text-left text-link underline-offset-2 hover:underline" onClick={() => onOpen(sns)} data-testid={`sns-link-${sns}`}>
       <span className="font-mono text-xs">{sns}</span> {name}
     </button>
   );
@@ -92,7 +92,7 @@ export function SnsCard({ versionId, sns, onOpen, onSubcategory }: {
             {d.appearances.map((a) => (
               <li key={a.row_number}>
                 {a.subcategory_code ? (
-                  <button type="button" className="text-left text-primary hover:underline" onClick={() => onSubcategory(a.subcategory_code ?? '', d.sns)}>
+                  <button type="button" className="text-left text-link underline-offset-2 hover:underline" onClick={() => onSubcategory(a.subcategory_code ?? '', d.sns)}>
                     <span className="font-mono text-xs">{a.subcategory_code}</span> {a.subcategory_name}
                   </button>
                 ) : (
