@@ -302,8 +302,8 @@ no escribe, aplicar con errores 409, análisis caducado) y 6 `test:js`; `verify-
 - un error del árbol se tragaba;
 - el purge solo borra versiones `verify-…` y restaura los nombres de categorías.
 
-**Commits.** (se anota el de cierre)
+**Commits.** **`1878125`, commit de cierre** (CI en verde, run 39877127761).
 
-**Tests.** `npm run check:all` verde (ver el informe). `verify-conf-fun`, `verify-navigation` (ahora
+**Tests.** `npm run check:all` verde: 268 tests de backend y 7 `test:js`. `verify-conf-fun`, `verify-navigation` (ahora
 abre también el catálogo desde el sidebar), `verify-reference-tables`, `verify-auth-settings` y
 `verify-health` en verde.
