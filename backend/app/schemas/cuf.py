@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -45,7 +46,7 @@ class CufOut(BaseModel):
 class SubcategoriesIn(StrictModel):
     # The material's version (the change bumps it).
     version: int
-    codes: list[str] = Field(max_length=200)
+    codes: list[Annotated[str, Field(pattern=r"^[0-9]{4}$")]] = Field(max_length=200)
 
 
 class CatalogVersionChange(StrictModel):

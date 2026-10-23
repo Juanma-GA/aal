@@ -52,7 +52,9 @@ export function SubcategoriesCard({ cuf, canEdit }: { cuf: Cuf; canEdit: boolean
                 {canEdit ? (
                   <button
                     type="button"
-                    className="ml-1 rounded hover:text-destructive"
+                    className="ml-1 rounded hover:text-destructive disabled:opacity-50"
+                    // One change at a time: the next one needs the version the server gives back.
+                    disabled={change.isPending}
                     aria-label={t('cuf.removeSubcategory', { code: s.code })}
                     data-testid={`cuf-remove-${s.code}`}
                     onClick={() => change.mutate({ cuf, codes: current.filter((c) => c !== s.code) })}
@@ -67,7 +69,7 @@ export function SubcategoriesCard({ cuf, canEdit }: { cuf: Cuf; canEdit: boolean
         {canEdit && cuf.catalog_version ? (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="self-start" data-testid="cuf-add-subcategory">
+              <Button variant="outline" size="sm" className="self-start" data-testid="cuf-add-subcategory" disabled={change.isPending}>
                 <Plus aria-hidden="true" />
                 {t('cuf.addSubcategory')}
               </Button>

@@ -132,12 +132,18 @@ async def seed() -> None:
                 if material.catalog_version_id is None and catalog is not None:
                     material.catalog_version_id = catalog.id
                     material.version += 1
+                    audit.record(
+                        db, action="material.catalog_version_changed", entity_type="material", entity_id=str(material.id),
+                        material_id=material.id, before={"catalog_version_id": None}, after={"catalog_version_id": str(catalog.id)},
+                    )
             materials[name] = material
+            available: list[str] = []
             if catalog is not None and material.catalog_version_id == catalog.id and not await cuf.subcategory_codes(db, material.id):
-                available = await cuf.sns_by_subcategory(db, catalog.id, list(DEMO_SUBCATEGORIES[name]))
+                available = list(await cuf.sns_by_subcategory(db, catalog.id, list(DEMO_SUBCATEGORIES[name])))
                 missing = [c for c in DEMO_SUBCATEGORIES[name] if c not in available]
                 if missing:
                     print(f"  el catálogo activo no tiene las subcategorías {', '.join(missing)}", file=sys.stderr)
+            if catalog is not None and available:
                 await cuf.set_subcategories(db, material, set(available))
                 material.version += 1
                 audit.record(

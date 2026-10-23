@@ -26,7 +26,8 @@ export function NavRow({ to, onOpen, className, children, label, ...props }: {
       data-nav-row=""
       className={cn('cursor-pointer', className)}
       onClick={(e) => {
-        if ((e.target as HTMLElement).closest(INTERACTIVE)) return;
+        // Clicks inside a portal (a row's menu) bubble here too: not the row's own.
+        if (!e.currentTarget.contains(e.target as Node) || (e.target as HTMLElement).closest(INTERACTIVE)) return;
         open();
       }}
     >

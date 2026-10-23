@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user, require_admin, require_material_permission
 from app.api.routes.catalog import XLSX
+from app.api.routes.materials import _active_material
 from app.api.routes.users import confirmation_required, version_conflict
 from app.core.errors import error_detail
 from app.db.base import get_db
@@ -173,6 +174,7 @@ async def resolve_request(
     db: AsyncSession = Depends(get_db),
 ) -> SnsRequestOut:
     """An admin accepts or rejects a sent request, with an answer."""
+    await _active_material(db, material_id)  # not of a deleted material
     r = await _one(db, material_id, request_id, body.version)
     if r.state != "enviada":
         raise _wrong_state(r.state)

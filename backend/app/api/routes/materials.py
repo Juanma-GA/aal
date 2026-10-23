@@ -68,7 +68,10 @@ async def _noc_in_use(db: AsyncSession, noc: str | None, exclude: uuid.UUID | No
 
 async def _active_material(db: AsyncSession, material_id: uuid.UUID) -> Material:
     material = (
-        await db.execute(select(Material).where(Material.id == material_id, Material.deleted_at.is_(None)).with_for_update())
+        await db.execute(select(Material).where(Material.id == material_id, Material.deleted_at.is_(None)).with_for_update()
+            # The permission check may have loaded it already: read it again
+            # under the lock, or the version check compares stale data.
+            .execution_options(populate_existing=True))
     ).scalar_one_or_none()
     if material is None:
         raise material_not_found()

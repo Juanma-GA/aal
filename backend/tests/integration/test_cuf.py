@@ -92,6 +92,9 @@ async def test_a_tracked_vehicle_has_its_own(client, team):
 async def test_subcategories_are_limited_to_the_version_and_audited(client, team):
     res = await put_subs(client, team["analyst"], team["id"], ["0601", "0603"])
     assert (res.status_code, res.json()["detail"]) == (422, {"code": "subcategory_not_in_version", "codes": "0603"})
+    # A code that is not a subcategory code never reaches the answer.
+    bad = await put_subs(client, team["analyst"], team["id"], ["06O1<script>"])
+    assert bad.status_code == 422 and "06O1" not in bad.text
     await put_subs(client, team["analyst"], team["id"], ["0601"])
     stale = await client.put(f"/api/materials/{team['id']}/subcategories", json={"version": 1, "codes": []}, headers=team["analyst"])
     assert stale.json()["detail"]["code"] == "version_conflict"
@@ -173,6 +176,9 @@ async def test_copy_is_independent_and_keeps_its_origin(client, team):
     original = (await client.get(f"/api/materials/{mid}/cuf", headers=team["admin"])).json()
     assert [s["code"] for s in original["subcategories"]] == ["0201", "0601"]
     assert [v["name"] for v in original["variants"]] == ["Variante E11"]
+    async with async_session_factory() as session:
+        row = (await session.execute(select(AuditLog).where(AuditLog.entity_id == variant["id"], AuditLog.action == "material.copied"))).scalar_one()
+    assert sorted(m["role"] for m in row.after["members"]) == ["analista", "observador"]
     taken = await client.post(f"/api/materials/{mid}/copy", json={"name": "Otra", "noc": "232033X900099"}, headers=team["admin"])
     assert taken.json()["detail"]["code"] == "material_noc_taken"
 
@@ -203,6 +209,12 @@ async def test_sns_requests(client, team):
     async with async_session_factory() as session:
         actions = (await session.execute(select(AuditLog.action).where(AuditLog.entity_id == created["id"]).order_by(AuditLog.created_at))).scalars().all()
     assert actions == ["sns_request.created", "sns_request.updated", "sns_request.sent", "sns_request.rejected"]
+    # Nobody resolves a request of a deleted material.
+    other = (await client.post(base, json=body, headers=team["analyst"])).json()
+    other = (await client.post(f"{base}/{other['id']}/submit", json={"version": 1}, headers=team["analyst"])).json()
+    assert (await client.delete(f"/api/materials/{team['id']}", params={"confirm": "true"}, headers=team["admin"])).status_code == 204
+    late = await client.post(f"{base}/{other['id']}/resolve", json={**resolve, "version": other["version"]}, headers=team["admin"])
+    assert late.status_code == 404
 
 
 async def test_seed_demo_materials_with_and_without_a_catalog(client, factory, catalog):  # noqa: F811

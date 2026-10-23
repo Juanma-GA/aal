@@ -21,7 +21,7 @@ from app.api.routes.users import confirmation_required, version_conflict
 from app.core.errors import error_detail
 from app.db.base import get_db
 from app.io_excel.writer import write_workbook
-from app.models import CatalogVersion, Material, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, User
+from app.models import CatalogVersion, Material, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, User, UserMaterialRole
 from app.schemas.cuf import (
     CatalogVersionChange,
     CopyIn,
@@ -259,10 +259,13 @@ async def copy_material(
     options = cuf.CopyOptions(copy_members=body.copy_members)
     for _name, copier in cuf.MATERIAL_COPIERS:
         await copier(db, source, target, options)
+    # Who got access to the new CUF, and with which role (D11).
+    members = (await db.execute(select(UserMaterialRole).where(UserMaterialRole.material_id == target.id))).scalars().all()
     audit.record(
         db, action="material.copied", entity_type="material", entity_id=str(target.id), user_id=admin.id, material_id=target.id,
         before={"from": str(source.id), "from_name": source.name},
-        after={**material_snapshot(target), "copiers": [name for name, _fn in cuf.MATERIAL_COPIERS], "copy_members": body.copy_members},
+        after={**material_snapshot(target), "copiers": [name for name, _fn in cuf.MATERIAL_COPIERS], "copy_members": body.copy_members,
+               "members": sorted([{"user_id": str(m.user_id), "role": m.role_code} for m in members], key=lambda m: m["user_id"])},
         ip=client_ip(request),
     )
     await db.commit()

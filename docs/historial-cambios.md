@@ -353,7 +353,17 @@ abre también el catálogo desde el sidebar), `verify-reference-tables`, `verify
   (`SUBCATEGORY_REMOVAL_GUARDS`, con un test que lo documenta). El bloqueo real llega en E13.
 - **Grupo-Clase** es informativo (4 cifras) y lo edita el admin en el formulario del material.
 
-**Commits.** (se anota el de cierre)
+**Revisión (code-reviewer + security-reviewer).** Sin bloqueantes. Corregido:
+- El material se relee bajo el bloqueo (`populate_existing`). El permiso ya lo había cargado, así que
+  la comprobación de `version` podía usar datos viejos y perder un cambio concurrente.
+- Los códigos de subcategoría se validan uno a uno; un 422 ya no devuelve lo enviado.
+- No se resuelve una solicitud de un material borrado.
+- La auditoría de la copia lista los miembros copiados con su rol.
+- El seed audita la versión que asigna y no reescribe subcategorías vacías (idempotente).
+- Las subcategorías no admiten un segundo cambio hasta que vuelve el primero (evita un 409 falso).
+- Un clic en el menú de una fila (portal) ya no abre la fila.
+
+**Commits.** `4bfd9cb` (E11) y el de cierre (se anota)
 
 **Tests.** `npm run check:all` verde (ver el informe). `verify-materials`, `verify-reference-tables`
 (entra por la fila), `verify-conf-fun`, `verify-navigation` (ahora fija el material activo del
