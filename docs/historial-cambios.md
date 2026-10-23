@@ -363,7 +363,7 @@ abre también el catálogo desde el sidebar), `verify-reference-tables`, `verify
 - Las subcategorías no admiten un segundo cambio hasta que vuelve el primero (evita un 409 falso).
 - Un clic en el menú de una fila (portal) ya no abre la fila.
 
-**Commits.** `4bfd9cb` (E11) y el de cierre (se anota)
+**Commits.** `4bfd9cb` (E11) y `0f25900` (revisión). **Commit de cierre: `0f25900`** (CI verde, run 39925845986).
 
 **Tests.** `npm run check:all` verde (ver el informe). `verify-materials`, `verify-reference-tables`
 (entra por la fila), `verify-conf-fun`, `verify-navigation` (ahora fija el material activo del
