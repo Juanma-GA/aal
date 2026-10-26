@@ -248,6 +248,7 @@
   --color-header-foreground: var(--header-foreground);
   --color-header-accent: var(--header-accent);
   --color-header-line: var(--header-line);
+  --color-sidebar-label: var(--sidebar-label);
   --color-header-control-foreground: var(--header-control-foreground);
   --color-module-available: var(--module-available);
   --color-module-developing: var(--module-developing);
@@ -287,16 +288,18 @@
 }
 [data-sidebar="menu-button"][data-active="true"] {
   background-color: var(--sidebar-active);
+  /* The bar as a background, not a box-shadow: the focus ring is one. */
+  background-image: linear-gradient(to right, var(--sidebar-active-bar) 3px, transparent 3px);
   color: var(--sidebar-active-foreground);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--sidebar-active-bar);
 }
 
 /* The selected row of a tree or a list: the accent and a bar on the left. */
 @utility row-selected {
   background-color: var(--accent);
+  /* The bar as a background, not a box-shadow: a search hit's ring is one. */
+  background-image: linear-gradient(to right, var(--brand) 3px, transparent 3px);
   color: var(--accent-foreground);
-  box-shadow: inset 3px 0 0 var(--brand);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -32,7 +32,7 @@ export function ChangeValue({ change, side }: { change: ImportChange; side: 'bef
   if (varies) return <VariesList values={varies} />;
   const value = change[side];
   // An empty value says so: a blank cell reads as "nothing to see" (E15b).
-  return value === '' || value === null || value === undefined ? <span className="italic text-muted-foreground">{t('import.empty')}</span> : <>{value}</>;
+  return value === '' || value === null || value === undefined ? <span className="inline-block italic text-muted-foreground no-underline">{t('import.empty')}</span> : <>{value}</>;
 }
 
 /** The rows of an SNS before and after, one line per subcategory, the

@@ -26,23 +26,29 @@ FIELD, COLUMN, DEFAULT = "cdSegArt", "codigo_seguridad", "U"
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    fixed = bind.execute(
+    # Empty as the rule sees it (app/validacion/articulos.py _empty): NULL or "".
+    # One statement: the old value is read, the article corrected and audited with what it had.
+    op.get_bind().execute(
         sa.text(
-            f"UPDATE article SET {COLUMN} = :value, version = version + 1, updated_at = now() "
-            f"WHERE deleted_at IS NULL AND ({COLUMN} IS NULL OR btrim({COLUMN}) = '') RETURNING id"
+            f"""
+            WITH old AS (
+                SELECT id, {COLUMN} AS value FROM article
+                WHERE deleted_at IS NULL AND ({COLUMN} IS NULL OR {COLUMN} = '') FOR UPDATE
+            ), fixed AS (
+                UPDATE article SET {COLUMN} = :value, version = version + 1, updated_at = now()
+                FROM old WHERE article.id = old.id RETURNING article.id, old.value
+            )
+            INSERT INTO audit_log (id, created_at, user_id, action, entity_type, entity_id, before, after)
+            SELECT gen_random_uuid(), now(), NULL, 'article.autocorrected', 'article', fixed.id::text,
+                   jsonb_build_object('{COLUMN}', fixed.value), CAST(:after AS jsonb)
+            FROM fixed
+            """
         ),
-        {"value": DEFAULT},
-    ).scalars().all()
-    after = json.dumps({"corrections": [{"code": "AR-008", "field": FIELD, "value": DEFAULT}], "origin": "migration 0015"})
-    for article_id in fixed:
-        bind.execute(
-            sa.text(
-                "INSERT INTO audit_log (id, created_at, user_id, action, entity_type, entity_id, before, after) "
-                "VALUES (gen_random_uuid(), now(), NULL, 'article.autocorrected', 'article', :id, CAST(:before AS jsonb), CAST(:after AS jsonb))"
-            ),
-            {"id": str(article_id), "before": json.dumps({COLUMN: None}), "after": after},
-        )
+        # import_origin, as audit.origin() writes it: "origin" is the article's own field.
+        {"value": DEFAULT, "after": json.dumps({"corrections": [{"code": "AR-008", "field": FIELD, "value": DEFAULT}], "import_origin": {"migration": "0015"}})},
+    )
+    # The findings do not change while field 19 is "Recomendado" (the seed) and U is a D106 code; had an admin
+    # made it Obligatorio (Ajustes -> Campos del artículo), "Revalidar todos los artículos" refreshes them.
 
 
 def downgrade() -> None:

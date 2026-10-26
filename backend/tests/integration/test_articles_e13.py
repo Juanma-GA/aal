@@ -300,17 +300,25 @@ async def test_migration_0015_corrects_the_stored_articles(client, people):
 
     from app.models import Article
 
+    stored_before = {None: uuid.uuid4(), "": uuid.uuid4()}
     async with async_session_factory() as session:
-        article = Article(id=uuid.uuid4(), nombre="ANTIGUO SIN CÓDIGO E15B", origen_nombre="coloquial", origin="confunfis", version=1, references=[], life_controls=[])
-        session.add(article)
+        for value, article_id in stored_before.items():
+            session.add(Article(
+                id=article_id, nombre=f"ANTIGUO SIN CÓDIGO E15B {value!r}", origen_nombre="coloquial", origin="confunfis", version=1,
+                codigo_seguridad=value, references=[], life_controls=[],
+            ))
         await session.commit()
-        article_id = article.id
     backend = Path(__file__).resolve().parents[2]
     for step in (("downgrade", "0014"), ("upgrade", "head")):
         done = subprocess.run([sys.executable, "-m", "alembic", *step], cwd=backend, env={**os.environ, "PYTHONIOENCODING": "utf-8"}, capture_output=True, check=False)
         assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
-    async with async_session_factory() as session:
-        stored = await session.get(Article, article_id)
-        audited = (await session.execute(select(AuditLog).where(AuditLog.action == "article.autocorrected", AuditLog.entity_id == str(article_id)))).scalars().all()
-    assert (stored.codigo_seguridad, stored.version) == ("U", 2)
-    assert [a.after["corrections"] for a in audited] == [[{"code": "AR-008", "field": "cdSegArt", "value": "U"}]]
+    for value, article_id in stored_before.items():
+        async with async_session_factory() as session:
+            stored = await session.get(Article, article_id)
+            audited = (await session.execute(select(AuditLog).where(AuditLog.action == "article.autocorrected", AuditLog.entity_id == str(article_id)))).scalars().all()
+        assert (stored.codigo_seguridad, stored.version) == ("U", 2)
+        # What was there, and where the change came from (never the article's own "origin").
+        assert [(a.before, a.after) for a in audited] == [(
+            {"codigo_seguridad": value},
+            {"corrections": [{"code": "AR-008", "field": "cdSegArt", "value": "U"}], "import_origin": {"migration": "0015"}},
+        )]

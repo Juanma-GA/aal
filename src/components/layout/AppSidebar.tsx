@@ -51,7 +51,7 @@ export function AppSidebar({ layout }: { layout: SidebarLayout }): React.JSX.Ele
             <Skeleton className="h-5 w-32" />
           </div>
         ) : !material ? (
-          <p className="p-4 text-sm text-muted-foreground">{t('nav.noMaterial')}</p>
+          <p className="p-4 text-sm text-sidebar-label">{t('nav.noMaterial')}</p>
         ) : (
           modules.data.map((group) => {
             const open = !collapsed.includes(group.code);
