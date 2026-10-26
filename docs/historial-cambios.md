@@ -476,3 +476,38 @@ Anotado sin cambiar:
 **Tests.** `npm run check:all` verde (ver el informe). `verify-articles`, `verify-materials`,
 `verify-conf-fun`, `verify-navigation`, `verify-reference-tables`, `verify-auth-settings` y `verify-health`
 en verde.
+
+## E13 — CONFUNFIS (RF-02): configuración funcional física de cada CUF
+
+**Qué.** Los cuatro flecos de artículos y la CONFUNFIS completa (backend, pantalla y demo).
+
+- **Rejilla de artículos (fleco 1):** cada tecla re-renderizaba toda la rejilla (~500 selectores Radix
+  montados), cada celda reconstruía el conjunto de códigos de su tabla en cada render y `useFieldCodes`
+  devolvía un objeto nuevo en cada render (rompía la memorización). Filas memorizadas, conjuntos una vez,
+  selectores montados solo al editar: de 3 280 ms a 32 ms por tecla; "Aplicar a la selección" sobre 200
+  filas, 72 ms. `verify-articles-perf` (2 000 artículos) lo mide en la CI.
+- **Longitudes (fleco 2):** `vaUsoArt` 5,2 y volumen 8 (migración 0009); convención: longitud = dígitos
+  sin la coma (la guía cuenta la coma). Columnas del artículo sin longitud: la valida la definición, que el
+  admin corrige en Ajustes (auditado; nunca deja datos sin caber; la semilla ya no la pisa).
+- **Revalidación (fleco 3):** botón del admin y automática tras tablas de referencia o definiciones; informe
+  de avisos que aparecen y desaparecen por regla.
+- **Referencias (fleco 4):** `article_reference` (varios P/N por NOC); el Maestro AAL exporta la hoja
+  `Referencias` y el round trip sigue exacto.
+- **CONFUNFIS:** `physical_position` (0010), grafo calculado (totales con CS alternativos y AL una vez,
+  huérfanas, ciclos), enlace con el maestro (NOC → P/N → nombre → provisional), observaciones OF-001…OF-011,
+  API, puntos de extensión (copia, guarda de subcategorías, impacto, dónde se usa), `seed_demo_confunfis.py`
+  y la pantalla (árbol, vista funcional, tabla, ficha, edición). Cifras del §2.3 reproducidas salvo CUF
+  montados: 2 (la radio y el motor, cuyo NOC es el CUF del material MOTOR DIESEL).
+
+**Por qué.** Encargo E13 (`docs/encargos/E13.md`).
+
+**Revisión (AACF).** Seguridad: QTY acotada (parámetro `confunfis.qty`), CUF montado de un material sin
+acceso desconocido, auditoría del enlace con material e IP. Código: la edición solo envía lo cambiado,
+observaciones recalculadas tras cambios de otras pantallas, referencias/artículos usados por la CONFUNFIS
+protegidos, revalidación sin perder cambios, escrituras serializadas por material, duplicados con CS vacío.
+
+**Commits.** `a85ea4b`, `f0c1932`, `3de3d9a`, `12f0ecc`, `333ca37` y `51b4163` (revisión).
+**Commit de cierre: `51b4163`.**
+
+**Tests.** `npm run check:all` verde (343 tests de backend). `verify-confunfis`, `verify-articles`,
+`verify-articles-perf`, `verify-materials`, `verify-navigation` y `verify-reference-tables` en verde.
