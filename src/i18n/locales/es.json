@@ -977,6 +977,7 @@
     "saveRows": "Guardar {{count}} filas",
     "exportCount": "Se exportan {{count}} artículos; {{withFindings}} con avisos AR.",
     "total": "{{count}} artículos",
-    "noMar06": "Sin campo MAR06"
+    "noMar06": "Sin campo MAR06",
+    "editCell": "{{field}} de {{name}}"
   }
 }

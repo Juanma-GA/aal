@@ -10,7 +10,7 @@ const EMPTY = '__empty__';
 /** The input of a field, from its definition: S/N and table codes as a
  *  selector (code and name; a deactivated code only when it is the value),
  *  the rest as text or number. */
-export function FieldInput({ field, value, onChange, values, disabled, invalid, id, compact }: {
+export function FieldInput({ field, value, onChange, values, disabled, invalid, id, compact, defaultOpen, onOpenChange }: {
   field: ArticleField;
   value: string | null;
   onChange: (value: string | null) => void;
@@ -19,6 +19,9 @@ export function FieldInput({ field, value, onChange, values, disabled, invalid, 
   invalid?: boolean;
   id?: string;
   compact?: boolean;
+  /** A selector opened at once (the grid mounts it only when a cell is edited). */
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const table = tableOf(field);
@@ -29,8 +32,8 @@ export function FieldInput({ field, value, onChange, values, disabled, invalid, 
       : (values ?? []).filter((v) => v.is_active || v.code === value).map((v) => ({ code: v.code, label: v.description }));
     const known = value === null || options.some((o) => o.code === value);
     return (
-      <Select value={value ?? EMPTY} onValueChange={(v) => onChange(v === EMPTY ? null : v)} disabled={disabled}>
-        <SelectTrigger id={id} aria-invalid={invalid || !known || undefined} className={cn('w-full', size)} data-testid={id}>
+      <Select value={value ?? EMPTY} onValueChange={(v) => onChange(v === EMPTY ? null : v)} disabled={disabled} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
+        <SelectTrigger id={id} aria-invalid={invalid || !known || undefined} className={cn('w-full', size)} data-testid={id} data-field={field.prisma_code}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -49,6 +52,7 @@ export function FieldInput({ field, value, onChange, values, disabled, invalid, 
     <Input
       id={id}
       data-testid={id}
+      data-field={field.prisma_code}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
       disabled={disabled}

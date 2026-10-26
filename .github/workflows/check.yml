@@ -99,7 +99,7 @@ jobs:
           .venv/bin/python scripts/seed_dev_data.py
       - name: npm run check:all
         run: npm run check:all
-      - name: verify-health, verify-auth-settings, verify-navigation, verify-reference-tables, verify-conf-fun, verify-materials and verify-articles (real Chromium, backend and Vite)
+      - name: verify-health, verify-auth-settings, verify-navigation, verify-reference-tables, verify-conf-fun, verify-materials, verify-articles and verify-articles-perf (real Chromium, backend and Vite)
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
           SHOTS_DIR: ${{ runner.temp }}/shots
@@ -121,6 +121,8 @@ jobs:
           (cd backend && .venv/bin/python scripts/seed_demo_materials.py)
           node scripts/verify-materials.mjs
           node scripts/verify-articles.mjs
+          # E13: 2000 synthetic articles, typing < 100 ms and applying to 200 rows < 1 s.
+          node scripts/verify-articles-perf.mjs
       - name: Screenshots
         if: always()
         uses: actions/upload-artifact@v4
