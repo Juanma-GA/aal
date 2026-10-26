@@ -107,7 +107,7 @@ def _row_out(ctx: Context, r: PhysicalPosition) -> RowOut:
         total=_plain(ctx.graph.total(g.hueco)), orphan=ctx.graph.orphan.get(str(r.id)),
         alternative=ctx.graph.is_alternative(g), cs_alternative=ctx.graph.is_cs_alternative(g),
         child_count=len(ctx.graph.children.get(g.key, [])),
-        is_mounted=m is not None, mounted=MaterialBrief(id=link.id, name=link.name) if link else None, version=r.version, updated_at=r.updated_at,
+        is_mounted=link is not None, mounted=MaterialBrief(id=link.id, name=link.name) if link else None, version=r.version, updated_at=r.updated_at,
     )
 
 
@@ -239,7 +239,8 @@ async def list_rows(
     if orphans is not None:
         rows = [r for r in rows if (str(r.id) in ctx.graph.orphan) == orphans]
     if mounted is not None:
-        rows = [r for r in rows if (r.id in ctx.mounted) == mounted]
+        # Only the materials the user may open: the others stay unknown.
+        rows = [r for r in rows if (r.id in ctx.mounted and ctx.mounted[r.id].id in ctx.visible) == mounted]
     rows = _ordered(rows)
     window = rows[(page - 1) * size : page * size]
     return RowPage(total=len(rows), page=page, page_size=size, items=[_row_out(ctx, r) for r in window])

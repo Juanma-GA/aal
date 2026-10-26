@@ -110,8 +110,9 @@ async def test_the_figures_of_the_demo(client, demo):
     admin_rows = (await all_rows(client, demo, demo["people"]["admin"]))["items"]
     mounted = {r["sns"]: r["mounted"]["name"] for r in admin_rows if r["mounted"]}
     assert mounted == {"E12300": "RADIO VHF RT-500", "A20000": "MOTOR DIESEL 6 CIL DM-6 280 CV"}
-    # Without access to those materials: the badge, not which one.
-    assert sorted(r["sns"] for r in rows if r["is_mounted"]) == ["A20000", "E12300"] and not any(r["mounted"] for r in rows)
+    # Without access to those materials they stay unknown, as a 404 (not even the badge).
+    assert not any(r["is_mounted"] or r["mounted"] for r in rows)
+    assert (await all_rows(client, demo, analyst, mounted="true"))["total"] == 0
 
     # "Dónde se usa" of the pistón: both CUF, A21030 01 00.
     piston = find(rows, "A21030")[0]["article"]["id"]
@@ -157,6 +158,8 @@ async def test_editing_with_its_checks(client, demo):
     assert (outside.status_code, outside.json()["detail"]["problems"][0]["code"]) == (422, "sns_not_in_config")
     bad = await client.post(url, json={"sns": "A27010", "co": "4", "qty": "x"}, headers=analyst)
     assert {p["code"] for p in bad.json()["detail"]["problems"]} == {"two_digits", "qty_not_a_number"}
+    huge = await client.post(url, json={"sns": "A27010", "co": "04", "qty": "1E+100000"}, headers=analyst)
+    assert huge.status_code == 422 and huge.json()["detail"]["problems"][0]["code"] == "qty_out_of_range"
 
     slot = (await client.get(f"{base(demo)}/next-slot", params={"sns": "A27010"}, headers=analyst)).json()
     assert slot == {"co": "04", "al": "00"}

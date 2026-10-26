@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ class RowIn(StrictModel):
     sns: str = Field(min_length=1, max_length=40)
     co: str = Field(min_length=1, max_length=40)
     al: str | None = _Short
-    qty: str | int | float | Decimal | None = None
+    qty: Annotated[str, Field(max_length=40)] | int | float | Decimal | None = None
     # The article: chosen (article_id) or found by NOC, P/N + NCAGE, name.
     article_id: uuid.UUID | None = None
     noc: str | None = _Short
@@ -38,7 +38,7 @@ class RowUpdate(StrictModel):
     sns: str | None = Field(default=None, min_length=1, max_length=40)
     co: str | None = Field(default=None, min_length=1, max_length=40)
     al: str | None = _Short
-    qty: str | int | float | Decimal | None = None
+    qty: Annotated[str, Field(max_length=40)] | int | float | Decimal | None = None
     article_id: uuid.UUID | None = None
     noc: str | None = _Short
     pn: str | None = Field(default=None, max_length=32)
@@ -99,7 +99,8 @@ class RowOut(BaseModel):
     alternative: bool
     cs_alternative: bool
     child_count: int
-    # The CUF of another material (§9.1.12); which one, when the user may open it.
+    # The CUF of another material the user may open (§9.1.12); one they may
+    # not open stays unknown, as a 404.
     is_mounted: bool
     mounted: MaterialBrief | None
     version: int

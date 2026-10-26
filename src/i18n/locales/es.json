@@ -367,7 +367,9 @@
         "co.min": "Código de componente (CO) mínimo",
         "co.max": "Código de componente (CO) máximo",
         "al.min": "Alternativo (AL) mínimo",
-        "al.max": "Alternativo (AL) máximo"
+        "al.max": "Alternativo (AL) máximo",
+        "qty.max": "QTY máxima de una fila",
+        "qty.decimals": "Decimales máximos de la QTY"
       }
     },
     "modules": {
@@ -1271,7 +1273,8 @@
       "pn_required": "Un NCAGE necesita su P/N.",
       "noc_invalid": "No es un NOC: 13 letras mayúsculas y cifras.",
       "ncage_invalid": "No es un NCAGE: 5 letras mayúsculas y cifras.",
-      "article_not_found": "Ese artículo ya no está en el maestro."
+      "article_not_found": "Ese artículo ya no está en el maestro.",
+      "qty_out_of_range": "La cantidad no puede pasar de {{max}} ni tener más de {{decimals}} decimales."
     },
     "observationsCount": "{{count}} observaciones"
   }

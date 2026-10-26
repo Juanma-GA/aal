@@ -36,7 +36,7 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Article, ArticleReference, Material, PhysicalPosition, User
@@ -127,7 +127,9 @@ async def _by_name(db: AsyncSession, name: str | None) -> Article | None:
     return next((a for a in candidates if name_key(a.nombre) == key), None)
 
 
-async def _attach_reference(db: AsyncSession, article: Article, pn: str | None, ncage: str | None, user_id: uuid.UUID | None, link: Link) -> None:
+async def _attach_reference(
+    db: AsyncSession, article: Article, pn: str | None, ncage: str | None, user_id: uuid.UUID | None, link: Link, material: Material, ip: str | None
+) -> None:
     if not pn:
         return
     own = next((r for r in article.live_references if (r.pn, r.ncage) == (pn, ncage)), None)
@@ -145,15 +147,15 @@ async def _attach_reference(db: AsyncSession, article: Article, pn: str | None, 
     article.version += 1
     await db.flush()
     audit.record(
-        db, action="article.reference_added", entity_type="article", entity_id=str(article.id), user_id=user_id,
-        after={"reference": {"id": str(reference.id), "pn": pn, "ncage": ncage, "principal": reference.principal, "origin": "confunfis"}},
+        db, action="article.reference_added", entity_type="article", entity_id=str(article.id), user_id=user_id, material_id=material.id,
+        after={"reference": {"id": str(reference.id), "pn": pn, "ncage": ncage, "principal": reference.principal, "origin": "confunfis"}}, ip=ip,
     )
     link.reference = reference
 
 
 async def link_article(
     db: AsyncSession, *, noc: str | None, pn: str | None, ncage: str | None, name: str | None, user_id: uuid.UUID | None,
-    material: Material, article_id: uuid.UUID | None = None,
+    material: Material, article_id: uuid.UUID | None = None, ip: str | None = None,
 ) -> Link:
     article: Article | None = None
     if article_id is not None:
@@ -182,19 +184,19 @@ async def link_article(
         db.add(article)
         await db.flush()
         audit.record(
-            db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user_id,
-            after={"noc": noc, "nombre": article.nombre, "origin": "confunfis", "material_id": str(material.id)},
+            db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user_id, material_id=material.id,
+            after={"noc": noc, "nombre": article.nombre, "origin": "confunfis", "material_id": str(material.id)}, ip=ip,
         )
         created = True
     link = Link(article=article, reference=None, created=created)
-    await _attach_reference(db, article, pn, ncage, user_id, link)
+    await _attach_reference(db, article, pn, ncage, user_id, link, material, ip)
     return link
 
 
 # ── saving a row ─────────────────────────────────────────────────────────
 
 
-def _qty(value: Any, problems: list[dict[str, Any]]) -> Decimal | None:
+def _qty(value: Any, problems: list[dict[str, Any]], bounds: dict[str, Any]) -> Decimal | None:
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
     try:
@@ -206,15 +208,23 @@ def _qty(value: Any, problems: list[dict[str, Any]]) -> Decimal | None:
         problems.append({"field": "qty", "code": "qty_not_a_number", "params": {}})
         return None
     # 1.000000 read from a cell is 1; 1.50 is 1.5.
-    return qty.to_integral_value() if qty == qty.to_integral_value() else qty.normalize()
+    qty = qty.to_integral_value() if qty == qty.to_integral_value() else qty.normalize()
+    exponent = qty.as_tuple().exponent
+    if abs(qty) > bounds["max"] or (isinstance(exponent, int) and -exponent > bounds["decimals"]):
+        # A number nobody counts (1E+100000) cannot be stored: refused, never cut (HR6).
+        problems.append({"field": "qty", "code": "qty_out_of_range", "params": {"max": bounds["max"], "decimals": bounds["decimals"]}})
+        return None
+    return qty
 
 
 # Problems of the value's type: always, whatever was changed.
-_TYPE_CODES = {"qty_not_a_number", "yes_no", "required"}
+_TYPE_CODES = {"qty_not_a_number", "qty_out_of_range", "yes_no", "required"}
+# Without the parameter at hand (a unit test): the defaults'.
+_QTY_BOUNDS = {"max": 1_000_000, "decimals": 6}
 
 
 def clean_values(
-    values: dict[str, Any], *, strict: bool, config: set[str] | None, checked: set[str] | None = None
+    values: dict[str, Any], *, strict: bool, config: set[str] | None, checked: set[str] | None = None, qty_bounds: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """The row's values as stored, and what makes them impossible. `checked`:
     the fields an edit changes (the screen's checks of format and
@@ -225,7 +235,7 @@ def clean_values(
         "sns": _text(values.get("sns"), upper=True),
         "co": _text(values.get("co")),
         "al": _text(values.get("al")) or ("00" if strict else None),
-        "qty": _qty(values.get("qty"), problems),
+        "qty": _qty(values.get("qty"), problems, qty_bounds or _QTY_BOUNDS),
         "article_name": _text(values.get("article_name")),
         "function_text": _text(values.get("function_text")),
         "ct_sigle": _text(values.get("ct_sigle"), upper=True),
@@ -265,7 +275,7 @@ async def save_row(
     new row."""
     if strict and config is None:
         config = set(await cuf.normalized_config(db, material))
-    clean, problems = clean_values(values, strict=strict, config=config, checked=checked)
+    clean, problems = clean_values(values, strict=strict, config=config, checked=checked, qty_bounds=(await get_parameter(db, "confunfis"))["qty"])
     link: Link | None = None
     if identity is not None:
         noc, pn, ncage, wrong = normalize_identity(identity.get("noc"), identity.get("pn"), identity.get("ncage"))
@@ -275,7 +285,7 @@ async def save_row(
         if problems:
             raise RowError(problems)
         link = await link_article(
-            db, noc=noc, pn=pn, ncage=ncage, name=clean["article_name"], user_id=user_id, material=material, article_id=identity.get("article_id")
+            db, noc=noc, pn=pn, ncage=ncage, name=clean["article_name"], user_id=user_id, material=material, article_id=identity.get("article_id"), ip=audit_ip,
         )
     elif problems:
         raise RowError(problems)
@@ -375,7 +385,16 @@ async def refresh_observations(db: AsyncSession, material: Material) -> None:
 
 async def mounted(db: AsyncSession, material: Material, rows: list[PhysicalPosition], articles: dict[uuid.UUID, Article]) -> dict[uuid.UUID, Material]:
     """Row -> the other material whose CUF its article is (NOC, or P/N + NCAGE)."""
-    others = (await db.execute(select(Material).where(Material.deleted_at.is_(None), Material.id != material.id))).scalars().all()
+    used = [articles[r.article_id] for r in rows if r.article_id in articles]
+    nocs = {a.noc for a in used if a.noc}
+    pns = {ref.pn for a in used for ref in a.live_references}
+    if not nocs and not pns:
+        return {}
+    others = (
+        await db.execute(
+            select(Material).where(Material.deleted_at.is_(None), Material.id != material.id, or_(Material.noc.in_(nocs), Material.part_number.in_(pns)))
+        )
+    ).scalars().all()
     by_noc = {m.noc: m for m in others if m.noc}
     by_pn = {(m.part_number, m.ncage): m for m in others if m.part_number and m.ncage}
     out: dict[uuid.UUID, Material] = {}
