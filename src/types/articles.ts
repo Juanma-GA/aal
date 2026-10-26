@@ -47,7 +47,29 @@ export interface WhereUsed {
   material_name?: string;
 }
 
+/** A P/N + NCAGE of an article (E13, NT §9.1.6: one NOC, several P/N). */
+export type ReferenceOrigin = 'manual' | 'importacion' | 'confunfis' | 'migracion';
+
+export interface ArticleReference {
+  id: string;
+  pn: string;
+  ncage: string | null;
+  principal: boolean;
+  origin: ReferenceOrigin;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReferenceChanges {
+  pn?: string;
+  ncage?: string | null;
+  principal?: boolean;
+}
+
 export interface Article extends ArticleRow {
+  /** The principal first (its P/N + NCAGE are the row's `pn`, `ncage`). */
+  references: ArticleReference[];
   findings: Finding[];
   where_used: WhereUsed[];
   corrections: { code: string; field: string; value: string }[];
@@ -109,3 +131,25 @@ export interface HistoryEntry {
 }
 
 export type ArticleTemplate = 'fichero_carga' | 'maestro';
+
+/** A run of the AR rules over every article (E13, in the background). */
+export type RevalidationReason = 'manual' | 'reference_table' | 'field_definition';
+export type RevalidationStatus = 'queued' | 'running' | 'done' | 'failed';
+
+export interface RevalidationReport {
+  articles: number;
+  changed: number;
+  by_rule: Record<ArRule, { appeared: number; disappeared: number; now: number }>;
+}
+
+export interface Revalidation {
+  id: string;
+  reason: RevalidationReason;
+  detail: { table?: string; field?: string };
+  status: RevalidationStatus;
+  report: RevalidationReport | null;
+  error_code: string | null;
+  created_by: string | null;
+  created_at: string;
+  finished_at: string | null;
+}

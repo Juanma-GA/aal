@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -91,6 +91,23 @@ class ArticleFieldOut(BaseModel):
     header: str | None = None
     allowed_values: list[str] | None = None
     help: dict[str, Any] | None = None
+    # E13: corrected by the admin (a seed reload keeps it), and its version.
+    edited_by_admin: bool = False
+    version: int = 1
+
+
+class ArticleFieldUpdate(StrictModel):
+    """The admin's correction of a field definition (E13): only what is sent
+    changes. Length and decimals as digits (numbers) or characters (text)."""
+
+    version: int
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    importance: Literal["Obligatorio", "Recomendado", "Opcional"] | None = None
+    length: int | None = Field(default=None, ge=1, le=4000)
+    decimals: int | None = Field(default=None, ge=0, le=20)
+    related_to: str | None = Field(default=None, max_length=100)
+    supplied_by_contractor: str | None = Field(default=None, min_length=1, max_length=200)
+    reference_table_code: str | None = Field(default=None, max_length=40)
 
 
 class ImportIssueOut(BaseModel):

@@ -1,5 +1,5 @@
 import type { ImportJob } from '@/types/imports';
-import type { ArticleField, ReferenceTable, ReferenceValue, ReferenceValueCreate, ReferenceValueUpdate } from '@/types/reference';
+import type { ArticleField, ArticleFieldChanges, ReferenceTable, ReferenceValue, ReferenceValueCreate, ReferenceValueUpdate } from '@/types/reference';
 import { apiFetchFile, apiFetchJson, apiSend, apiUpload } from './apiClient';
 
 const table = (code: string) => `/reference-tables/${encodeURIComponent(code)}`;
@@ -15,3 +15,5 @@ export const fetchArticleFields = (): Promise<ArticleField[]> => apiFetchJson<Ar
 
 export const exportReferenceTable = (code: string) => apiFetchFile(`${table(code)}/export`);
 export const startReferenceImport = (code: string, file: File): Promise<ImportJob> => apiUpload<ImportJob>(`${table(code)}/import`, file);
+export const updateArticleField = (code: string, version: number, changes: ArticleFieldChanges): Promise<ArticleField> =>
+  apiSend<ArticleField>('PATCH', `/article-fields/${encodeURIComponent(code)}`, { ...changes, version });

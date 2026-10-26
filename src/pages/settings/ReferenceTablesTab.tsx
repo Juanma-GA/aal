@@ -11,7 +11,7 @@ export function ReferenceTablesTab(): React.JSX.Element {
   return code ? <ReferenceTableView key={code} code={code} base={BASE} /> : <ReferenceTablesList base={BASE} />;
 }
 
-/** Ajustes -> Campos del artículo (read-only). */
+/** Ajustes -> Campos del artículo: the admin corrects a definition (E13). */
 export function ArticleFieldsTab(): React.JSX.Element {
-  return <ArticleFieldsTable tablesBase={BASE} />;
+  return <ArticleFieldsTable tablesBase={BASE} editable />;
 }

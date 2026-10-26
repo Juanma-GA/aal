@@ -72,6 +72,9 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
         "max_page_size": 1000,
         # Rows of one save of the grid (it sends more in several).
         "max_batch_rows": 200,
+        # A revalidation of every article still queued or running after this
+        # long was killed (a restart) and is marked failed (E13).
+        "revalidation_stale_minutes": 30,
     },
     # The interface (E12): the sidebar's width in pixels, dragged by its edge.
     "ui": {

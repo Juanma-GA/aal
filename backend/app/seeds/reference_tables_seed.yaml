@@ -13,6 +13,13 @@
 #   llevarlos a columnas de Excel.
 # - El código 09 de D114 va entre comillas: los códigos son siempre texto
 #   (la carga rechaza cualquier código que no lo sea).
+# - E13: vaUsoArt (campo 56) pasa de longitud 2 a 5 y caVoluArt (campo 46) de
+#   6 a 8, como la guía MAR06. Convención de `longitud` en los numéricos: el
+#   número de dígitos, sin contar la coma (la precisión de SQL); `decimales`,
+#   cuántos de ellos van tras la coma. El "tamaño" de la guía cuenta también
+#   la coma cuando hay decimales: peso, largo, ancho y alto 7,2 = tamaño 8;
+#   vaUsoArt 5,2 admite 999,99, que cubre el tamaño 5 (99,99) de la guía;
+#   imEstdArt 9,2 se queda como estaba (no se reduce ninguna longitud).
 version: 1
 tablas:
 - codigo: D106
@@ -1933,7 +1940,7 @@ campos_articulo:
   importancia: Recomendado
   campo_guia: '46'
   tipo: Numérico
-  longitud: 6
+  longitud: 8
   decimales: null
   relacionado_con: '15'
   suministrado_por_contratista: S
@@ -2026,7 +2033,7 @@ campos_articulo:
   importancia: Recomendado
   campo_guia: '56'
   tipo: Numérico
-  longitud: 2
+  longitud: 5
   decimales: 2
   relacionado_con: null
   suministrado_por_contratista: S

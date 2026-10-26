@@ -106,7 +106,16 @@
     "article_noc_taken": "Ya hay otro artículo con ese NOC.",
     "article_pn_ncage_taken": "Ya hay otro artículo con ese P/N y NCAGE.",
     "batch_too_large": "Demasiadas filas en un guardado: el máximo es {{max}}.",
-    "article_identity_taken": "Otro artículo acaba de quedarse con ese NOC o ese P/N y NCAGE."
+    "article_identity_taken": "Otro artículo acaba de quedarse con ese NOC o ese P/N y NCAGE.",
+    "article_reference_not_found": "Esa referencia ya no está en el artículo: recárgalo.",
+    "article_field_not_found": "Ese campo del artículo no existe.",
+    "article_field_length_fixed": "La longitud del NOC es su formato (13 caracteres): no se corrige.",
+    "article_field_decimals_invalid": "Los decimales solo valen en un campo numérico y tienen que ser menos que su longitud.",
+    "article_field_table_not_allowed": "Un campo numérico o S/N no lleva tabla de referencia.",
+    "article_field_data_does_not_fit": "{{count}} artículos tienen un valor que no cabe en la nueva definición (por ejemplo, {{names}}). Corrígelos antes.",
+    "revalidation_not_found": "Esa revalidación no existe.",
+    "revalidation_failed": "La revalidación de los artículos ha fallado.",
+    "revalidation_interrupted": "La revalidación de los artículos se interrumpió."
   },
   "actions": {
     "retry": "Reintentar",
@@ -346,7 +355,8 @@
         "max_uncompressed_mb": "Tamaño máximo descomprimido (MB)",
         "max_rows": "Filas de datos como máximo",
         "stale_minutes": "Minutos tras los que un análisis se da por interrumpido",
-        "max_batch_rows": "Filas por guardado de la rejilla de artículos"
+        "max_batch_rows": "Filas por guardado de la rejilla de artículos",
+        "revalidation_stale_minutes": "Minutos tras los que una revalidación de artículos sin terminar se da por interrumpida"
       }
     },
     "modules": {
@@ -411,7 +421,13 @@
       "article.created": "Artículo creado",
       "article.updated": "Artículo editado",
       "article.deleted": "Artículo borrado",
-      "articles.seeded": "Artículos de demo cargados"
+      "articles.seeded": "Artículos de demo cargados",
+      "article.reference_added": "Referencia añadida",
+      "article.reference_updated": "Referencia editada",
+      "article.reference_removed": "Referencia quitada",
+      "article_field.updated": "Campo del artículo corregido",
+      "articles.revalidated": "Artículos revalidados",
+      "articles.revalidation_requested": "Revalidación de artículos pedida"
     },
     "entities": {
       "article": "Artículo",
@@ -426,7 +442,9 @@
       "reference_table": "Tabla de referencia",
       "reference_value": "Valor de referencia",
       "catalog_version": "Versión del catálogo",
-      "sns_request": "Solicitud de SNS"
+      "sns_request": "Solicitud de SNS",
+      "article_field": "Campo del artículo",
+      "article_revalidation": "Revalidación de artículos"
     }
   },
   "nav": {
@@ -538,7 +556,7 @@
   },
   "articleFields": {
     "title": "Campos del artículo",
-    "hint": "Los 30 campos del Fichero Carga (MAR06) con los que E12 validará los artículos. Solo lectura.",
+    "hint": "Los 30 campos del Fichero Carga (MAR06) con los que se validan los artículos. En los numéricos, la longitud son los dígitos sin contar la coma (la guía la cuenta): 7,2 es su tamaño 8.",
     "prismaCode": "Código PRISMA",
     "name": "Nombre",
     "importance": "Importancia",
@@ -550,7 +568,19 @@
     "suppliedBy": "Lo aporta el contratista",
     "referenceTable": "Tabla de referencia",
     "detail": "Detalle",
-    "detailOf": "Detalle de {{code}}"
+    "detailOf": "Detalle de {{code}}",
+    "edited": "Corregido",
+    "editOf": "Corregir {{code}}",
+    "editTitle": "Corregir el campo {{code}}",
+    "editHint": "Queda en la auditoría y una recarga de la semilla ya no lo pisa. Si cambia algo que afecta a los avisos (importancia, longitud, decimales o tabla), los artículos se revalidan en segundo plano.",
+    "lengthDigits": "Longitud (dígitos, sin la coma)",
+    "lengthChars": "Longitud (caracteres)",
+    "decimalsInvalid": "Los decimales tienen que ser menos que la longitud.",
+    "importances": {
+      "Obligatorio": "Obligatorio",
+      "Recomendado": "Recomendado",
+      "Opcional": "Opcional"
+    }
   },
   "import": {
     "chooseFile": "Fichero de Excel (.xlsx)",
@@ -631,7 +661,8 @@
       "name_required": "Falta el nombre coloquial: un artículo necesita al menos su nombre.",
       "duplicate_article": "El mismo artículo ya está en la fila {{first_row}}.",
       "duplicate_pn_ncage": "El mismo P/N y NCAGE ya está en la fila {{first_row}}.",
-      "pn_ncage_taken": "El P/N y NCAGE {{value}} ya es de otro artículo."
+      "pn_ncage_taken": "El P/N y NCAGE {{value}} ya es de otro artículo.",
+      "pn_required": "Hay NCAGE pero no P/N: una referencia necesita su P/N."
     },
     "page": "Página {{page}} de {{pages}} · {{total}} filas",
     "rejectedSummary": "{{count}} filas rechazadas (no se aplican; el resto, sí)."
@@ -962,7 +993,8 @@
       "unknown_field": "No es un campo del artículo.",
       "noc_invalid": "No es un NOC: 13 letras mayúsculas y cifras.",
       "ncage_invalid": "No es un NCAGE: 5 letras mayúsculas y cifras.",
-      "required": "Obligatorio."
+      "required": "Obligatorio.",
+      "pn_required": "Un NCAGE necesita su P/N."
     },
     "bulkField": "Campo",
     "bulkValue": "Valor",
@@ -978,6 +1010,49 @@
     "exportCount": "Se exportan {{count}} artículos; {{withFindings}} con avisos AR.",
     "total": "{{count}} artículos",
     "noMar06": "Sin campo MAR06",
-    "editCell": "{{field}} de {{name}}"
+    "editCell": "{{field}} de {{name}}",
+    "references": {
+      "title": "Referencias (P/N + NCAGE)",
+      "hint": "Un mismo NOC puede tener varios P/N (NT §9.1.6). La principal es la que va al Maestro AAL y a la lista.",
+      "none": "Sin referencias: el artículo se identifica por su NOC o por su nombre.",
+      "origin": "Origen",
+      "actions": "Acciones",
+      "principal": "Principal",
+      "makePrincipal": "Hacer principal {{pn}}",
+      "edit": "Editar {{pn}}",
+      "remove": "Quitar {{pn}}",
+      "newPn": "P/N de la nueva referencia",
+      "newNcage": "NCAGE de la nueva referencia",
+      "add": "Añadir referencia",
+      "removeTitle": "¿Quitar la referencia {{pn}}?",
+      "removeHint": "Deja de identificar al artículo; queda en su historial.",
+      "removePrincipalHint": "Es la principal: el artículo se queda sin P/N principal hasta que hagas principal otra. Queda en su historial.",
+      "removeConfirm": "Quitar",
+      "origins": {
+        "manual": "A mano",
+        "importacion": "Importación",
+        "confunfis": "CONFUNFIS",
+        "migracion": "Migración (E12)"
+      }
+    },
+    "revalidation": {
+      "button": "Revalidar todos los artículos",
+      "never": "Todavía no se ha revalidado ningún artículo.",
+      "running": "Revalidando los artículos ({{reason}})…",
+      "failed": "La revalidación del {{when}} falló: vuelve a lanzarla.",
+      "done": "Última revalidación: {{when}} ({{reason}}). Avisos nuevos: {{appeared}}; desaparecidos: {{disappeared}}.",
+      "seeReport": "Ver el informe",
+      "reportTitle": "Revalidación de los artículos",
+      "reportHint": "{{count}} artículos revisados, {{changed}} con cambios en sus avisos ({{reason}}).",
+      "rule": "Regla",
+      "appeared": "Aparecen",
+      "disappeared": "Desaparecen",
+      "now": "Ahora",
+      "reasons": {
+        "manual": "a mano",
+        "reference_table": "cambió la tabla {{table}}",
+        "field_definition": "se corrigió el campo {{field}}"
+      }
+    }
   }
 }

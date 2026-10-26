@@ -202,11 +202,16 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   002, 003, 006 y 007 uno cada uno), el analista abre la `BIELA DM-6` desde su fila, ve AR-006 y la ayuda del
   campo 53, activa el control de vida (D114 + cantidad) y AR-006 desaparece; en la rejilla aplica "Escalón 4 =
   S" a dos artículos y exporta el Fichero Carga. Deja la base como estaba (`purge_verify_data.py
-  --save-articles` / `--restore-articles` y su `import_job` borrado).
+  --save-articles` / `--restore-articles` y su `import_job` borrado). (E13) El admin pulsa "Revalidar todos los
+  artículos" y lee el informe por regla; el analista añade una referencia (P/N + NCAGE) a la biela.
+- **`verify-articles-perf.mjs`** (E13): siembra 2 000 artículos sintéticos (`seed_synthetic_articles.py`) y mide
+  con la Event Timing API del navegador que teclear en una celda de la rejilla responde en < 100 ms
+  (`ARTICLES_PERF_KEY_MS`) y "Aplicar a la selección" sobre 200 filas tarda < 1 s (`ARTICLES_PERF_APPLY_MS`);
+  falla si se supera. Deja la base como estaba (`--save-articles` / `--restore-articles`).
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
-  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) + `verify-articles` con Chrome
+  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) + `verify-articles` + `verify-articles-perf` con Chrome
   contra uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
@@ -346,6 +351,17 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   registro (`USAGE_PROVIDERS`, `register_usage`): E13/E14/E17 añaden lo suyo. Editar: `articulos.editar` en
   algún material (o admin); importar: admin. Importación Fichero Carga / Maestro AAL
   (`app/services/article_import.py`): las filas rechazadas se listan y no bloquean el resto.
+- **Artículos (E13)**: las columnas de `article` no tienen longitud (texto y `numeric`): la longitud y los
+  decimales son los de `article_field_definition`, que el admin corrige en Ajustes → "Campos del artículo"
+  (`PATCH /api/article-fields/{código}`, auditado, con versión; nunca deja datos guardados que no quepan;
+  `edited_by_admin` hace que una recarga de la semilla no lo pise y liste la diferencia). Convención de los
+  numéricos: `longitud` = dígitos sin la coma (el "tamaño" de la guía MAR06 cuenta la coma). P/N + NCAGE en
+  `article_reference` (0..n por artículo, una principal = `pn`/`ncage` del artículo, (P/N, NCAGE) único entre las
+  vivas; `set_principal`, `reference_owner` en `app/services/articles.py`); el Maestro AAL lleva la principal y
+  la hoja `Referencias` (solo exportación). Revalidación de todos los artículos en segundo plano
+  (`app/services/revalidation.py`, tabla `article_revalidation`): botón del admin, y sola tras importar o editar
+  (activar/desactivar) una tabla de referencia que lean los artículos o corregir una definición de campo; el
+  informe da por regla cuántos avisos aparecen y desaparecen. No sube la versión del artículo.
 - **Sidebar (E12)**: ancho (borde arrastrable, límites en el parámetro `ui`), plegado a iconos (botón al pie y
   `Ctrl+B`) y lado, en `ui_preferences` (`useSidebarLayout`); `/api/me/ui-settings` da los límites.
 - **Listas navegables y enlaces (E11)**: toda fila que abre algo es un `NavRow`

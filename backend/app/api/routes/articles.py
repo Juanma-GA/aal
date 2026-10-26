@@ -26,7 +26,7 @@ from app.core.errors import error_detail
 from app.db.base import get_db
 from app.io_excel.targets import get_target
 from app.io_excel.writer import write_workbook
-from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, Article, AuditLog, User
+from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, Article, ArticleReference, AuditLog, User
 from app.models.article import LIFE_CODE_FIELD, LIFE_QUANTITY_FIELD
 from app.schemas.articles import (
     ArticleIn,
@@ -40,12 +40,28 @@ from app.schemas.articles import (
     ExportSummary,
     LifeControlIn,
     LifeControlOut,
+    ReferenceIn,
+    ReferenceOut,
+    ReferenceUpdate,
 )
 from app.schemas.reference import ImportJobOut
 from app.services import audit, import_jobs
 from app.services.article_fields import FieldError, coerce
-from app.services.article_import import FICHERO_CARGA, MAESTRO, build_template, export_values
-from app.services.articles import Checker, can_edit_articles, data_of, life_of, normalize_identity, set_data, set_life, snapshot, where_used
+from app.services.article_import import FICHERO_CARGA, MAESTRO, build_template, export_values, reference_rows, references_template
+from app.services.articles import (
+    Checker,
+    can_edit_articles,
+    data_of,
+    life_of,
+    normalize_identity,
+    reference_owner,
+    reference_snapshot,
+    set_data,
+    set_life,
+    set_principal,
+    snapshot,
+    where_used,
+)
 from app.services.parameters import get_parameter
 from app.services.snapshots import client_ip
 from app.validacion.articulos import RULES, LifeControl, autocorrect
@@ -91,6 +107,10 @@ def _row(a: Article) -> ArticleRow:
     )
 
 
+def _reference_out(r: ArticleReference) -> ReferenceOut:
+    return ReferenceOut(id=r.id, pn=r.pn, ncage=r.ncage, principal=r.principal, origin=r.origin, version=r.version, created_at=r.created_at, updated_at=r.updated_at)
+
+
 async def _names(db: AsyncSession, ids: set[uuid.UUID | None]) -> dict[uuid.UUID, str]:
     ids = {i for i in ids if i}
     return dict((await db.execute(select(User.id, User.display_name).where(User.id.in_(ids)))).all()) if ids else {}
@@ -100,6 +120,7 @@ async def _out(db: AsyncSession, a: Article, checker: Checker, user: User, corre
     names = await _names(db, {a.created_by, a.updated_by})
     return ArticleOut(
         **_row(a).model_dump(),
+        references=[_reference_out(r) for r in a.live_references],
         # Checked now: a reference table may have changed since it was saved.
         findings=checker.findings(data_of(a), life_of(a)),
         where_used=await where_used(db, a, user),
@@ -163,13 +184,16 @@ async def _check_unique(db: AsyncSession, article_id: uuid.UUID | None, noc: str
     others = [Article.deleted_at.is_(None)] + ([Article.id != article_id] if article_id else [])
     if noc and (await db.execute(select(Article.id).where(Article.noc == noc, *others))).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_noc_taken"))
-    if pn and ncage and (await db.execute(select(Article.id).where(Article.pn == pn, Article.ncage == ncage, *others))).first():
+    if pn and await reference_owner(db, pn, ncage, exclude=article_id):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_pn_ncage_taken"))
 
 
 def _identity(noc: Any, pn: Any, ncage: Any, nombre: str | None, problems: list[dict[str, Any]], checker: Checker) -> tuple[Any, Any, Any, Any]:
     noc, pn, ncage, wrong = normalize_identity(noc, pn, ncage)
     problems += [{"field": w, "code": f"{w}_invalid", "params": {}} for w in wrong]
+    if ncage and not pn:
+        # A reference is a P/N (E13): an NCAGE alone has nowhere to go.
+        problems.append({"field": "pn", "code": "pn_required", "params": {}})
     name = None
     if nombre is not None:
         try:
@@ -188,7 +212,8 @@ def _filters(
     where: list[Any] = [Article.deleted_at.is_(None)]
     if q and q.strip():
         like = f"%{like_text(q.strip())}%"
-        where.append(or_(Article.noc.ilike(like), Article.pn.ilike(like), Article.nombre.ilike(like)))
+        by_pn = select(ArticleReference.article_id).where(ArticleReference.pn.ilike(like), ArticleReference.deleted_at.is_(None))
+        where.append(or_(Article.noc.ilike(like), Article.nombre.ilike(like), Article.id.in_(by_pn)))
     if rule:
         where.append(Article.finding_codes.contains([rule]))
     if with_findings is not None:
@@ -269,7 +294,8 @@ async def export_articles(
     kind = TEMPLATES[template]
     checker = await Checker.load(db)
     rows = (await db.execute(select(Article).where(*filters.where).order_by(Article.nombre, Article.noc, Article.id))).scalars().all()
-    data = await asyncio.to_thread(write_workbook, build_template(checker.defs, kind), [export_values(a, kind) for a in rows])
+    extra = [(references_template(), reference_rows(list(rows)))] if kind == MAESTRO else []
+    data = await asyncio.to_thread(write_workbook, build_template(checker.defs, kind), [export_values(a, kind) for a in rows], extra)
     name = f"{_FILE_NAMES[kind]}_{datetime.now(UTC):%Y%m%d}.xlsx"
     return Response(content=data, media_type=XLSX, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
@@ -303,11 +329,12 @@ async def create_article(body: ArticleIn, request: Request, user: User = Depends
     await _check_unique(db, None, noc, pn, ncage)
     data = {**{p: None for p in FIELD_COLUMNS}, **fields, "cdART": noc, "NomArt": name}
     corrections = autocorrect(data)
-    article = Article(id=uuid.uuid4(), pn=pn, ncage=ncage, origen_nombre=body.origen_nombre, nombre=name, version=1, created_by=user.id, updated_by=user.id)
+    article = Article(id=uuid.uuid4(), origen_nombre=body.origen_nombre, nombre=name, version=1, created_by=user.id, updated_by=user.id, references=[], life_controls=[])
     set_data(article, data)
     set_life(article, life)
     checker.recheck(article)
     db.add(article)
+    await set_principal(db, article, pn, ncage, user.id, "manual")
     try:
         await db.flush()
     except IntegrityError:
@@ -340,7 +367,7 @@ async def _update(db: AsyncSession, article: Article, body: ArticleUpdate | Any,
     data = {**data_of(article), **fields, "cdART": noc, "NomArt": name}
     corrections = autocorrect(data)
     set_data(article, data)
-    article.pn, article.ncage = pn, ncage
+    await set_principal(db, article, pn, ncage, user.id, "manual")
     if "origen_nombre" in sent and body.origen_nombre:
         article.origen_nombre = body.origen_nombre
     if life is not None:
@@ -421,6 +448,9 @@ async def delete_article(
         raise version_conflict(article.version)
     before = snapshot(article)
     article.deleted_at = datetime.now(UTC)
+    # Its P/N + NCAGE go with it: free for another article (uq_article_reference_pn_ncage).
+    for r in article.live_references:
+        r.deleted_at, r.version, r.updated_by = article.deleted_at, r.version + 1, user.id
     article.version += 1
     article.updated_by = user.id
     audit.record(db, action="article.deleted", entity_type="article", entity_id=str(article.id), user_id=user.id, before=before, after=None, ip=client_ip(request))
@@ -446,3 +476,118 @@ async def article_history(article_id: uuid.UUID, _user: User = Depends(current_u
         )
     ).all()
     return [{"id": str(r.id), "at": r.created_at.isoformat(), "action": r.action, "user": name, "before": r.before, "after": r.after} for r, name in rows]
+
+
+# References (E13, NT §9.1.6): one article, several P/N + NCAGE. Each change
+# goes with the reference's version and counts as a change of the article
+# (its version goes up: the list shows the principal one), audited on it.
+
+
+def _reference(article: Article, reference_id: uuid.UUID) -> ArticleReference:
+    found = next((r for r in article.live_references if r.id == reference_id), None)
+    if found is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail("article_reference_not_found"))
+    return found
+
+
+async def _reference_identity(db: AsyncSession, article: Article, pn: Any, ncage: Any, exclude: ArticleReference | None) -> tuple[str, str | None]:
+    _noc, pn, ncage, wrong = normalize_identity(None, pn, ncage)
+    problems = [{"field": w, "code": f"{w}_invalid", "params": {}} for w in wrong]
+    if not pn:
+        problems.append({"field": "pn", "code": "pn_required", "params": {}})
+    if problems:
+        raise _invalid(problems)
+    same = [r for r in article.live_references if r is not exclude and (r.pn, r.ncage) == (pn, ncage)]
+    if same or await reference_owner(db, pn, ncage, exclude=article.id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_pn_ncage_taken"))
+    return pn, ncage
+
+
+async def _reference_changed(
+    db: AsyncSession, article: Article, user: User, request: Request, action: str, before: dict[str, Any] | None, after: dict[str, Any] | None
+) -> ArticleOut:
+    article_id = article.id
+    article.version += 1
+    article.updated_by = user.id
+    audit.record(
+        db, action=action, entity_type="article", entity_id=str(article.id), user_id=user.id,
+        before={"reference": before} if before else None, after={"reference": after} if after else None, ip=client_ip(request),
+    )
+    try:
+        await db.flush()
+    except IntegrityError:
+        raise _taken() from None
+    await db.commit()
+    # Their server-side defaults and onupdate timestamps, loaded here (no lazy IO).
+    for r in article.references:
+        await db.refresh(r)
+    await db.refresh(article)
+    return await _out(db, await _one(db, article_id), await Checker.load(db), user)
+
+
+async def _demote_principal(db: AsyncSession, article: Article, user: User) -> None:
+    current = article.principal_reference
+    if current is not None:
+        current.principal, current.version, current.updated_by = False, current.version + 1, user.id
+        await db.flush()
+
+
+@router.post("/{article_id}/references", response_model=ArticleOut, status_code=status.HTTP_201_CREATED)
+async def add_reference(
+    article_id: uuid.UUID, body: ReferenceIn, request: Request, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)
+) -> ArticleOut:
+    await _require_editor(db, user)
+    article = await _one(db, article_id, lock=True)
+    pn, ncage = await _reference_identity(db, article, body.pn, body.ncage, None)
+    # The first reference is the principal one.
+    principal = body.principal or article.principal_reference is None
+    if principal:
+        await _demote_principal(db, article, user)
+    reference = ArticleReference(id=uuid.uuid4(), pn=pn, ncage=ncage, principal=principal, origin="manual", version=1, created_by=user.id, updated_by=user.id)
+    article.references.append(reference)
+    return await _reference_changed(db, article, user, request, "article.reference_added", None, reference_snapshot(reference))
+
+
+@router.patch("/{article_id}/references/{reference_id}", response_model=ArticleOut)
+async def update_reference(
+    article_id: uuid.UUID, reference_id: uuid.UUID, body: ReferenceUpdate, request: Request,
+    user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
+) -> ArticleOut:
+    await _require_editor(db, user)
+    article = await _one(db, article_id, lock=True)
+    reference = _reference(article, reference_id)
+    if reference.version != body.version:
+        raise version_conflict(reference.version)
+    sent = body.model_fields_set
+    before = reference_snapshot(reference)
+    if "pn" in sent or "ncage" in sent:
+        reference.pn, reference.ncage = await _reference_identity(
+            db, article, body.pn if "pn" in sent else reference.pn, body.ncage if "ncage" in sent else reference.ncage, reference
+        )
+    if body.principal is True and not reference.principal:
+        await _demote_principal(db, article, user)
+        reference.principal = True
+    elif body.principal is False:
+        reference.principal = False
+    reference.version += 1
+    reference.updated_by = user.id
+    return await _reference_changed(db, article, user, request, "article.reference_updated", before, reference_snapshot(reference))
+
+
+@router.delete("/{article_id}/references/{reference_id}", response_model=ArticleOut)
+async def remove_reference(
+    article_id: uuid.UUID, reference_id: uuid.UUID, version: int, request: Request, confirm: bool = False,
+    user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
+) -> ArticleOut:
+    """Removed logically (HR9). Removing the principal leaves none: another
+    one is made principal explicitly."""
+    await _require_editor(db, user)
+    if not confirm:
+        raise confirmation_required()
+    article = await _one(db, article_id, lock=True)
+    reference = _reference(article, reference_id)
+    if reference.version != version:
+        raise version_conflict(reference.version)
+    before = reference_snapshot(reference)
+    reference.deleted_at, reference.version, reference.updated_by = datetime.now(UTC), reference.version + 1, user.id
+    return await _reference_changed(db, article, user, request, "article.reference_removed", before, None)

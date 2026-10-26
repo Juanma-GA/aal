@@ -72,7 +72,10 @@ class ReferenceValue(Base):
 
 class ArticleFieldDefinition(Base):
     """One of the 30 fields of an article (Fichero Carga / MAR06): metadata
-    E12 validates articles with. Read-only: it comes from the seed."""
+    E12 validates articles with. It comes from the seed; since E13 the admin
+    corrects what EDITABLE_FIELD_ATTRIBUTES lists in Ajustes (audited, with
+    its version), and a seed reload no longer overwrites a field the admin
+    edited (`edited_by_admin`): it lists the differences."""
 
     __tablename__ = "article_field_definition"
 
@@ -93,3 +96,14 @@ class ArticleFieldDefinition(Base):
     header: Mapped[str | None] = mapped_column(String(200), nullable=True)
     allowed_values: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     help: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # E13 (migration 0009).
+    edited_by_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True)
+
+
+# What the admin may correct of a field definition (E13): not its PRISMA
+# code, guide field, type, header nor order -- they identify the column of
+# the official Fichero Carga.
+EDITABLE_FIELD_ATTRIBUTES = ("name", "importance", "length", "decimals", "related_to", "supplied_by_contractor", "reference_table_code")

@@ -10,8 +10,9 @@ when its records are not one row each (the CONF_FUN catalog groups rows by
 SNS): its report has the same shape as analysis.analyze's ("columns",
 "template_fields", "new", "modified", "unchanged", "errors", "warnings",
 "counts", "pending"; "removed" optional), and the job uses it instead; and
-`after_apply(db)`, run once the import is committed (the catalog refreshes
-its tables' statistics).
+`after_apply(db, job)`, run once the import is committed (the catalog
+refreshes its tables' statistics; a reference table queues the
+revalidation of the articles, E13).
 """
 
 from typing import Any, Protocol

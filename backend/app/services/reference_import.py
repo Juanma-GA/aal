@@ -33,7 +33,7 @@ from app.models import (
     ReferenceValue,
     User,
 )
-from app.services import audit
+from app.services import audit, revalidation
 
 KIND = "reference_table"
 _ATTRIBUTE_TYPES = {"texto": ColumnType.TEXT, "entero": ColumnType.INTEGER, "si_no": ColumnType.YES_NO}
@@ -166,6 +166,15 @@ class ReferenceTableTarget:
             )
         if pending["new"] or pending["modified"]:
             table.version += 1
+
+    async def after_apply(self, db: AsyncSession, job: ImportJob) -> None:
+        """The articles' findings may have changed (E13): revalidated in the background."""
+        if not (job.report["pending"]["new"] or job.report["pending"]["modified"]):
+            return
+        run = await revalidation.after_table_change(db, job.params["table"], job.user_id)
+        await db.commit()
+        if run:
+            revalidation.schedule(run)
 
 
 register(ReferenceTableTarget())

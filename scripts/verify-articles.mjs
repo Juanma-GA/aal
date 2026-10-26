@@ -110,6 +110,18 @@ try {
   assert(applied.ok(), 'the import is applied');
   await page.getByTestId('import-done').waitFor();
   await page.keyboard.press('Escape');
+  // E13: the admin revalidates every article and reads what changed by rule.
+  const [startedRun] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/article-revalidations') && r.request().method() === 'POST'),
+    page.getByTestId('revalidate-all').click(),
+  ]);
+  const runId = (await startedRun.json()).id;
+  await page.waitForResponse(async (r) => r.url().endsWith('/api/article-revalidations/latest') && (await r.json())?.id === runId && (await r.json()).status === 'done', { timeout: 30_000 });
+  await page.getByTestId('revalidation-report-open').click();
+  const report = page.getByTestId('revalidation-report');
+  await report.waitFor();
+  assert((await report.textContent()).includes('45') && (await page.getByTestId('revalidation-rule-AR-006').count()) === 1, 'the revalidation reports the 45 articles by rule');
+  await page.keyboard.press('Escape');
   await signOut(page);
 
   // ── 2. The analyst opens the BIELA ─────────────────────────────────────
@@ -145,6 +157,15 @@ try {
   assert(saved.ok(), 'the change is saved');
   await page.getByTestId('article-no-findings').waitFor();
   assert((await page.getByTestId('finding-AR-006').count()) === 0, 'AR-006 is gone');
+  // E13: a second P/N for the same NOC; the first one is the principal.
+  await page.getByTestId('reference-new-pn').fill('VRF-PN-1');
+  await page.getByTestId('reference-new-ncage').fill('a1234');
+  const [added] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/references') && r.request().method() === 'POST'),
+    page.getByTestId('reference-add').click(),
+  ]);
+  assert(added.ok() && (await added.json()).references.some((r) => r.pn === 'VRF-PN-1' && r.ncage === 'A1234' && r.principal), 'a reference is added to the card (principal)');
+  await page.getByTestId('reference-VRF-PN-1').waitFor();
   await page.screenshot({ path: shot('verify-articles-3-saved.png'), fullPage: true });
 
   // ── 4. The grid: Escalón 4 = S on two articles ─────────────────────────

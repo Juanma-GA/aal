@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ArticleGrid } from '@/components/articles/ArticleGrid';
 import { ExportDialog } from '@/components/articles/ExportDialog';
+import { RevalidationPanel } from '@/components/articles/RevalidationPanel';
 import { ImportWizard } from '@/components/import/ImportWizard';
 import { NavRow } from '@/components/layout/NavRow';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -119,6 +120,7 @@ export function ArticlesPage(): React.JSX.Element {
     <div className="flex flex-col gap-6" data-testid="articles-page">
       <PageHeader crumbs={[{ label: t('articles.title') }]} title={t('articles.title')} />
       <p className="text-sm text-muted-foreground">{t('articles.hint')}</p>
+      {rights.data?.can_import ? <RevalidationPanel /> : null}
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex min-w-64 flex-1 flex-col gap-1">
           <Label htmlFor="article-search">{t('articles.search')}</Label>

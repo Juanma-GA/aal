@@ -56,7 +56,7 @@ async def main() -> int:
         f"cabecera, valores y ayuda actualizados: {extras}."
     )
     if report.differences:
-        print("Valores que difieren de la semilla (se conservan los de la base):")
+        print("Valores y campos del artículo que difieren de la semilla (se conservan los de la base):")
         for d in report.differences:
             print(f"  - {d.table}/{d.code} {d.field}: base {d.stored!r}, semilla {d.seed!r}")
     if report.values_not_in_seed:

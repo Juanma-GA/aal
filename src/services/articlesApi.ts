@@ -9,6 +9,8 @@ import type {
   ExportSummary,
   Finding,
   HistoryEntry,
+  ReferenceChanges,
+  Revalidation,
 } from '@/types/articles';
 import type { ImportJob } from '@/types/imports';
 import { apiFetchFile, apiFetchJson, apiSend, apiUpload } from './apiClient';
@@ -41,3 +43,12 @@ export const saveArticleBatch = (items: { id: string; version: number; fields: R
 export const fetchExportSummary = (filters: ArticleFilters): Promise<ExportSummary> => apiFetchJson<ExportSummary>(`${base}/export-summary?${filterQuery(filters)}`);
 export const exportArticles = (template: ArticleTemplate, filters: ArticleFilters) => apiFetchFile(`${base}/export?${filterQuery(filters, { template })}`);
 export const startArticleImport = (template: ArticleTemplate, file: File): Promise<ImportJob> => apiUpload<ImportJob>(`${base}/import?template=${template}`, file);
+
+export const addReference = (articleId: string, body: { pn: string; ncage: string | null; principal?: boolean }): Promise<Article> =>
+  apiSend<Article>('POST', `${base}/${articleId}/references`, body);
+export const updateReference = (articleId: string, referenceId: string, version: number, changes: ReferenceChanges): Promise<Article> =>
+  apiSend<Article>('PATCH', `${base}/${articleId}/references/${referenceId}`, { ...changes, version });
+export const removeReference = (articleId: string, referenceId: string, version: number): Promise<Article> =>
+  apiSend<Article>('DELETE', `${base}/${articleId}/references/${referenceId}?version=${version}&confirm=true`);
+export const startRevalidation = (): Promise<Revalidation> => apiSend<Revalidation>('POST', '/article-revalidations', {});
+export const fetchLatestRevalidation = (): Promise<Revalidation | null> => apiFetchJson<Revalidation | null>('/article-revalidations/latest');

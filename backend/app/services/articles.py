@@ -6,6 +6,9 @@ that run on every save, "dónde se usa" and who may edit.
   apart (`life_of`, `set_life`).
 - `recheck(db, article)`: AR-001…AR-007 over its data, kept on the article
   (findings, finding_codes) so the list filters by rule.
+- References (E13, NT §9.1.6): `set_principal` writes the P/N + NCAGE that
+  the Fichero Carga's world calls "the" article's (its principal
+  reference); `reference_owner` says which article has a P/N + NCAGE.
 - `USAGE_PROVIDERS` / `register_usage`: where an article is used. E12 has
   one provider ("Es el CUF del material X": a material with its NOC);
   E13/E14 add the CONFUNFIS positions, the parts and the functional
@@ -21,10 +24,23 @@ from collections.abc import Awaitable, Callable
 from decimal import Decimal
 from typing import Any
 
+import uuid
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, Article, ArticleLifeControl, Material, RolePermission, User, UserMaterialRole
+from app.models import (
+    FIELD_COLUMNS,
+    MAX_LIFE_CONTROLS,
+    Article,
+    ArticleLifeControl,
+    ArticleReference,
+    Material,
+    RolePermission,
+    User,
+    UserMaterialRole,
+)
 from app.schemas.materials import NCAGE_PATTERN, NOC_PATTERN, normalize_code
 from app.services.article_fields import FieldDef, field_defs
 from app.services.reference import codes_by_state
@@ -32,6 +48,8 @@ from app.validacion.articulos import LifeControl, check
 
 EDIT_PERMISSION = "articulos.editar"
 IDENTITY = ("noc", "pn", "ncage", "nombre", "origen_nombre")
+# The P/N of a reference (MAR06 has no field for it: E12's length).
+PN_MAX_LENGTH = 32
 
 
 def normalize_identity(noc: Any, pn: Any, ncage: Any) -> tuple[str | None, str | None, str | None, list[str]]:
@@ -80,13 +98,58 @@ def _plain(value: Any) -> Any:
     return str(value) if isinstance(value, Decimal) else value
 
 
+def reference_snapshot(r: ArticleReference) -> dict[str, Any]:
+    return {"id": str(r.id), "pn": r.pn, "ncage": r.ncage, "principal": r.principal, "origin": r.origin}
+
+
 def snapshot(article: Article) -> dict[str, Any]:
     """The article as the audit keeps it."""
     return {
         **{k: getattr(article, k) for k in IDENTITY},
+        "references": [reference_snapshot(r) for r in article.live_references],
         "fields": {prisma: _plain(v) for prisma, v in data_of(article).items() if prisma not in ("cdART", "NomArt")},
         "life_controls": [{"unit_code": c.unit_code, "quantity": _plain(c.quantity)} for c in life_of(article)],
     }
+
+
+async def reference_owner(db: AsyncSession, pn: str, ncage: str | None, *, exclude: uuid.UUID | None = None) -> uuid.UUID | None:
+    """The live article with this P/N + NCAGE (unique only with both)."""
+    if not ncage:
+        return None
+    query = select(ArticleReference.article_id).join(Article, Article.id == ArticleReference.article_id).where(
+        ArticleReference.pn == pn, ArticleReference.ncage == ncage, ArticleReference.deleted_at.is_(None), Article.deleted_at.is_(None)
+    )
+    if exclude is not None:
+        query = query.where(ArticleReference.article_id != exclude)
+    return (await db.execute(query.limit(1))).scalar_one_or_none()
+
+
+async def set_principal(db: AsyncSession, article: Article, pn: str | None, ncage: str | None, user_id: uuid.UUID | None, origin: str) -> None:
+    """The article's principal P/N + NCAGE becomes this one:
+    - both empty: the principal reference is removed (logically);
+    - one of its other references: that one becomes the principal;
+    - otherwise the principal changes in place (or is created).
+    The caller has checked that no other article has it and that an NCAGE
+    never comes without its P/N."""
+    current = article.principal_reference
+    if pn is None:
+        if current is not None:
+            current.deleted_at, current.version, current.updated_by = datetime.now(UTC), current.version + 1, user_id
+        return
+    if current is not None and (current.pn, current.ncage) == (pn, ncage):
+        return
+    other = next((r for r in article.live_references if not r.principal and (r.pn, r.ncage) == (pn, ncage)), None)
+    if other is not None:
+        if current is not None:
+            current.principal, current.version, current.updated_by = False, current.version + 1, user_id
+            await db.flush()  # one live principal at a time (uq_article_reference_principal)
+        other.principal, other.version, other.updated_by = True, other.version + 1, user_id
+    elif current is not None:
+        current.pn, current.ncage, current.version, current.updated_by = pn, ncage, current.version + 1, user_id
+    else:
+        article.references.append(
+            ArticleReference(id=uuid.uuid4(), pn=pn, ncage=ncage, principal=True, origin=origin, version=1, created_by=user_id, updated_by=user_id)
+        )
 
 
 async def references_for(db: AsyncSession, defs: dict[str, FieldDef]) -> dict[str, dict[str, bool]]:

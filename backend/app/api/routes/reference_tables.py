@@ -5,8 +5,10 @@ reorder the table -- with optimistic locking and an audit row per change.
 A value is never deleted (HR9). Export to Excel for anyone, import (the
 two phases of app/services/import_jobs.py) for an admin."""
 
+import dataclasses
 import re
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import func, or_, select
@@ -19,9 +21,20 @@ from app.core.errors import error_detail
 from app.db.base import get_db
 from app.io_excel.targets import get_target
 from app.io_excel.writer import write_workbook
-from app.models import ArticleFieldDefinition, ReferenceTable, ReferenceValue, User
+from app.models import (
+    EDITABLE_FIELD_ATTRIBUTES,
+    FIELD_COLUMNS,
+    Article,
+    ArticleFieldDefinition,
+    ArticleLifeControl,
+    ReferenceTable,
+    ReferenceValue,
+    User,
+)
+from app.models.article import LIFE_CODE_FIELD
 from app.schemas.reference import (
     ArticleFieldOut,
+    ArticleFieldUpdate,
     ImportJobOut,
     ReferenceOrderIn,
     ReferenceTableOut,
@@ -29,7 +42,8 @@ from app.schemas.reference import (
     ReferenceValueOut,
     ReferenceValueUpdate,
 )
-from app.services import audit, import_jobs
+from app.services import audit, import_jobs, revalidation
+from app.services.article_fields import LIFE_FIELDS, NUMERIC, FieldDef, FieldError, coerce, field_defs
 from app.services.reference import attribute_problem
 from app.services.reference_import import (
     KIND,
@@ -158,7 +172,10 @@ async def create_value(
         db, action="reference_value.created", entity_type="reference_value", entity_id=str(value.id),
         user_id=admin.id, after=value_snapshot(value), ip=client_ip(request),
     )
+    run = await revalidation.after_table_change(db, code, admin.id)
     await db.commit()
+    if run:
+        revalidation.schedule(run)
     await db.refresh(value)
     return _value_out(value)
 
@@ -205,7 +222,11 @@ async def update_value(
         db, action=action, entity_type="reference_value", entity_id=str(value.id),
         user_id=admin.id, before=before, after=value_snapshot(value), ip=client_ip(request),
     )
+    # Only whether a code is active counts for the AR rules.
+    run = await revalidation.after_table_change(db, code, admin.id) if action != "reference_value.updated" else None
     await db.commit()
+    if run:
+        revalidation.schedule(run)
     await db.refresh(value)
     return _value_out(value)
 
@@ -290,6 +311,88 @@ async def list_article_fields(_user: User = Depends(current_user), db: AsyncSess
             header=f.header,
             allowed_values=f.allowed_values,
             help=f.help,
+            edited_by_admin=f.edited_by_admin,
+            version=f.version,
         )
         for f in fields
     ]
+
+
+# The NOC's length is its format (13, E10/E11), not a field's to correct.
+_FIXED_LENGTH = {"cdART"}
+
+
+def _field_snapshot(f: ArticleFieldDefinition) -> dict:
+    return {name: getattr(f, name) for name in EDITABLE_FIELD_ATTRIBUTES}
+
+
+async def _values_not_fitting(db: AsyncSession, definition: FieldDef) -> tuple[int, list[str]]:
+    """How many live articles have a value the new definition refuses (and
+    some of their names): a correction never leaves stored data invalid."""
+    if definition.prisma in LIFE_FIELDS:
+        column = ArticleLifeControl.unit_code if definition.prisma == LIFE_CODE_FIELD else ArticleLifeControl.quantity
+        query = select(Article.nombre, column).join(ArticleLifeControl, ArticleLifeControl.article_id == Article.id)
+    else:
+        column = getattr(Article, FIELD_COLUMNS[definition.prisma])
+        query = select(Article.nombre, column)
+    rows = (await db.execute(query.where(Article.deleted_at.is_(None), column.is_not(None)))).all()
+    names = []
+    for name, value in rows:
+        try:
+            coerce(definition, value)
+        except FieldError:
+            names.append(name)
+    return len(names), sorted(set(names))[:5]
+
+
+@router.patch("/article-fields/{prisma_code}", response_model=ArticleFieldOut)
+async def update_article_field(
+    prisma_code: str, body: ArticleFieldUpdate, request: Request, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)
+) -> ArticleFieldOut:
+    """The admin corrects a field definition without code (E13), audited;
+    the articles are revalidated in the background when the change can
+    alter their findings."""
+    field = (await db.execute(select(ArticleFieldDefinition).where(ArticleFieldDefinition.prisma_code == prisma_code).with_for_update())).scalar_one_or_none()
+    if field is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail("article_field_not_found"))
+    if field.version != body.version:
+        raise version_conflict(field.version)
+    changes = {k: v for k, v in body.model_dump(exclude_unset=True, exclude={"version"}).items() if getattr(field, k) != v}
+    for required in ("name", "importance", "length", "supplied_by_contractor"):
+        if required in changes and changes[required] is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("validation_error"))
+    if ("length" in changes or "decimals" in changes) and prisma_code in _FIXED_LENGTH:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("article_field_length_fixed"))
+    numeric = field.data_type == NUMERIC
+    length = changes.get("length", field.length)
+    decimals = changes.get("decimals", field.decimals)
+    if decimals and (not numeric or length is None or decimals >= length):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("article_field_decimals_invalid"))
+    if "reference_table_code" in changes and changes["reference_table_code"] is not None:
+        if field.allowed_values or numeric:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("article_field_table_not_allowed"))
+        await get_table(db, changes["reference_table_code"])
+    if not changes:
+        return next(f for f in await list_article_fields(admin, db) if f.prisma_code == prisma_code)
+    if "length" in changes or "decimals" in changes:
+        current = (await field_defs(db))[prisma_code]
+        count, names = await _values_not_fitting(db, dataclasses.replace(current, length=length, decimals=decimals))
+        if count:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_field_data_does_not_fit", count=count, names=", ".join(names)))
+    before = _field_snapshot(field)
+    for name, value in changes.items():
+        setattr(field, name, value)
+    field.edited_by_admin = True
+    field.version += 1
+    field.updated_at, field.updated_by = datetime.now(UTC), admin.id
+    audit.record(
+        db, action="article_field.updated", entity_type="article_field", entity_id=prisma_code,
+        user_id=admin.id, before=before, after=_field_snapshot(field), ip=client_ip(request),
+    )
+    run = None
+    if changes.keys() & {"importance", "length", "decimals", "reference_table_code"}:
+        run = (await revalidation.request(db, "field_definition", {"field": prisma_code}, admin.id)).id
+    await db.commit()
+    if run:
+        revalidation.schedule(run)
+    return next(f for f in await list_article_fields(admin, db) if f.prisma_code == prisma_code)

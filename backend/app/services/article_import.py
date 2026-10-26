@@ -4,8 +4,13 @@ the io_excel engine, analyze -> apply) and export of the articles.
 - FICHERO_CARGA: sheet "Artículo", two header rows (the names and the
   PRISMA codes, row 2 is what identifies the file), the 30 fields in the
   official order, data from row 3. It has no P/N nor NCAGE.
-- MAESTRO: the same sheet with columns added on the right: P/N, NCAGE, the
-  name's origin and the life controls 2 and 3. Imported with the same key.
+- MAESTRO: the same sheet with columns added on the right: P/N, NCAGE (the
+  principal reference, E13), the name's origin and the life controls 2 and
+  3. Imported with the same key. Its export adds the sheet "Referencias"
+  with every reference of every article (the principal one marked); the
+  import reads the "Artículo" sheet only -- the principal reference -- and
+  never removes the others, so exporting and importing again changes
+  nothing.
 
 The columns come from article_field_definition (header, PRISMA code, type,
 length, decimals): nothing of a field is written here.
@@ -14,7 +19,9 @@ Key of a row: its NOC (normalized as E10/E11: upper case, no spaces); a
 row without one is matched with the article of the same P/N + NCAGE (the
 Maestro has them) or, failing that, with the article without NOC nor P/N
 of exactly the same name (case and repeated spaces aside); otherwise it is
-a new, provisional article.
+a new, provisional article. The P/N + NCAGE is any of the article's
+references (E13): a row with another of its references makes that one the
+principal.
 
 The analysis reports new, modified (field by field), unchanged, rejected
 rows (a NOC or NCAGE badly formed, a value that cannot be stored: never
@@ -36,12 +43,12 @@ from app.core.errors import error_detail
 from app.io_excel.cells import display, from_json, to_json
 from app.io_excel.reader import Issue, ReadResult
 from app.io_excel.targets import register
-from app.io_excel.template import Column, Template
-from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, NAME_ORIGINS, Article, ImportJob, User
+from app.io_excel.template import Column, ColumnType, Template
+from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, NAME_ORIGINS, REFERENCE_ORIGINS, Article, ImportJob, User
 from app.models.article import LIFE_CODE_FIELD, LIFE_QUANTITY_FIELD
 from app.services import audit
 from app.services.article_fields import FieldDef, field_defs
-from app.services.articles import Checker, data_of, life_of, normalize_identity, set_data, set_life, snapshot
+from app.services.articles import PN_MAX_LENGTH, Checker, data_of, life_of, normalize_identity, reference_owner, set_data, set_life, set_principal, snapshot
 from app.validacion.articulos import RULES, LifeControl, autocorrect
 
 FICHERO_CARGA, MAESTRO = "articles_fichero_carga", "articles_maestro"
@@ -68,7 +75,7 @@ def build_template(defs: dict[str, FieldDef], kind: str) -> Template:
     if kind == MAESTRO:
         code, quantity = defs[LIFE_CODE_FIELD], defs[LIFE_QUANTITY_FIELD]
         columns += [
-            Column(_PN, ("P/N", "PN"), max_length=32, width=18),
+            Column(_PN, ("P/N", "PN"), max_length=PN_MAX_LENGTH, width=18),
             Column(_NCAGE, ("NCAGE", "NCAGE"), upper=True, width=10),
             Column(_ORIGIN, ("Origen del nombre", "OrigenNombre"), choices=tuple((o, o) for o in NAME_ORIGINS), width=14),
         ]
@@ -81,6 +88,32 @@ def build_template(defs: dict[str, FieldDef], kind: str) -> Template:
     return Template(
         code=kind, sheet=SHEET, columns=tuple(columns), header_rows=2, checked_header_rows=(2,), header_look="fichero_carga",
     )
+
+
+REFERENCES_SHEET = "Referencias"
+
+
+def references_template() -> Template:
+    """The Maestro AAL's second sheet (export only): every reference."""
+    return Template(
+        code="articles_references", sheet=REFERENCES_SHEET, unique_keys=False,
+        columns=(
+            Column(NOC_FIELD, ("NOC del artículo",), width=16),
+            Column(NAME_FIELD, ("Nombre del artículo",), width=40),
+            Column(_PN, ("P/N",), max_length=PN_MAX_LENGTH, key=True, width=18),
+            Column(_NCAGE, ("NCAGE",), width=10),
+            Column("principal", ("Principal",), ColumnType.YES_NO, width=10),
+            Column("origin", ("Origen",), choices=tuple((o, o) for o in REFERENCE_ORIGINS), width=14),
+        ),
+    )
+
+
+def reference_rows(articles: list[Article]) -> list[dict[str, Any]]:
+    return [
+        {NOC_FIELD: a.noc, NAME_FIELD: a.nombre, _PN: r.pn, _NCAGE: r.ncage, "principal": r.principal, "origin": r.origin}
+        for a in articles
+        for r in a.live_references
+    ]
 
 
 def _name_key(name: str | None) -> str:
@@ -139,8 +172,8 @@ class ArticleTarget:
         by_field = {c.field: c for c in template.columns}
         articles = await _live_articles(db)
         by_noc = {a.noc: a for a in articles if a.noc}
-        by_pn = {(a.pn, a.ncage): a for a in articles if a.pn and a.ncage}
-        by_name = {_name_key(a.nombre): a for a in articles if not a.noc and not a.pn}
+        by_pn = {(r.pn, r.ncage): a for a in articles for r in a.live_references if r.ncage}
+        by_name = {_name_key(a.nombre): a for a in articles if not a.noc and not a.live_references}
         report: dict[str, Any] = {
             "columns": [{"field": f, "header": by_field[f].headers[0]} for f in (NOC_FIELD, NAME_FIELD)],
             "template_fields": [c.field for c in template.columns],
@@ -163,6 +196,8 @@ class ArticleTarget:
                     issues.append(Issue(f"{which}_invalid", {"value": str(values.get(field))}, row=row.row, header=by_field[field].title).as_json())
             if not name:
                 issues.append(Issue("name_required", {}, row=row.row, header=by_field[NAME_FIELD].title).as_json())
+            if ncage and not pn:
+                issues.append(Issue("pn_required", {}, row=row.row, header=by_field[_PN].title).as_json())
             key = _key_text(noc, pn, ncage, name)
             identity = f"noc:{noc}" if noc else f"pn:{pn}/{ncage}" if pn and ncage else f"name:{_name_key(name)}"
             if not issues and identity in seen:
@@ -247,13 +282,14 @@ class ArticleTarget:
     async def _check_pn_free(self, db: AsyncSession, identity: dict[str, Any], article_id: uuid.UUID | None, row: int) -> None:
         """Another article took this P/N + NCAGE after the analysis: stale."""
         pn, ncage = identity.get("pn"), identity.get("ncage")
-        if not (pn and ncage):
-            return
-        query = select(Article.id).where(Article.pn == pn, Article.ncage == ncage, Article.deleted_at.is_(None))
-        if article_id is not None:
-            query = query.where(Article.id != article_id)
-        if (await db.execute(query)).first():
+        if pn and await reference_owner(db, pn, ncage, exclude=article_id):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_stale", row=row))
+
+    async def _set_identity(self, db: AsyncSession, article: Article, identity: dict[str, Any], user_id: uuid.UUID | None) -> None:
+        if not identity:
+            return
+        article.origen_nombre = identity["origen_nombre"]
+        await set_principal(db, article, identity["pn"], identity["ncage"], user_id, "importacion")
 
     async def apply(self, db: AsyncSession, job: ImportJob, template: Template, user: User, ip: str | None) -> None:
         await self.apply_report(db, job.report, template, user.id, {"import_job": str(job.id), "file_name": job.file_name}, ip)
@@ -280,8 +316,7 @@ class ArticleTarget:
             if self.kind == FICHERO_CARGA:
                 life = [life[0], *life_of(article)[1:]]
             set_life(article, life)
-            for name, value in identity.items():
-                setattr(article, name, value)
+            await self._set_identity(db, article, identity, user_id)
             checker.recheck(article)
             article.version += 1
             article.updated_by = user_id
@@ -295,13 +330,12 @@ class ArticleTarget:
             if noc and (await db.execute(select(Article.id).where(Article.noc == noc, Article.deleted_at.is_(None)))).first():
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_stale", row=item["row"]))
             await self._check_pn_free(db, identity, None, item["row"])
-            article = Article(id=uuid.uuid4(), version=1, created_by=user_id, updated_by=user_id, origen_nombre="coloquial", nombre=data[NAME_FIELD])
+            article = Article(id=uuid.uuid4(), version=1, created_by=user_id, updated_by=user_id, origen_nombre="coloquial", nombre=data[NAME_FIELD], references=[], life_controls=[])
             set_data(article, data)
             set_life(article, life)
-            for name, value in identity.items():
-                setattr(article, name, value)
             checker.recheck(article)
             db.add(article)
+            await self._set_identity(db, article, identity, user_id)
             await db.flush()
             audit.record(
                 db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user_id,

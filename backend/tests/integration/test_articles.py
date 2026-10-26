@@ -177,7 +177,8 @@ async def test_creating_uniqueness_and_ar_008(client, people):
     again = await client.post("/api/articles", json={**pn, "nombre": "Racor 2"}, headers=analyst)
     assert again.json()["detail"]["code"] == "article_pn_ncage_taken"
     wrong = await client.post("/api/articles", json={"nombre": "X", "noc": "12", "ncage": "ab"}, headers=analyst)
-    assert {p["code"] for p in wrong.json()["detail"]["problems"]} == {"noc_invalid", "ncage_invalid"}
+    # E13: an NCAGE without its P/N has no reference to go in.
+    assert {p["code"] for p in wrong.json()["detail"]["problems"]} == {"noc_invalid", "ncage_invalid", "pn_required"}
     assert (await client.post("/api/articles", json={"nombre": "Y"}, headers=people["observador"])).status_code == 403
     # Deleted logically: out of the list, the NOC free again.
     assert (await client.delete(f"/api/articles/{created['id']}", params={"version": created["version"], "confirm": "true"}, headers=analyst)).status_code == 204

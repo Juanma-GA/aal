@@ -88,7 +88,35 @@ class ArticlePage(BaseModel):
     items: list[ArticleRow]
 
 
+class ReferenceIn(StrictModel):
+    pn: str = Field(min_length=1, max_length=32)
+    ncage: str | None = Field(default=None, max_length=20)
+    principal: bool = False
+
+
+class ReferenceUpdate(StrictModel):
+    """Only what is sent changes; `principal: true` makes it the principal
+    (the previous one stays as another reference)."""
+
+    version: int
+    pn: str | None = Field(default=None, min_length=1, max_length=32)
+    ncage: str | None = Field(default=None, max_length=20)
+    principal: bool | None = None
+
+
+class ReferenceOut(BaseModel):
+    id: uuid.UUID
+    pn: str
+    ncage: str | None
+    principal: bool
+    origin: str
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
 class ArticleOut(ArticleRow):
+    references: list[ReferenceOut]
     findings: list[Finding]
     where_used: list[dict[str, Any]]
     corrections: list[dict[str, Any]] = []
@@ -117,3 +145,16 @@ class ExportSummary(BaseModel):
     articles: int
     with_findings: int
     by_rule: dict[str, int]
+
+
+class RevalidationOut(BaseModel):
+    id: uuid.UUID
+    reason: str
+    detail: dict[str, Any]
+    status: str
+    # {"articles", "changed", "by_rule": {code: {"appeared", "disappeared", "now"}}}
+    report: dict[str, Any] | None
+    error_code: str | None
+    created_by: str | None
+    created_at: datetime
+    finished_at: datetime | None

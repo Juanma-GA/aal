@@ -13,8 +13,10 @@ app/seeds/reference_tables_seed.yaml.
   - new tables and new values are added;
   - a value already in the database is never modified (an admin may have
     edited it): where it differs from the seed, the report says so;
-  - a table's name, source, note and attribute schema, and the article
-    fields, are not editable in the app and follow the seed.
+  - a table's name, source, note and attribute schema are not editable in
+    the app and follow the seed; so do the article fields, but for what the
+    admin corrected in Ajustes (E13, `edited_by_admin`): those attributes
+    stay and the report lists the differences.
 - `load_article_field_extras(conn)` (E12, migration 0008 and the reload
   script) writes what the article fields gained after migration 0004: the
   column's name in the official Fichero Carga (`cabecera`), the values of a
@@ -28,9 +30,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import Connection, func, insert, select, update
+from sqlalchemy import Connection, func, insert, inspect, select, update
 
-from app.models import ATTRIBUTE_TYPES, REFERENCE_CODE_MAX_LENGTH, ArticleFieldDefinition, ReferenceTable, ReferenceValue
+from app.models import ATTRIBUTE_TYPES, EDITABLE_FIELD_ATTRIBUTES, REFERENCE_CODE_MAX_LENGTH, ArticleFieldDefinition, ReferenceTable, ReferenceValue
 from app.services.reference import attribute_problem
 
 SEED_PATH = Path(__file__).resolve().parents[1] / "seeds" / "reference_tables_seed.yaml"
@@ -166,6 +168,10 @@ def check_seed(seed: Seed) -> list[str]:
     return problems
 
 
+# The "table" of a Difference about an article field the admin edited.
+FIELDS_TABLE = "campos_articulo"
+
+
 @dataclass(frozen=True)
 class Difference:
     """A value of the database that differs from the seed (kept as is)."""
@@ -238,16 +244,28 @@ def load_reference_tables(conn: Connection, seed: Seed | None = None) -> LoadRep
         report.values_not_in_seed += [f"{t.code}/{code}" for code in sorted(set(stored) - in_seed)]
 
     # Only the columns migration 0004 creates: this loader runs inside that
-    # migration, so it must not depend on columns a later one may add.
+    # migration, so it must not depend on columns a later one may add --
+    # but for edited_by_admin (0009), read when it is there.
     columns = [getattr(ArticleFieldDefinition, name) for name in seed.fields[0]] if seed.fields else [ArticleFieldDefinition.prisma_code]
+    has_edited = any(c["name"] == "edited_by_admin" for c in inspect(conn).get_columns(ArticleFieldDefinition.__tablename__))
+    if has_edited:
+        columns.append(ArticleFieldDefinition.edited_by_admin)
     stored_fields = {row.prisma_code: row for row in conn.execute(select(*columns))}
     for f in seed.fields:
         row = stored_fields.get(f["prisma_code"])
         if row is None:
             conn.execute(insert(ArticleFieldDefinition).values(**f))
             report.fields_added += 1
-        elif any(getattr(row, name) != value for name, value in f.items()):
-            conn.execute(update(ArticleFieldDefinition).where(ArticleFieldDefinition.prisma_code == f["prisma_code"]).values(**f))
+            continue
+        values = dict(f)
+        if has_edited and row.edited_by_admin:
+            # What the admin corrected stays; the difference is reported (E13).
+            for name in EDITABLE_FIELD_ATTRIBUTES:
+                if name in values and getattr(row, name) != values[name]:
+                    report.differences.append(Difference(FIELDS_TABLE, f["prisma_code"], name, getattr(row, name), values[name]))
+                values.pop(name, None)
+        if any(getattr(row, name) != value for name, value in values.items()):
+            conn.execute(update(ArticleFieldDefinition).where(ArticleFieldDefinition.prisma_code == f["prisma_code"]).values(**values))
             report.fields_updated += 1
     return report
 

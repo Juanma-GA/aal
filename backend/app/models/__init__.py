@@ -2,7 +2,17 @@
 (alembic/env.py imports this package)."""
 
 from app.models.app_parameter import AppParameter
-from app.models.article import FIELD_COLUMNS, MAX_LIFE_CONTROLS, NAME_ORIGINS, Article, ArticleLifeControl
+from app.models.article import (
+    FIELD_COLUMNS,
+    MAX_LIFE_CONTROLS,
+    NAME_ORIGINS,
+    REFERENCE_ORIGINS,
+    REVALIDATION_REASONS,
+    Article,
+    ArticleLifeControl,
+    ArticleReference,
+    ArticleRevalidation,
+)
 from app.models.audit_log import AuditLog
 from app.models.catalog import CatalogVersion, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, SubcategorySns
 from app.models.import_job import IMPORT_JOB_STATUSES, ImportJob
@@ -11,6 +21,7 @@ from app.models.material import SNS_REQUEST_STATES, Material, MaterialSubcategor
 from app.models.module import MODULE_STATUSES, ModuleCatalog, ModuleGroup, ModuleRequirement
 from app.models.reference import (
     ATTRIBUTE_TYPES,
+    EDITABLE_FIELD_ATTRIBUTES,
     REFERENCE_CODE_MAX_LENGTH,
     REFERENCE_DEFINITION_MAX_LENGTH,
     REFERENCE_DESCRIPTION_MAX_LENGTH,
@@ -28,6 +39,9 @@ __all__ = [
     "Article",
     "ArticleLifeControl",
     "ArticleFieldDefinition",
+    "ArticleReference",
+    "ArticleRevalidation",
+    "EDITABLE_FIELD_ATTRIBUTES",
     "AuditLog",
     "CatalogVersion",
     "FIELD_COLUMNS",
@@ -46,6 +60,8 @@ __all__ = [
     "ModuleRequirement",
     "Permission",
     "REFERENCE_CODE_MAX_LENGTH",
+    "REFERENCE_ORIGINS",
+    "REVALIDATION_REASONS",
     "REFERENCE_DEFINITION_MAX_LENGTH",
     "REFERENCE_DESCRIPTION_MAX_LENGTH",
     "ReferenceTable",

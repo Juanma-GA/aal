@@ -2,16 +2,21 @@ import { type InfiniteData, type QueryClient, type QueryKey, useInfiniteQuery, u
 import { useTranslation } from 'react-i18next';
 import { notifyError } from '@/lib/notify';
 import {
+  addReference,
   createArticle,
   deleteArticle,
   fetchArticle,
   fetchArticleHistory,
   fetchArticleRights,
   fetchArticles,
+  fetchLatestRevalidation,
+  removeReference,
   saveArticleBatch,
+  startRevalidation,
   updateArticle,
+  updateReference,
 } from '@/services/articlesApi';
-import type { Article, ArticleChanges, ArticleFilters, ArticlePage, ArticleRow, BatchResult } from '@/types/articles';
+import type { Article, ArticleChanges, ArticleFilters, ArticlePage, ArticleReference, ArticleRow, BatchResult, ReferenceChanges } from '@/types/articles';
 
 export const articlesKey = ['articles'] as const;
 export const articleKey = (id: string) => ['articles', 'one', id] as const;
@@ -143,5 +148,94 @@ export function useSaveBatch() {
       // A refused row: its stored data (and version) may have changed.
       if (refused.size) void queryClient.invalidateQueries({ queryKey: ['articles', 'list'] });
     },
+  });
+}
+
+export type ReferenceAction =
+  | { kind: 'add'; pn: string; ncage: string | null }
+  | { kind: 'update'; reference: ArticleReference; changes: ReferenceChanges }
+  | { kind: 'remove'; reference: ArticleReference };
+
+/** The references as they will be once the server agrees (principal first). */
+function referencesAfter(refs: ArticleReference[], action: ReferenceAction): ArticleReference[] {
+  if (action.kind === 'add') {
+    const now = new Date().toISOString();
+    const added: ArticleReference = {
+      id: `pending-${now}`, pn: action.pn, ncage: action.ncage, principal: refs.length === 0, origin: 'manual', version: 0, created_at: now, updated_at: now,
+    };
+    return [...refs, added];
+  }
+  if (action.kind === 'remove') return refs.filter((r) => r.id !== action.reference.id);
+  const { reference, changes } = action;
+  const next = refs.map((r) => {
+    if (r.id === reference.id) return { ...r, ...changes };
+    return changes.principal ? { ...r, principal: false } : r;
+  });
+  return [...next].sort((a, b) => Number(b.principal) - Number(a.principal));
+}
+
+/** Adding, changing and removing a reference of the card: shown at once
+ *  (HR20), the server's article replaces it, undone if refused. */
+export function useReferenceMutation(articleId: string) {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: (action: ReferenceAction) => {
+      if (action.kind === 'add') return addReference(articleId, { pn: action.pn, ncage: action.ncage });
+      if (action.kind === 'remove') return removeReference(articleId, action.reference.id, action.reference.version);
+      return updateReference(articleId, action.reference.id, action.reference.version, action.changes);
+    },
+    onMutate: async (action) => {
+      await queryClient.cancelQueries({ queryKey: articleKey(articleId) });
+      const previous = queryClient.getQueryData<Article>(articleKey(articleId));
+      if (previous) {
+        const references = referencesAfter(previous.references, action);
+        const principal = references.find((r) => r.principal);
+        queryClient.setQueryData<Article>(articleKey(articleId), { ...previous, references, pn: principal?.pn ?? null, ncage: principal?.ncage ?? null });
+      }
+      return { previous };
+    },
+    onError: (error, _action, context) => {
+      if (context?.previous) queryClient.setQueryData(articleKey(articleId), context.previous);
+      notifyError(error, t, () => void queryClient.invalidateQueries({ queryKey: articleKey(articleId) }));
+    },
+    onSuccess: (saved) => {
+      queryClient.setQueryData(articleKey(articleId), saved);
+      void queryClient.invalidateQueries({ queryKey: ['articles', 'list'] });
+      void queryClient.invalidateQueries({ queryKey: ['articles', 'one', articleId, 'history'] });
+    },
+  });
+}
+
+export const revalidationKey = ['articles', 'revalidation'] as const;
+
+/** The last revalidation of every article, polled while it runs; when it
+ *  ends, the list (and its findings) is read again. */
+export function useLatestRevalidation() {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: revalidationKey,
+    queryFn: async () => {
+      const before = queryClient.getQueryData<Awaited<ReturnType<typeof fetchLatestRevalidation>>>(revalidationKey);
+      const latest = await fetchLatestRevalidation();
+      const wasRunning = before && (before.status === 'queued' || before.status === 'running');
+      if (wasRunning && latest && latest.id === before.id && latest.status !== before.status) {
+        void queryClient.invalidateQueries({ queryKey: ['articles', 'list'] });
+        void queryClient.invalidateQueries({ queryKey: ['articles', 'one'] });
+      }
+      return latest;
+    },
+    refetchInterval: (query) => (query.state.data && (query.state.data.status === 'queued' || query.state.data.status === 'running') ? 1500 : false),
+  });
+}
+
+/** The admin's button: not optimistic, the run's id comes from the server. */
+export function useStartRevalidation() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: startRevalidation,
+    onSuccess: (run) => queryClient.setQueryData(revalidationKey, run),
+    onError: (error) => notifyError(error, t),
   });
 }

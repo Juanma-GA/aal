@@ -65,6 +65,22 @@ export interface ArticleField {
   header: string | null;
   allowed_values: string[] | null;
   help: FieldHelp | null;
+  /** E13: corrected by the admin (a seed reload keeps it), and its version. */
+  edited_by_admin: boolean;
+  version: number;
+}
+
+export const FIELD_IMPORTANCES = ['Obligatorio', 'Recomendado', 'Opcional'] as const;
+
+/** What the admin may correct of a field definition (E13). */
+export interface ArticleFieldChanges {
+  name?: string;
+  importance?: (typeof FIELD_IMPORTANCES)[number];
+  length?: number;
+  decimals?: number | null;
+  related_to?: string | null;
+  supplied_by_contractor?: string;
+  reference_table_code?: string | null;
 }
 
 /** The MAR06 help of a field (app/seeds/article_field_help.yaml), literal. */

@@ -1,7 +1,8 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArticleReferences } from '@/components/articles/ArticleReferences';
 import { FieldHelp } from '@/components/articles/FieldHelp';
 import { FieldInput } from '@/components/articles/FieldInput';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -27,8 +28,6 @@ export const ARTICLES_PATH = '/articulos';
 
 interface Draft {
   noc: string | null;
-  pn: string | null;
-  ncage: string | null;
   nombre: string;
   origen_nombre: NameOrigin;
   fields: Record<string, string | null>;
@@ -36,14 +35,14 @@ interface Draft {
 }
 
 const draftOf = (a: Article): Draft => ({
-  noc: a.noc, pn: a.pn, ncage: a.ncage, nombre: a.nombre, origen_nombre: a.origen_nombre, fields: { ...a.fields },
+  noc: a.noc, nombre: a.nombre, origen_nombre: a.origen_nombre, fields: { ...a.fields },
   life: a.life_controls.map((c) => ({ unit_code: c.unit_code, quantity: c.quantity })),
 });
 
 /** What the draft changes, as the API takes it. */
 function changesOf(a: Article, d: Draft, defs: Record<string, ArticleField>): ArticleChanges {
   const out: ArticleChanges = {};
-  for (const key of ['noc', 'pn', 'ncage', 'nombre', 'origen_nombre'] as const) {
+  for (const key of ['noc', 'nombre', 'origen_nombre'] as const) {
     if ((d[key] ?? null) !== (a[key] ?? null)) Object.assign(out, { [key]: d[key] });
   }
   const fields: Record<string, string | null> = {};
@@ -75,7 +74,7 @@ function FieldLabel({ field, htmlFor }: { field: ArticleField; htmlFor: string }
 }
 
 /** An article (E12): its 30 fields in groups, each with its MAR06 number,
- *  PRISMA code and help; its AR findings (each takes you to its field),
+ *  PRISMA code and help; its references (P/N + NCAGE, E13); its AR findings (each takes you to its field),
  *  where it is used and its history. Editing needs articulos.editar. */
 export function ArticlePage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -186,12 +185,6 @@ export function ArticlePage(): React.JSX.Element {
           </div>
         ) : null;
       })}
-      {(['pn', 'ncage'] as const).map((key) => (
-        <div key={key} className="flex flex-col gap-1">
-          <Label htmlFor={`field-${key}`}>{t(`articles.identity.${key}`)}</Label>
-          <Input id={`field-${key}`} className="font-mono" value={draft[key] ?? ''} onChange={(e) => set({ [key]: e.target.value || null })} disabled={disabled} />
-        </div>
-      ))}
       <div className="flex flex-col gap-1">
         <Label htmlFor="field-origen">{t('articles.identity.origen_nombre')}</Label>
         <Select value={draft.origen_nombre} onValueChange={(v) => set({ origen_nombre: v as NameOrigin })} disabled={disabled}>
@@ -280,7 +273,8 @@ export function ArticlePage(): React.JSX.Element {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex flex-col gap-6">
           {FIELD_GROUPS.map((group) => (
-            <Card key={group.key} data-testid={`article-group-${group.key}`}>
+            <Fragment key={group.key}>
+            <Card data-testid={`article-group-${group.key}`}>
               <CardHeader>
                 <CardTitle>{t(`articles.groups.${group.key}`)}</CardTitle>
               </CardHeader>
@@ -290,6 +284,8 @@ export function ArticlePage(): React.JSX.Element {
                 {group.fields.includes(LIFE_CODE_FIELD) ? lifeEditor : null}
               </CardContent>
             </Card>
+            {group.key === 'identification' ? <ArticleReferences article={a} canEdit={canEdit} /> : null}
+            </Fragment>
           ))}
         </div>
         <div className="flex flex-col gap-6">

@@ -314,7 +314,7 @@ class ConfFunTarget:
             ip=ip,
         )
 
-    async def after_apply(self, db: AsyncSession) -> None:
+    async def after_apply(self, db: AsyncSession, job: ImportJob) -> None:
         """Fresh statistics after a bulk load of thousands of rows: without
         them the planner takes the new version for empty."""
         await db.execute(text("ANALYZE sns_position, subcategory_sns, sns_extra_name"))

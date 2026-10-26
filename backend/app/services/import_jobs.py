@@ -200,7 +200,7 @@ async def apply(db: AsyncSession, job_id: uuid.UUID, user: User, ip: str | None)
         # The import is committed: a failure here is logged, never a 500
         # that would make the person retry an import already applied.
         try:
-            await after(db)
+            await after(db, job)
             await db.commit()
         except Exception:
             ref = new_error_ref()

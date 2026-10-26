@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
-import { fetchArticleFields, fetchReferenceTable, fetchReferenceTables, fetchReferenceValues, updateReferenceValue } from '@/services/referenceApi';
-import type { ReferenceValue, ReferenceValueUpdate } from '@/types/reference';
+import { fetchArticleFields, fetchReferenceTable, fetchReferenceTables, fetchReferenceValues, updateArticleField, updateReferenceValue } from '@/services/referenceApi';
+import type { ArticleField, ArticleFieldChanges, ReferenceValue, ReferenceValueUpdate } from '@/types/reference';
 
 export const referenceTablesKey = ['reference-tables'] as const;
 export const referenceTableKey = (code: string) => ['reference-tables', code] as const;
@@ -19,8 +19,23 @@ export function useReferenceValues(code: string) {
   return useQuery({ queryKey: referenceValuesKey(code), queryFn: () => fetchReferenceValues(code) });
 }
 
+export const articleFieldsKey = ['article-fields'] as const;
+
 export function useArticleFields() {
-  return useQuery({ queryKey: ['article-fields'], queryFn: fetchArticleFields });
+  return useQuery({ queryKey: articleFieldsKey, queryFn: fetchArticleFields });
+}
+
+/** The admin corrects a field definition (E13): shown at once, saved in
+ *  the background, undone if refused (HR20). The articles are revalidated
+ *  in the background (its run shows in Artículos). */
+export function useUpdateArticleField() {
+  return useOptimisticMutation<ArticleField, { field: ArticleField; changes: ArticleFieldChanges }, ArticleField>({
+    queryKey: articleFieldsKey,
+    mutationFn: ({ field, changes }) => updateArticleField(field.prisma_code, field.version, changes),
+    apply: (list, { field, changes }) => list.map((f) => (f.prisma_code === field.prisma_code ? { ...f, ...changes, edited_by_admin: true } : f)),
+    settle: (list, saved) => list.map((f) => (f.prisma_code === saved.prisma_code ? saved : f)),
+    invalidate: [['articles', 'revalidation']],
+  });
 }
 
 /** Everything that shows a table's values or counts, after a change. */

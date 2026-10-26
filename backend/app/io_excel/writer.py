@@ -1,4 +1,5 @@
-"""The exact export of a template: one sheet named as the template says,
+"""The exact export of a template: one sheet named as the template says
+(and, after it, the sheets of other templates: `extra`, E13),
 its header rows (two rows: equal consecutive groups merged), the columns in
 order, and the cell format that keeps each value as it is:
 
@@ -15,7 +16,7 @@ exactly the text written.
 
 import io
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 import openpyxl
@@ -59,11 +60,21 @@ def _group_runs(columns) -> list[tuple[int, int]]:
     return runs
 
 
-def write_workbook(template: Template, rows: Iterable[dict[str, Any]]) -> bytes:
+def write_workbook(
+    template: Template, rows: Iterable[dict[str, Any]], extra: Sequence[tuple[Template, Iterable[dict[str, Any]]]] = ()
+) -> bytes:
     """`rows` are field -> value (as cells.normalize returns them)."""
-    columns = template.written_columns
     workbook = openpyxl.Workbook()
-    sheet = workbook.active
+    _write_sheet(workbook.active, template, rows)
+    for other, other_rows in extra:
+        _write_sheet(workbook.create_sheet(), other, other_rows)
+    out = io.BytesIO()
+    workbook.save(out)
+    return out.getvalue()
+
+
+def _write_sheet(sheet: Any, template: Template, rows: Iterable[dict[str, Any]]) -> None:
+    columns = template.written_columns
     sheet.title = template.sheet
 
     sigle = template.header_look == "fichero_carga"
@@ -106,6 +117,3 @@ def write_workbook(template: Template, rows: Iterable[dict[str, Any]]) -> bytes:
 
     if not sigle:
         sheet.freeze_panes = sheet.cell(row=template.first_data_row, column=1)
-    out = io.BytesIO()
-    workbook.save(out)
-    return out.getvalue()
