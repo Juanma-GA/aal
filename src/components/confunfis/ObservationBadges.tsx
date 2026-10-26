@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
-import type { PositionRow } from '@/types/confunfis';
 
 /** A row's observations (E13, provisional codes OF-*), as badges: their
  *  short names, or just how many in `compact` (the tree). */
-export function ObservationBadges({ row, compact = false }: { row: PositionRow; compact?: boolean }): React.JSX.Element | null {
+export function ObservationBadges({ row, compact = false }: { row: { sns?: string; observation_codes: readonly string[] }; compact?: boolean }): React.JSX.Element | null {
   const { t } = useTranslation();
   if (!row.observation_codes.length) return null;
   const title = row.observation_codes.map((c) => t(`confunfis.observations.${c}.short`)).join(' · ');

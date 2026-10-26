@@ -99,6 +99,9 @@ export function PanelPage(): React.JSX.Element {
                   <li><Badge variant="secondary">{t('confunfis.summary.positions', { count: confunfis.data.positions })}</Badge></li>
                   <li><Badge variant="secondary">{t('confunfis.summary.covered', { covered: confunfis.data.sns_covered, total: confunfis.data.sns_in_config })}</Badge></li>
                   <li><Badge variant="outline">{t('confunfis.summary.observations', { count: confunfis.data.with_observations })}</Badge></li>
+                  <li><Badge variant="secondary" data-testid="panel-confunfis-products">{t('confunfis.summary.products', { count: confunfis.data.products })}</Badge></li>
+                  <li><Badge variant="secondary" data-testid="panel-confunfis-multifunction">{t('confunfis.summary.multifunction', { count: confunfis.data.multifunction_rows })}</Badge></li>
+                  <li><Badge variant="secondary" data-testid="panel-confunfis-incompatible">{t('confunfis.summary.incompatible', { count: confunfis.data.incompatibility_rows })}</Badge></li>
                 </ul>
               </div>
             ) : null}

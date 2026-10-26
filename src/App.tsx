@@ -47,6 +47,7 @@ export function App(): React.JSX.Element {
                 <Route index element={<PanelPage />} />
                 <Route path="ficha" element={<MaterialCufPage />} />
                 <Route path="confunfis" element={<ConfunfisPage />} />
+                <Route path="confunfis/:tab" element={<ConfunfisPage />} />
                 <Route path="modulos/:code" element={<ModulePage />} />
               </Route>
               <Route path={CHANGE_PASSWORD_PATH} element={<ChangePasswordPage />} />

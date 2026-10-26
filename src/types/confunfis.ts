@@ -1,5 +1,6 @@
 // The CONFUNFIS of a material (E13): app/schemas/confunfis.py.
 import type { TreeNode } from './catalog';
+import type { CufPart, ExtraFunction, Incompatibility } from './confunfisExtras';
 
 export const OBSERVATION_CODES = ['OF-001', 'OF-002', 'OF-003', 'OF-004', 'OF-005', 'OF-006', 'OF-007', 'OF-008', 'OF-009', 'OF-010', 'OF-011', 'OF-012'] as const;
 export type ObservationCode = (typeof OBSERVATION_CODES)[number];
@@ -43,6 +44,9 @@ export interface PositionRow {
   child_count: number;
   is_mounted: boolean;
   mounted: { id: string; name: string } | null;
+  /** E14: extra functions (a multifunction component) and incompatibilities. */
+  extra_function_count: number;
+  incompatibility_count: number;
   version: number;
   updated_at: string;
 }
@@ -74,6 +78,10 @@ export interface RowDetail extends PositionRow {
   history: { id: string; at: string; action: string; user: string | null }[];
   /** The distinct AL of its hueco (E14). */
   hueco_als: string[];
+  /** E14: what hangs from the row, and its article's parts with their total in the CUF. */
+  extra_functions: ExtraFunction[];
+  incompatibilities: Incompatibility[];
+  parts: CufPart[];
 }
 
 /** The physical tree's search (E14): each hit with the rows from the CUF
@@ -87,6 +95,9 @@ export interface FunctionalNode extends TreeNode {
   row_count: number;
   /** Rows in this SNS and in every SNS below it. */
   rows_below: number;
+  /** E14: extra functions of rows elsewhere covering this SNS (and below it). */
+  extra_count: number;
+  extras_below: number;
 }
 
 export interface FunctionalLevel {
@@ -102,6 +113,10 @@ export interface ConfunfisSummary {
   sns_in_config: number;
   with_observations: number;
   by_observation: Partial<Record<ObservationCode, number>>;
+  sns_covered_by_extra: number;
+  products: number;
+  multifunction_rows: number;
+  incompatibility_rows: number;
 }
 
 export interface RowFilters {
@@ -112,6 +127,9 @@ export interface RowFilters {
   ct_sigle?: 'S' | 'N';
   orphans?: boolean;
   mounted?: boolean;
+  extra_sns?: string;
+  multifunction?: boolean;
+  incompatible?: boolean;
 }
 
 /** What the form sends (new row or changes). */

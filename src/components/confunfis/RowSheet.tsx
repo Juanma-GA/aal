@@ -14,6 +14,7 @@ import { ARTICLES_PATH } from '@/pages/articles/ArticlePage';
 import { chainText, observationText } from '@/lib/confunfisText';
 import { csOf, positionOf, type PositionRow } from '@/types/confunfis';
 import { ObservationBadges } from './ObservationBadges';
+import { ExtraFunctionsSection, IncompatibilitiesSection, PartsSection } from './RowExtras';
 
 function RowLink({ row, onOpen }: { row: PositionRow; onOpen: (id: string) => void }): React.JSX.Element {
   return (
@@ -72,6 +73,7 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
               {row.cs_alternative ? <Badge variant="outline">{t('confunfis.badges.csAlternative')}</Badge> : null}
               {row.ct_sigle === 'S' ? <Badge variant="secondary">{t('confunfis.badges.ctSigle')}</Badge> : null}
               {row.is_mounted ? <Badge variant="outline">{t('confunfis.badges.mounted')}</Badge> : null}
+              {row.extra_function_count ? <Badge variant="outline">{t('confunfis.badges.multifunction', { count: row.extra_function_count })}</Badge> : null}
               <ObservationBadges row={row} />
             </div>
             {canEdit ? (
@@ -129,6 +131,11 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
               <h3 className="font-medium">{t('confunfis.card.children', { count: row.children.length })}</h3>
               {row.children.map((c) => <RowLink key={c.id} row={c} onOpen={onOpen} />)}
             </section>
+            <Separator />
+            <PartsSection row={row} />
+            <ExtraFunctionsSection materialId={materialId} row={row} canEdit={canEdit} />
+            <IncompatibilitiesSection materialId={materialId} row={row} canEdit={canEdit} onOpen={onOpen} />
+            <Separator />
             {row.observations.length ? (
               <section className="flex flex-col gap-1 text-sm" data-testid="row-observations">
                 <h3 className="font-medium">{t('confunfis.card.observations')}</h3>
@@ -156,7 +163,11 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
           open={removing}
           onOpenChange={setRemoving}
           title={t('confunfis.card.removeTitle', { position: positionOf(row) })}
-          description={t('confunfis.card.removeHint')}
+          description={
+            row.extra_function_count || row.incompatibility_count
+              ? `${t('confunfis.card.removeHint')} ${t('confunfis.card.removeWithExtras', { extras: row.extra_function_count, incompatibilities: row.incompatibility_count })}`
+              : t('confunfis.card.removeHint')
+          }
           confirmLabel={t('confunfis.card.remove')}
           onConfirm={() => { onOpen(null); remove.mutate({ row, resetAl: leavesSingle && resetAfter }); }}
         >

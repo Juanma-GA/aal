@@ -131,7 +131,8 @@ modulos:
   nombre: Tabla de partes
   orden: 5
   fase: '1'
-  estado: planificado
+  estado: disponible
+  ruta: /materiales/:materialId/confunfis/partes
   encargo: E14
   objetivo: Registrar el despiece de los artículos de la configuración que no figuran en ella pero entran en los análisis
     (NT 10/17 §9.1.10).
@@ -152,7 +153,8 @@ modulos:
   nombre: Productos funcionales
   orden: 6
   fase: '1'
-  estado: planificado
+  estado: disponible
+  ruta: /materiales/:materialId/confunfis/productos
   encargo: E14
   objetivo: Registrar los productos funcionales del CUF (combustibles, aceites, grasas) según la GTPF (NT 10/17 §9.1.11).
   requisitos:

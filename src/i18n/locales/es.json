@@ -962,7 +962,8 @@
     "identity": {
       "pn": "P/N",
       "ncage": "NCAGE",
-      "origen_nombre": "Origen del nombre"
+      "origen_nombre": "Origen del nombre",
+      "noc": "NOC"
     },
     "origins": {
       "coloquial": "Coloquial",
@@ -999,7 +1000,9 @@
     "notUsed": "Todavía no se usa en ningún material.",
     "usage": {
       "material_cuf": "Es el CUF del material",
-      "confunfis_position": "Posición de la CONFUNFIS"
+      "confunfis_position": "Posición de la CONFUNFIS",
+      "part_of": "Es parte de",
+      "functional_product": "Es producto funcional del CUF"
     },
     "history": "Historial",
     "byScript": "Script de carga",
@@ -1111,7 +1114,29 @@
         "field_definition": "se corrigió el campo {{field}}"
       }
     },
-    "usageCs": "CS {{cs}}"
+    "usageCs": "CS {{cs}}",
+    "usageCopAlp": "COP {{cop}} / ALP {{alp}}",
+    "parts": {
+      "title_one": "Partes ({{count}})",
+      "title_other": "Partes ({{count}})",
+      "title": "Partes ({{count}})",
+      "hint": "La tabla de partes del artículo (NT §9.1.10): los componentes de su despiece que no van en ninguna CONFUNFIS pero cuentan en los análisis de fiabilidad y mantenibilidad. Es la misma en todos los CUF que montan el artículo.",
+      "none": "Este artículo no tiene tabla de partes.",
+      "cop": "COP",
+      "alp": "ALP",
+      "part": "Parte",
+      "quantity": "Cantidad",
+      "name": "Nombre de la parte",
+      "resetAlp": "Volver a ALP 00",
+      "duplicate": "Duplicar como alternativo",
+      "remove": "Quitar la parte",
+      "add": "Añadir parte",
+      "copAlpHelp": "COP (01–99) es la parte; ALP (00–99) su alternativo: 00 si no tiene, 01, 02… si hay varias referencias intercambiables. La cantidad es por unidad del artículo.",
+      "linkHelp": "La parte se busca en el maestro por NOC, luego por P/N + NCAGE y luego por el nombre exacto; si no está, se crea como artículo provisional.",
+      "removeTitle": "¿Quitar la parte COP {{cop}} / ALP {{alp}}?",
+      "removeHint": "Se da de baja de la tabla de partes (queda en el historial).",
+      "resetAfterRemove": "El alternativo que queda solo vuelve a ALP 00"
+    }
   },
   "confunfis": {
     "title": "Configuración funcional física",
@@ -1127,7 +1152,9 @@
     "tabs": {
       "arbol": "Árbol físico",
       "funcional": "Vista funcional",
-      "tabla": "Tabla"
+      "tabla": "Tabla",
+      "partes": "Tabla de partes",
+      "productos": "Productos funcionales"
     },
     "summary": {
       "rows_one": "{{count}} fila",
@@ -1139,7 +1166,16 @@
       "observations_other": "{{count}} filas con observaciones",
       "rows": "{{count}} filas",
       "positions": "{{count}} huecos (SNS + CO + AL)",
-      "observations": "{{count}} filas con observaciones"
+      "observations": "{{count}} filas con observaciones",
+      "products_one": "{{count}} producto funcional",
+      "products_other": "{{count}} productos funcionales",
+      "products": "{{count}} productos funcionales",
+      "multifunction_one": "{{count}} fila multifunción",
+      "multifunction_other": "{{count}} filas multifunción",
+      "multifunction": "{{count}} filas multifunción",
+      "incompatible_one": "{{count}} fila con incompatibilidades",
+      "incompatible_other": "{{count}} filas con incompatibilidades",
+      "incompatible": "{{count}} filas con incompatibilidades"
     },
     "fields": {
       "sns": "SNS",
@@ -1166,7 +1202,10 @@
       "alternative": "Alternativo",
       "csAlternative": "CS alternativo",
       "ctSigle": "CT SIGLE",
-      "mounted": "CUF montado"
+      "mounted": "CUF montado",
+      "multifunction_one": "multifunción ({{count}})",
+      "multifunction_other": "multifunción ({{count}})",
+      "multifunction": "multifunción ({{count}})"
     },
     "observations": {
       "OF-001": {
@@ -1301,7 +1340,10 @@
       "previousHit": "Resultado anterior",
       "nextHit": "Resultado siguiente",
       "expandAll": "Expandir todo",
-      "collapseAll": "Contraer todo"
+      "collapseAll": "Contraer todo",
+      "incompatibilities_one": "{{count}} incompatibilidad: abre la ficha para verla",
+      "incompatibilities_other": "{{count}} incompatibilidades: abre la ficha para verlas",
+      "incompatibilities": "{{count}} incompatibilidades: abre la ficha para verlas"
     },
     "functional": {
       "covered": "{{covered}} de {{total}} SNS cubiertos",
@@ -1313,7 +1355,14 @@
       "empty": "Ese SNS no tiene filas: hueco sin cubrir.",
       "outside": "Fuera de la configuración normalizada ({{count}} filas)",
       "rows": "{{count}} filas",
-      "searchHint": "SNS o nombre de la configuración"
+      "searchHint": "SNS o nombre de la configuración",
+      "byExtra_one": "Por función adicional ({{count}})",
+      "byExtra_other": "Por función adicional ({{count}})",
+      "byExtra": "Por función adicional ({{count}})",
+      "coveredOnlyByExtra_one": "{{count}} SNS cubierto solo por función adicional",
+      "coveredOnlyByExtra_other": "{{count}} SNS cubiertos solo por función adicional",
+      "coveredOnlyByExtra": "{{count}} SNS cubiertos solo por función adicional",
+      "coveredByExtra": "Filas que lo cubren como función adicional"
     },
     "table": {
       "search": "Buscar",
@@ -1356,7 +1405,8 @@
       },
       "children": "Cuelgan {{count}} filas",
       "resetAl": "Volver a AL 00",
-      "resetAfterRemove": "Volver a AL 00 la fila que queda (ya no tendrá alternativos)"
+      "resetAfterRemove": "Volver a AL 00 la fila que queda (ya no tendrá alternativos)",
+      "removeWithExtras": "Se darán de baja con ella sus funciones adicionales ({{extras}}) e incompatibilidades ({{incompatibilities}})."
     },
     "form": {
       "newTitle": "Nueva fila de la CONFUNFIS",
@@ -1399,6 +1449,84 @@
       "row_not_found": "Esa fila ya no está en la CONFUNFIS.",
       "same_row": "Una fila no puede ser incompatible consigo misma."
     },
-    "observationsCount": "{{count}} observaciones"
+    "observationsCount": "{{count}} observaciones",
+    "parts": {
+      "count_one": "{{count}} parte",
+      "count_other": "{{count}} partes",
+      "count": "{{count}} partes",
+      "hint": "Las partes de los artículos de esta CONFUNFIS, con su cantidad total en el CUF (los alternativos cuentan una vez). Se editan en la ficha del artículo.",
+      "empty": "Ningún artículo de esta CONFUNFIS tiene tabla de partes.",
+      "parent": "Artículo (posiciones)"
+    },
+    "products": {
+      "count_one": "{{count}} producto funcional",
+      "count_other": "{{count}} productos funcionales",
+      "count": "{{count}} productos funcionales",
+      "withObservations_one": "{{count}} con observaciones",
+      "withObservations_other": "{{count}} con observaciones",
+      "withObservations": "{{count}} con observaciones",
+      "hint": "Agrupados por código POL: N (normal), A (alternativo) y E (emergencia) del mismo código juntos.",
+      "new": "Nuevo producto",
+      "edit": "Editar el producto",
+      "remove": "Quitar el producto",
+      "empty": "Este CUF no tiene productos funcionales.",
+      "none": "Sin valor",
+      "notInTable": "{{code}} (no está en la tabla)",
+      "noPol": "Sin código POL",
+      "bulk": "A granel",
+      "newTitle": "Nuevo producto funcional",
+      "editTitle": "Editar producto funcional",
+      "formHint": "Al elegir el código POL se propone su descripción como designación. El NOC enlaza con el maestro si el artículo existe (no se crean provisionales).",
+      "bulkHint": "Vacío o N/A: a granel",
+      "removeTitle": "¿Quitar «{{name}}»?",
+      "removeHint": "Se da de baja de los productos funcionales del CUF (queda en el historial).",
+      "fields": {
+        "designation": "Designación",
+        "pol_code": "Código POL (OTAN/nacional)",
+        "nae": "N/A/E",
+        "noc": "NOC",
+        "supply_unit": "Unidad de suministro",
+        "quantity": "Cantidad",
+        "unit": "Unidad de medida"
+      }
+    },
+    "extras": {
+      "parts_one": "Partes del artículo ({{count}})",
+      "parts_other": "Partes del artículo ({{count}})",
+      "parts": "Partes del artículo ({{count}})",
+      "extraFunctions_one": "Funciones adicionales ({{count}})",
+      "extraFunctions_other": "Funciones adicionales ({{count}})",
+      "extraFunctions": "Funciones adicionales ({{count}})",
+      "incompatibilities_one": "Incompatibilidades ({{count}})",
+      "incompatibilities_other": "Incompatibilidades ({{count}})",
+      "incompatibilities": "Incompatibilidades ({{count}})",
+      "showParts": "Ver partes",
+      "hideParts": "Ocultar partes",
+      "copAlp": "COP {{cop}} / ALP {{alp}}",
+      "partTotal": "{{quantity}} por unidad · total en el CUF {{total}}",
+      "editParts": "Editar las partes en la ficha del artículo",
+      "add": "Añadir",
+      "remove": "Quitar",
+      "noExtraFunctions": "Sin funciones adicionales: el componente cubre solo el SNS de su posición.",
+      "sns": "SNS adicional (de la configuración del CUF)",
+      "criterion": "Criterio de ubicación",
+      "pick": "Elige uno",
+      "comment": "Comentario",
+      "noIncompatibilities": "Sin incompatibilidades.",
+      "kind": "Tipo",
+      "otherRow": "La otra fila",
+      "otherRowHint": "SNS, nombre o NOC",
+      "reason": "Motivo",
+      "requiredBy": "La requiere",
+      "deletedRow": "{{position}} (dada de baja)",
+      "kinds": {
+        "excluye": "Excluye",
+        "requiere": "Requiere"
+      },
+      "kindHints": {
+        "excluye": "Excluye: no pueden ir juntas (vale en los dos sentidos)",
+        "requiere": "Requiere: esta fila necesita la otra"
+      }
+    }
   }
 }

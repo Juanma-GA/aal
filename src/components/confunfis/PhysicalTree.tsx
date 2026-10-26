@@ -7,11 +7,12 @@
 // P/N opens the path to each hit and walks them ("3 de 7"); "Expandir todo"
 // opens every level as it loads.
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { Ban, ChevronDown, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -278,11 +279,26 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
                   {row.alternative ? <Badge variant="outline" className="shrink-0">{t('confunfis.badges.alternative')}</Badge> : null}
                   {row.cs_alternative ? <Badge variant="outline" className="shrink-0">{t('confunfis.badges.csAlternative')}</Badge> : null}
                   {row.ct_sigle === 'S' ? <Badge variant="secondary" className="shrink-0">{t('confunfis.badges.ctSigle')}</Badge> : null}
+                  {row.extra_function_count ? (
+                    <Badge variant="outline" className="shrink-0" data-testid={`tree-multifunction-${row.sns}`}>{t('confunfis.badges.multifunction', { count: row.extra_function_count })}</Badge>
+                  ) : null}
                   <ObservationBadges row={row} compact />
                   <span className="ml-auto shrink-0 text-xs text-muted-foreground" data-testid={`tree-total-${row.sns}-${row.co}-${row.al}`}>
                     {t('confunfis.tree.qtyTotal', { qty: row.qty ?? '—', total: row.total ?? '—' })}
                   </span>
                 </button>
+                {row.incompatibility_count ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      className="flex size-6 shrink-0 items-center justify-center rounded text-warning hover:bg-background"
+                      aria-label={t('confunfis.tree.incompatibilities', { count: row.incompatibility_count })}
+                      onClick={() => onSelect(row)} data-testid={`tree-incompatible-${row.sns}`}
+                    >
+                      <Ban className="size-4" aria-hidden="true" />
+                    </TooltipTrigger>
+                    <TooltipContent>{t('confunfis.tree.incompatibilities', { count: row.incompatibility_count })}</TooltipContent>
+                  </Tooltip>
+                ) : null}
                 {row.is_mounted ? (
                   row.mounted ? (
                     <Link to={`/materiales/${row.mounted.id}/confunfis`} className="shrink-0 text-xs text-link underline-offset-2 hover:underline" data-testid={`tree-mounted-${row.sns}`}>

@@ -62,6 +62,7 @@ export function FunctionalView({ materialId, onSelect }: { materialId: string; o
     setSelected(hits[next].sns);
   };
   const rows = useConfunfisRows(materialId, { sns: selected ?? undefined }, 1);
+  const holders = useConfunfisRows(materialId, { extra_sns: selected ?? undefined }, 1);
   const outside = top.data?.outside ?? [];
 
   return (
@@ -69,6 +70,9 @@ export function FunctionalView({ materialId, onSelect }: { materialId: string; o
       {summary.data ? (
         <div className="flex flex-wrap gap-2">
           <Badge data-testid="functional-covered">{t('confunfis.functional.covered', { covered: summary.data.sns_covered, total: summary.data.sns_in_config })}</Badge>
+          {summary.data.sns_covered_by_extra ? (
+            <Badge variant="outline" className="border-dashed border-link text-link">{t('confunfis.functional.coveredOnlyByExtra', { count: summary.data.sns_covered_by_extra })}</Badge>
+          ) : null}
         </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
@@ -103,8 +107,18 @@ export function FunctionalView({ materialId, onSelect }: { materialId: string; o
           {...source}
           selected={selected}
           onSelect={setSelected}
-          dimmed={(n) => n.rows_below === 0}
-          renderExtra={(n) => (n.row_count ? <Badge variant="secondary" className="shrink-0" data-testid={`functional-count-${n.sns}`}>{t('confunfis.functional.rows', { count: n.row_count })}</Badge> : null)}
+          dimmed={(n) => n.rows_below === 0 && n.extras_below === 0}
+          renderExtra={(n) => (
+            <>
+              {n.row_count ? <Badge variant="secondary" className="shrink-0" data-testid={`functional-count-${n.sns}`}>{t('confunfis.functional.rows', { count: n.row_count })}</Badge> : null}
+              {/* E14: covered by the extra function of a row elsewhere; alone, it is the only cover. */}
+              {n.extra_count ? (
+                <Badge variant="outline" className={n.row_count ? 'shrink-0' : 'shrink-0 border-dashed border-link text-link'} data-testid={`functional-extra-${n.sns}`}>
+                  {t('confunfis.functional.byExtra', { count: n.extra_count })}
+                </Badge>
+              ) : null}
+            </>
+          )}
         />
         <section className="flex flex-col gap-2 rounded-md border p-3 text-sm">
           {selected ? (
@@ -112,6 +126,12 @@ export function FunctionalView({ materialId, onSelect }: { materialId: string; o
               <h3 className="font-medium"><span className="font-mono">{selected}</span></h3>
               {rows.data && rows.data.items.length === 0 ? <p className="text-muted-foreground">{t('confunfis.functional.empty')}</p> : null}
               <RowList rows={rows.data?.items ?? []} onSelect={onSelect} testId="functional-row" />
+              {holders.data?.items.length ? (
+                <>
+                  <h4 className="mt-2 text-xs font-medium text-muted-foreground">{t('confunfis.functional.coveredByExtra')}</h4>
+                  <RowList rows={holders.data.items} onSelect={onSelect} testId="functional-extra-row" />
+                </>
+              ) : null}
             </>
           ) : <p className="text-muted-foreground">{t('confunfis.functional.pick')}</p>}
         </section>

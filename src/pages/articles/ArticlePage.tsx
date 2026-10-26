@@ -2,6 +2,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArticleParts, PARTS_ANCHOR } from '@/components/articles/ArticleParts';
 import { ArticleReferences } from '@/components/articles/ArticleReferences';
 import { FieldHelp } from '@/components/articles/FieldHelp';
 import { FieldInput } from '@/components/articles/FieldInput';
@@ -287,6 +288,7 @@ export function ArticlePage(): React.JSX.Element {
             {group.key === 'identification' ? <ArticleReferences article={a} canEdit={canEdit} /> : null}
             </Fragment>
           ))}
+          <ArticleParts articleId={a.id} canEdit={canEdit} />
         </div>
         <div className="flex flex-col gap-6">
           <Card data-testid="article-findings">
@@ -333,6 +335,22 @@ export function ArticlePage(): React.JSX.Element {
                           {u.position}
                         </Link>
                         {u.cs ? <span className="text-muted-foreground"> · {t('articles.usageCs', { cs: u.cs })}</span> : null}
+                      </>
+                    ) : u.kind === 'part_of' && u.article_id ? (
+                      <>
+                        {t('articles.usage.part_of')}{' '}
+                        <Link to={`${ARTICLES_PATH}/${u.article_id}#${PARTS_ANCHOR}`} className="text-link underline-offset-2 hover:underline" data-testid="where-used-part">
+                          {u.article_name}
+                        </Link>
+                        <span className="text-muted-foreground"> · {t('articles.usageCopAlp', { cop: u.cop, alp: u.alp })}</span>
+                      </>
+                    ) : u.kind === 'functional_product' && u.material_id ? (
+                      <>
+                        {t('articles.usage.functional_product')}{' '}
+                        <Link to={`/materiales/${u.material_id}/confunfis/productos`} className="text-link underline-offset-2 hover:underline">
+                          {u.material_name}
+                        </Link>
+                        {u.pol_code ? <span className="text-muted-foreground"> · {u.pol_code} {u.nae ?? ''}</span> : null}
                       </>
                     ) : (
                       t(`articles.usage.${u.kind}`, { defaultValue: u.kind })

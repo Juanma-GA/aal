@@ -5,9 +5,11 @@
 // ?fila), nothing in the browser (HR1). Editing needs confunfis.editar.
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { CufPartsTable } from '@/components/confunfis/CufPartsTable';
 import { FunctionalView } from '@/components/confunfis/FunctionalView';
 import { PhysicalTree } from '@/components/confunfis/PhysicalTree';
+import { ProductsTable } from '@/components/confunfis/ProductsTable';
 import { RowFormDialog } from '@/components/confunfis/RowFormDialog';
 import { RowSheet } from '@/components/confunfis/RowSheet';
 import { RowsTable } from '@/components/confunfis/RowsTable';
@@ -23,7 +25,7 @@ import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
 import { describeApiError } from '@/services/apiErrors';
 import { positionOf, type PositionRow } from '@/types/confunfis';
 
-const TABS = ['arbol', 'funcional', 'tabla'] as const;
+const TABS = ['arbol', 'funcional', 'tabla', 'partes', 'productos'] as const;
 type Tab = (typeof TABS)[number];
 
 function AlternativeCsDialog({ materialId, row, onClose, onDone }: { materialId: string; row: PositionRow; onClose: () => void; onDone: (id: string) => void }): React.JSX.Element {
@@ -63,8 +65,11 @@ export function ConfunfisPage(): React.JSX.Element {
   const { t } = useTranslation();
   const material = useMaterialOfPage();
   const summary = useConfunfisSummary(material.id);
-  const [params, setParams] = useSearchParams();
-  const tab: Tab = TABS.find((x) => x === params.get('tab')) ?? 'arbol';
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  // The tab is the path's (…/confunfis/partes: the module's own route, E14) or, as before, ?tab.
+  const { tab: pathTab } = useParams();
+  const tab: Tab = TABS.find((x) => x === (pathTab ?? params.get('tab'))) ?? 'arbol';
   const rowId = params.get('fila');
   const canEdit = material.permissions.includes('confunfis.editar');
   const [form, setForm] = useState<{ row: PositionRow | null } | null>(null);
@@ -73,15 +78,15 @@ export function ConfunfisPage(): React.JSX.Element {
 
   const go = (next: { tab?: Tab; fila?: string | null }) => {
     const out = new URLSearchParams(params);
-    if (next.tab !== undefined) {
-      if (next.tab === 'arbol') out.delete('tab');
-      else out.set('tab', next.tab);
-    }
+    out.delete('tab');
     if (next.fila !== undefined) {
       if (next.fila) out.set('fila', next.fila);
       else out.delete('fila');
     }
-    setParams(out);
+    const target = next.tab ?? tab;
+    const path = `/materiales/${material.id}/confunfis${target === 'arbol' ? '' : `/${target}`}`;
+    const query = out.toString();
+    navigate(`${path}${query ? `?${query}` : ''}`);
   };
   const open = (row: PositionRow) => go({ fila: row.id });
 
@@ -94,6 +99,8 @@ export function ConfunfisPage(): React.JSX.Element {
             <Badge data-testid="confunfis-summary-rows">{t('confunfis.summary.rows', { count: summary.data.rows })}</Badge>
             <Badge variant="secondary">{t('confunfis.summary.positions', { count: summary.data.positions })}</Badge>
             <Badge variant="secondary">{t('confunfis.summary.covered', { covered: summary.data.sns_covered, total: summary.data.sns_in_config })}</Badge>
+            {summary.data.multifunction_rows ? <Badge variant="outline">{t('confunfis.summary.multifunction', { count: summary.data.multifunction_rows })}</Badge> : null}
+            {summary.data.incompatibility_rows ? <Badge variant="outline">{t('confunfis.summary.incompatible', { count: summary.data.incompatibility_rows })}</Badge> : null}
             {summary.data.with_observations ? (
               <Badge variant="outline" className="border-warning text-warning">{t('confunfis.summary.observations', { count: summary.data.with_observations })}</Badge>
             ) : null}
@@ -107,7 +114,7 @@ export function ConfunfisPage(): React.JSX.Element {
       </div>
       <p className="text-sm text-muted-foreground">{t('confunfis.hint')}</p>
       <Tabs value={tab} onValueChange={(v) => go({ tab: v as Tab })}>
-        <TabsList>
+        <TabsList className="flex-wrap">
           {TABS.map((name) => (
             <TabsTrigger key={name} value={name} data-testid={`confunfis-tab-${name}`}>
               {t(`confunfis.tabs.${name}`)}
@@ -122,6 +129,12 @@ export function ConfunfisPage(): React.JSX.Element {
         </TabsContent>
         <TabsContent value="tabla">
           <RowsTable materialId={material.id} onSelect={open} />
+        </TabsContent>
+        <TabsContent value="partes">
+          <CufPartsTable materialId={material.id} />
+        </TabsContent>
+        <TabsContent value="productos">
+          <ProductsTable materialId={material.id} canEdit={canEdit} />
         </TabsContent>
       </Tabs>
       {rowId ? (

@@ -49,6 +49,13 @@ export interface WhereUsed {
   row_id?: string;
   position?: string;
   cs?: string | null;
+  /** E14: a part of another article (its COP/ALP), a functional product of a CUF. */
+  article_id?: string;
+  article_name?: string;
+  cop?: string;
+  alp?: string;
+  pol_code?: string | null;
+  nae?: string | null;
 }
 
 /** A P/N + NCAGE of an article (E13, NT §9.1.6: one NOC, several P/N). */

@@ -33,15 +33,17 @@ The requests for a new SNS a check created (E11) are removed for good.
     python scripts/purge_verify_data.py --sns-requests <id>
 
 The articles (E12) are saved before and put back after: every column of
-every article (version and findings included), its life controls and its
-references (E13); an article created while the check ran (after the save)
-is removed, and so are the revalidations run meanwhile.
+every article (version and findings included), its life controls, its
+references (E13) and its parts table (E14); an article or a part created
+while the check ran (after the save) is removed, and so are the
+revalidations run meanwhile.
 
     python scripts/purge_verify_data.py --save-articles --snapshot FICHERO
     python scripts/purge_verify_data.py --restore-articles --snapshot FICHERO
 
 The CONFUNFIS rows (E13) likewise: every row of every material saved, put
-back after; a row added while the check ran is removed.
+back after; a row added while the check ran is removed. With them (E14),
+the functional products, extra functions and incompatibilities.
 
     python scripts/purge_verify_data.py --save-confunfis --snapshot FICHERO
     python scripts/purge_verify_data.py --restore-confunfis --snapshot FICHERO
@@ -65,10 +67,14 @@ from app.db.base import async_session_factory, engine
 from app.models import (
     Article,
     ArticleLifeControl,
+    ArticlePart,
     ArticleReference,
     ArticleRevalidation,
     CatalogVersion,
+    ExtraFunction,
+    FunctionalProduct,
     ImportJob,
+    Incompatibility,
     LoginFailure,
     Material,
     MaterialCategory,
@@ -146,6 +152,24 @@ def _value(value):
     return value
 
 
+def _save_table(rows) -> list[dict]:
+    return [{k: _jsonable(v) for k, v in dict(r._mapping).items()} for r in rows]
+
+
+async def _restore_table(db, table, rows: list[dict], saved_at: str) -> int:
+    """Each saved row as it was; one created after the save is removed."""
+    ids = [_value(r["id"]) for r in rows]
+    created = table.c.created_at >= datetime.fromisoformat(saved_at)
+    removed = await db.execute(table.delete().where(table.c.id.not_in(ids), created) if ids else table.delete().where(created))
+    for r in rows:
+        await db.execute(table.update().where(table.c.id == _value(r["id"])).values({k: _value(v) for k, v in r.items()}))
+    return removed.rowcount
+
+
+# What hangs from the CONFUNFIS rows (E14), saved and restored with them.
+_CONFUNFIS_EXTRAS = (("products", FunctionalProduct), ("extra_functions", ExtraFunction), ("incompatibilities", Incompatibility))
+
+
 async def _await_revalidations(db, since: datetime, seconds: float = 60) -> None:
     """A revalidation the check queued writes findings until it ends: the
     restore waits for it, or it would write over what is put back."""
@@ -165,10 +189,16 @@ async def save_articles(snapshot: Path) -> int:
         articles = [{c.name: _jsonable(v) for c in Article.__table__.columns for v in [getattr(a, c.key)]} for a in (await db.execute(select(Article))).scalars()]
         life = [{c.name: _jsonable(getattr(x, c.key)) for c in ArticleLifeControl.__table__.columns} for x in (await db.execute(select(ArticleLifeControl))).scalars()]
         refs = [dict(r._mapping) for r in await db.execute(ArticleReference.__table__.select())]
+        parts = _save_table(await db.execute(ArticlePart.__table__.select()))
+        # Removing the references to put them back empties the rows' link (SET NULL): kept apart.
+        links = [
+            {"id": str(i), "reference": str(r)}
+            for i, r in await db.execute(select(PhysicalPosition.id, PhysicalPosition.article_reference_id).where(PhysicalPosition.article_reference_id.is_not(None)))
+        ]
     await engine.dispose()
     saved_at = datetime.now(UTC).isoformat()
     refs = [{k: _jsonable(v) for k, v in r.items()} for r in refs]
-    snapshot.write_text(json.dumps({"saved_at": saved_at, "articles": articles, "life": life, "references": refs}, ensure_ascii=False), encoding="utf-8")
+    snapshot.write_text(json.dumps({"saved_at": saved_at, "articles": articles, "life": life, "references": refs, "parts": parts, "row_links": links}, ensure_ascii=False), encoding="utf-8")
     print(f"Artículos guardados: {len(articles)}")
     return 0
 
@@ -192,6 +222,10 @@ async def restore_articles(snapshot: Path) -> int:
             await db.execute(ArticleLifeControl.__table__.insert().values({k: _value(v) for k, v in x.items()}))
         for r in saved.get("references", []):
             await db.execute(ArticleReference.__table__.insert().values({k: _value(v) for k, v in r.items()}))
+        # After the references: a CONFUNFIS row and a part point at one.
+        for link in saved.get("row_links", []):
+            await db.execute(update(PhysicalPosition.__table__).where(PhysicalPosition.__table__.c.id == uuid.UUID(link["id"])).values(article_reference_id=uuid.UUID(link["reference"])))
+        await _restore_table(db, ArticlePart.__table__, saved.get("parts", []), saved["saved_at"])
         await db.commit()
         print(f"Artículos restaurados: {len(ids)}; eliminados: {removed.rowcount}")
     await engine.dispose()
@@ -201,9 +235,10 @@ async def restore_articles(snapshot: Path) -> int:
 
 async def save_confunfis(snapshot: Path) -> int:
     async with async_session_factory() as db:
-        rows = [{k: _jsonable(v) for k, v in dict(r._mapping).items()} for r in await db.execute(PhysicalPosition.__table__.select())]
+        rows = _save_table(await db.execute(PhysicalPosition.__table__.select()))
+        extras = {name: _save_table(await db.execute(model.__table__.select())) for name, model in _CONFUNFIS_EXTRAS}
     await engine.dispose()
-    snapshot.write_text(json.dumps({"saved_at": datetime.now(UTC).isoformat(), "rows": rows}, ensure_ascii=False), encoding="utf-8")
+    snapshot.write_text(json.dumps({"saved_at": datetime.now(UTC).isoformat(), "rows": rows, **extras}, ensure_ascii=False), encoding="utf-8")
     print(f"Filas de CONFUNFIS guardadas: {len(rows)}")
     return 0
 
@@ -219,6 +254,8 @@ async def restore_confunfis(snapshot: Path) -> int:
         removed = await db.execute(table.delete().where(table.c.id.not_in(ids), created) if ids else table.delete().where(created))
         for r in saved["rows"]:
             await db.execute(table.update().where(table.c.id == _value(r["id"])).values({k: _value(v) for k, v in r.items()}))
+        for name, model in _CONFUNFIS_EXTRAS:
+            await _restore_table(db, model.__table__, saved.get(name, []), saved["saved_at"])
         await db.commit()
         print(f"Filas de CONFUNFIS restauradas: {len(ids)}; eliminadas: {removed.rowcount}")
     await engine.dispose()

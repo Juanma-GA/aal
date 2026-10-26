@@ -31,7 +31,10 @@ def test_states_of_the_seed(seed):
     assert states["articulos"] == ("disponible", "/articulos")
     # E13: the CONFUNFIS of each material.
     assert states["confunfis"] == ("disponible", "/materiales/:materialId/confunfis")
-    on = ("panel", "materiales", "catalogo-normalizado", "articulos", "confunfis")
+    # E14: its "Tabla de partes" and "Productos funcionales", tabs of that page.
+    assert states["tabla-partes"] == ("disponible", "/materiales/:materialId/confunfis/partes")
+    assert states["productos-funcionales"] == ("disponible", "/materiales/:materialId/confunfis/productos")
+    on = ("panel", "materiales", "catalogo-normalizado", "articulos", "confunfis", "tabla-partes", "productos-funcionales")
     assert {s for code, (s, _) in states.items() if code not in on} == {"planificado"}
 
 

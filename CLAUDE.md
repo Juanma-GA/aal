@@ -173,12 +173,13 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   borra su usuario (dominio `@verify.aal-dev.es`) con `backend/scripts/purge_verify_data.py`, que
   también borra los materiales `[verify] …`; solo quedan sus filas de `audit_log`, que es de solo añadir.
 - **`verify-navigation.mjs`** (E02): el analista de desarrollo aterriza en el Panel de su material,
-  recorre tres grupos del sidebar y la ficha de "Configuración funcional física", un material ajeno da
+  recorre tres grupos del sidebar, "Configuración funcional física", "Tabla de partes" (E14) y la ficha de "Validación NT
+  10/17" (planificado), un material ajeno da
   404, el admin cambia FTA a "en desarrollo" y el analista lo ve; también el plegado de grupos tras
   recargar y la vista móvil. Credenciales por entorno: `VERIFY_ADMIN_EMAIL`, `VERIFY_ADMIN_PASSWORD` y
   `DEV_ANALISTA_PASSWORD`. Deja la base como estaba (material `[verify] …` borrado, FTA de vuelta a
   "planificado", preferencias del analista restauradas).
-- **`verify-reference-tables.mjs`** (E03): el admin abre D114 (13 valores con su tipo por nombre),
+- **`verify-reference-tables.mjs`** (E03): el admin ve las 16 tablas, abre D114 (13 valores con su tipo por nombre),
   edita en línea una descripción de D112, exporta D112, el script lo cambia con openpyxl
   (`backend/scripts/verify_edit_xlsx.py`), lo importa, ve 1 modificado y aplica; el analista ve las
   tablas sin edición. Mismas credenciales que `verify-navigation`. Deja la base como estaba: guarda
@@ -214,8 +215,11 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   pistón y ve "total 18" en los segmentos y su cálculo, abre la radio (`E12300`, CUF montado) y salta a su
   CONFUNFIS, ve `B35010` fuera de la configuración en la vista funcional, crea una fila en `A27010` (CO 04
   sugerido, artículo provisional) y la duplica como alternativo (AL 01 y 02), e intenta quitar la subcategoría
-  0102 (se lo impide el afuste `C66100`). Deja la base como estaba (`purge_verify_data.py --save-confunfis` /
-  `--restore-confunfis` y `--save-articles` / `--restore-articles`). `verify-materials` (E13): con CONFUNFIS
+  0102 (se lo impide el afuste `C66100`). (E14) Busca "segmentos" en el árbol, borra la copia del alternativo (vuelve a
+  AL 00), abre "Ver partes" de la bomba de agua (3), ve los 8 productos funcionales con la observación `ZZ` desde el
+  sidebar, y en la radio crea y borra una función adicional y una incompatibilidad `excluye`. Deja la base como estaba
+  (`purge_verify_data.py --save-confunfis` / `--restore-confunfis`, que incluyen productos, funciones adicionales e
+  incompatibilidades, y `--save-articles` / `--restore-articles`, que incluyen las partes y el enlace fila → referencia). `verify-materials` (E13): con CONFUNFIS
   cargada, comprueba que 0102 no se puede quitar y que la copia lleva la CONFUNFIS; sin ella, lo de E11.
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
@@ -384,6 +388,20 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   desaparece), "dónde se usa" (`confunfis`, solo materiales accesibles). CUF montado: el artículo es el CUF de otro
   material (el enlace solo si el usuario lo puede abrir). Lector reutilizable de la hoja `CON_FUN_FIS`
   (`app/services/confunfis_sheet.py`, base de E15). Pantalla `/materiales/:materialId/confunfis` (?tab, ?fila).
+- **Resto de RF-02 (E14)**: `article_part` (la tabla de partes es **del artículo**, global como el maestro; COP 01–99,
+  ALP 00–99, rangos en el parámetro `confunfis`), `functional_product`, `extra_function` e `incompatibility` (del CUF),
+  todas con versión, borrado lógico y auditoría y sin restricción única (los errores son observaciones provisionales
+  OP-*, OPF-*, OI-* hasta E16). Servicio `app/services/confunfis_extras.py`: se cuelga de los puntos de extensión de
+  `confunfis.py` (`COPY_EXTENSIONS`: copia remapeada a las filas copiadas, las partes no se copian;
+  `ROW_REMOVAL_EXTENSIONS`: la baja de una fila se lleva sus funciones adicionales e incompatibilidades;
+  `REFRESH_EXTENSIONS`: observaciones tras cada cambio), de la guarda de subcategorías y de "dónde se usa" (`parts`,
+  `functional_products`). Total de una parte en el CUF = cantidad × total de los huecos del padre (`part_totals`, sobre el
+  grafo). `excluye` se guarda una vez y vale en los dos sentidos; `requiere` es dirigida. Criterios de ubicación en la tabla
+  de referencia `CRITERIO_MULTIFUNCION`. API: `/api/articles/{id}/parts` (`articulos.editar`) y
+  `/api/materials/{id}/confunfis/{parts,products,extra-functions,incompatibilities}` (`confunfis.ver` / `confunfis.editar`).
+  Lectores de las hojas `TABLA PRODUCTOS FUNCIONALES` y `TABLA DE PARTES` en `confunfis_sheet.py` (para E15). Pantalla: pestañas
+  `/materiales/:materialId/confunfis/{partes,productos}` (módulos encendidos en la migración 0012), secciones en la ficha de
+  fila (`RowExtras.tsx`) y tarjeta "Partes" en la ficha del artículo (`#partes`).
 - **Sidebar (E12)**: ancho (borde arrastrable, límites en el parámetro `ui`), plegado a iconos (botón al pie y
   `Ctrl+B`) y lado, en `ui_preferences` (`useSidebarLayout`); `/api/me/ui-settings` da los límites.
 - **Listas navegables y enlaces (E11)**: toda fila que abre algo es un `NavRow`

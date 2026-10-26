@@ -11,10 +11,15 @@
 //   5. Creates a row in A27010 (CO 04, suggested) with a provisional article
 //      and duplicates it as an alternative: AL 01 and 02; (E14) removing the
 //      copy takes the one left back to AL 00.
+//   5b. (E14) The water pump's "Ver partes" shows 3 parts; the functional
+//      products are 8, one observed (supply unit ZZ), O-1236 with N and E
+//      together; on the radio's card, an extra function and an "excluye"
+//      incompatibility are added and removed.
 //   6. Tries to remove the subcategory 0102 from the Tramontana: refused,
 //      the afuste C66100 uses it.
-// Leaves the database as it was: every CONFUNFIS row and every article are
-// saved before and put back after (backend/scripts/purge_verify_data.py
+// Leaves the database as it was: every CONFUNFIS row (with its products,
+// extra functions and incompatibilities) and every article (with its parts)
+// are saved before and put back after (backend/scripts/purge_verify_data.py
 // --save-confunfis / --save-articles); only audit rows stay.
 //
 // Needs Vite (BASE_URL, default http://localhost:5173) and uvicorn running.
@@ -88,6 +93,8 @@ try {
   const page = await context.newPage();
   const consoleErrors = [];
   page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
+  // Which request a "404" in the console was (the console text does not say).
+  page.on('response', (r) => { if (r.status() === 404) consoleErrors.push(`404 ${r.request().method()} ${new URL(r.url()).pathname}`); });
 
   // ── 1. The analyst opens the Tramontana's CONFUNFIS ────────────────────
   await signIn(page, ANALYST_EMAIL, ANALYST_PASSWORD);
@@ -186,6 +193,66 @@ try {
   assert(JSON.stringify(after.items.filter((r) => r.co === '04').map((r) => r.al)) === '["00"]', 'the row left is A27010 04 00 again');
   await page.keyboard.press('Escape');
 
+  // ── 5b (E14). Parts, functional products, extra function, incompatibility ─
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}/confunfis?tab=tabla`);
+  await page.getByTestId('confunfis-search').fill('A22110');
+  await page.getByTestId('confunfis-table-total').filter({ hasText: /^1 / }).waitFor();
+  await page.getByTestId('confunfis-row-A22110-01-00').click();
+  await page.getByTestId('row-parts-toggle').click();
+  await page.getByTestId('row-parts-list').waitFor();
+  assert((await page.getByTestId('row-part').count()) === 3, 'the water pump: "Ver partes" shows its 3 parts');
+  await page.screenshot({ path: shot('verify-confunfis-6-parts.png') });
+  await page.keyboard.press('Escape');
+
+  // The module is on: the sidebar opens the tab, marked as the current page.
+  await page.getByTestId('sidebar-module-productos-funcionales').click();
+  await page.waitForURL(`**/materiales/${tramontana.id}/confunfis/productos`);
+  await page.getByTestId('products-count').filter({ hasText: /^8 / }).waitFor();
+  assert((await page.getByTestId('product-observation-OPF-004').count()) === 1, '8 functional products; one observation, the supply unit ZZ');
+  assert((await page.getByTestId('product-group-O-1236').count()) === 1 && (await page.getByTestId('product-O-1236-N').count()) === 1 && (await page.getByTestId('product-O-1236-E').count()) === 1,
+    'O-1236 groups its N and E rows');
+  await page.screenshot({ path: shot('verify-confunfis-7-products.png') });
+
+  const radioRow = (await admin('GET', `/materials/${tramontana.id}/confunfis/rows?sns=E12300&page_size=5`)).items[0];
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}/confunfis?fila=${radioRow.id}`);
+  await page.getByTestId('extra-function-E19200').waitFor();
+  assert(true, 'the radio has its extra function E19200');
+  await page.getByTestId('extra-function-add').click();
+  await page.getByTestId('extra-function-sns').fill('A21030');
+  await page.getByTestId('extra-function-sns-hit').first().click();
+  await page.getByTestId('extra-function-criterion').click();
+  await page.getByRole('option', { name: 'Función más crítica' }).click();
+  await page.getByTestId('extra-function-comment').fill('[verify] función adicional');
+  const [extraMade] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/confunfis/extra-functions') && r.request().method() === 'POST'),
+    page.getByTestId('extra-function-save').click(),
+  ]);
+  assert(extraMade.status() === 201, 'an extra function A21030 is added to the radio');
+  await page.getByTestId('extra-function-A21030').waitFor();
+  const [extraGone] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/confunfis/extra-functions/') && r.request().method() === 'DELETE'),
+    page.getByTestId('extra-function-remove-A21030').click(),
+  ]);
+  assert(extraGone.status() === 204 && (await page.getByTestId('extra-function-A21030').count()) === 0, 'and removed');
+
+  await page.getByTestId('incompatibility-add').click();
+  await page.getByTestId('incompatibility-row').fill('A21030');
+  await page.getByTestId('incompatibility-row-hit').first().click();
+  await page.getByTestId('incompatibility-reason').fill('[verify] no caben juntos');
+  const [incMade] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/confunfis/incompatibilities') && r.request().method() === 'POST'),
+    page.getByTestId('incompatibility-save').click(),
+  ]);
+  assert(incMade.status() === 201 && (await incMade.json()).kind === 'excluye', 'an "excluye" incompatibility with the pistón is added');
+  await page.getByTestId('incompatibility-excluye').waitFor();
+  await page.screenshot({ path: shot('verify-confunfis-8-incompatibility.png') });
+  const [incGone] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/confunfis/incompatibilities/') && r.request().method() === 'DELETE'),
+    page.getByTestId('incompatibility-remove').click(),
+  ]);
+  assert(incGone.status() === 204, 'and removed');
+  await page.keyboard.press('Escape');
+
   // ── 6. 0102 cannot leave the Tramontana ────────────────────────────────
   await page.goto(`${BASE_URL}/materiales/${tramontana.id}/ficha`);
   await page.getByTestId('cuf-subcategories').waitFor();
@@ -201,6 +268,7 @@ try {
   await page.screenshot({ path: shot('verify-confunfis-5-guard.png') });
 
   const unexpected = consoleErrors.filter((e) => !/\b(401|409)\b/.test(e));
+  console.log(consoleErrors.length ? `console: ${consoleErrors.join(' | ')}` : 'console: clean');
   assert(unexpected.length === 0, `no console errors${unexpected.length ? `: ${unexpected.join(' | ')}` : ''}`);
   console.log('verify-confunfis: ALL OK');
 } catch (err) {
