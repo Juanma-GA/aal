@@ -226,6 +226,13 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   (`purge_verify_data.py --save-confunfis` / `--restore-confunfis`, que incluyen productos, funciones adicionales e
   incompatibilidades, y `--save-articles` / `--restore-articles`, que incluyen las partes y el enlace fila → referencia). `verify-materials` (E13): con CONFUNFIS
   cargada, comprueba que 0102 no se puede quitar y que la copia lleva la CONFUNFIS; sin ella, lo de E11.
+  (E15) La ficha de fila queda acoplada con el árbol pulsable al lado (ancho guardado y restaurado); exporta el Anexo XI
+  del Tramontana, lo importa en "Fusionar" (0 nuevos, 0 modificados, 0 bajas; "Sustituir" no se le ofrece al analista),
+  lo aplica y descarga la plantilla vacía (su `import_job` se borra con `--import-jobs`).
+- **`verify-confunfis-real.mjs`** (E15): importa `private/CON_FUN_FIS2_ejemplo.xlsx` (714 filas, sin partes;
+  `CONFUNFIS_REAL_ROWS` si es otro) en un CUF `[verify] …` temporal con todas las subcategorías, confirma el CUF distinto,
+  aplica, exporta y compara celda a celda (`backend/scripts/compare_books.py`), reimporta esperando 0 cambios y da los
+  tiempos. Sin el fichero, 2 (NOT RUN). No está en la CI. Deja la base como estaba (CUF y artículos).
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
@@ -410,6 +417,19 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   `/materiales/:materialId/confunfis/{partes,productos}` (módulos encendidos en la migración 0012), secciones en la ficha de
   fila (`RowExtras.tsx`) y tarjeta "Partes" en la ficha del artículo (`#partes`). La unidad de medida de un producto se
   valida contra `UNIDAD_MEDIDA_PF` (E15: `L`, `KG`… del Anexo XI y los códigos D112, cada uno con su equivalencia D112).
+- **Libro CONFUNFIS (E15, Anexo XI)**: plantillas de las hojas en `app/services/anexo_xi_sheets.py` (solo `CON_FUN_FIS`
+  obligatoria; las desconocidas se ignoran y se avisan; las dos variantes de cabecera de productos; cabecera validada por la
+  fila 2; el Libro AAL añade `FUNCIONES ADICIONALES` e `INCOMPATIBILIDADES`, con la fila nombrada por SNS+CO+AL+CS).
+  Importación `app/services/anexo_xi_import.py` (`AnexoXiTarget`, `Runner`): el análisis es una pasada real que el motor
+  deshace (de ahí salen observaciones, provisionales, P/N nuevos y partes compartidas); "Fusionar" (`confunfis.editar`)
+  nunca da de baja, "Sustituir" (admin, nombre del CUF tecleado) da de baja lo que no está (las partes, solo de los padres
+  del fichero); claves fila SNS+CO+AL+CS (duplicados por orden), producto POL+N/A/E+unidad, parte padre+COP+ALP; CUF del
+  fichero distinto → `confirm_cuf`; huella de lo guardado tomada al analizar (409 `import_stale` si cambió); una
+  transacción, auditoría con `audit.origin(...)` y la importación como origen; punto de extensión `IMPORT_GUARDS`. Las
+  partes compartidas solo nombran los CUF que el usuario puede abrir. Exportación `app/services/anexo_xi_export.py`
+  (`anexo`, `aal`, `plantilla`: SNS PERMITIDOS, TABLAS y listas desplegables). API `app/api/routes/confunfis_book.py`;
+  pantalla: menús Importar/Exportar de la CONFUNFIS y `BookImportDialog.tsx`. Round trip: exportar → importar en
+  Fusionar = 0 cambios (lo vigilan `test_anexo_xi.py` y `verify-confunfis`).
 - **Ficha lateral acoplada (E15)**: toda ficha de detalle es un `DetailPanel` (`src/components/layout/DetailPanel.tsx`):
   desde 1024 px se acopla a la derecha del contenido (un hueco de `AppLayout` al lado de `<main>`, vía `uiStore.detailSlot`),
   sin fondo oscurecido, y la lista sigue pulsable; por debajo, el `sheet` de shadcn. Ancho arrastrando el borde, el mismo para

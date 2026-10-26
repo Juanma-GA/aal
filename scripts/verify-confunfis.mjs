@@ -17,6 +17,9 @@
 //      incompatibility are added and removed.
 //   6. Tries to remove the subcategory 0102 from the Tramontana: refused,
 //      the afuste C66100 uses it.
+//   7. (E15) Exports the Tramontana's Anexo XI, imports it back in
+//      "Fusionar": 0 new, 0 modified, 0 removed; applies it; downloads the
+//      empty template.
 // Leaves the database as it was: every CONFUNFIS row (with its products,
 // extra functions and incompatibilities) and every article (with its parts)
 // are saved before and put back after (backend/scripts/purge_verify_data.py
@@ -29,6 +32,7 @@
 // Without them, the servers or the demo data, it says so and exits 2.
 //
 //   node scripts/verify-confunfis.mjs
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -79,6 +83,7 @@ if (summary.rows !== 46) notRun(`the Tramontana has ${summary.rows} CONFUNFIS ro
 const startCuf = await admin('GET', `/materials/${tramontana.id}/cuf`);
 
 const purge = path.join('scripts', 'purge_verify_data.py');
+const importJobs = [];
 if (runBackendScript(python, 'save the CONFUNFIS', [purge, '--save-confunfis', '--snapshot', ROWS_SNAPSHOT]) !== 0) notRun('could not save the CONFUNFIS rows.');
 if (runBackendScript(python, 'save the articles', [purge, '--save-articles', '--snapshot', ARTICLES_SNAPSHOT]) !== 0) notRun('could not save the articles.');
 
@@ -294,6 +299,52 @@ try {
   assert(true, '0102 is still there');
   await page.screenshot({ path: shot('verify-confunfis-5-guard.png') });
 
+  // ── 7 (E15). Anexo XI out and back in, 0 changes; the empty template ──
+  // Step 5 left one row more than the demo: what is there now is what goes out.
+  const now7 = await admin('GET', `/materials/${tramontana.id}/confunfis/summary`);
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}/confunfis`);
+  await page.getByTestId('physical-tree').waitFor();
+  await page.getByTestId('confunfis-export').click();
+  const [anexo] = await Promise.all([page.waitForEvent('download'), page.getByTestId('confunfis-export-anexo').click()]);
+  const anexoFile = shot(anexo.suggestedFilename());
+  await anexo.saveAs(anexoFile);
+  assert(/^ANEXO_XI_.+_\d{8}\.xlsx$/.test(anexo.suggestedFilename()) && fs.statSync(anexoFile).size > 0, `the Anexo XI is downloaded (${anexo.suggestedFilename()})`);
+  await page.getByTestId('confunfis-import').click();
+  await page.getByTestId('confunfis-import-anexo').click();
+  await page.getByTestId('book-import').waitFor();
+  assert(await page.getByTestId('book-mode-merge').getAttribute('aria-checked') === 'true', '"Fusionar" is the default mode');
+  assert(await page.getByTestId('book-mode-replace').isDisabled(), '"Sustituir" is not offered to the analyst');
+  await page.getByTestId('book-file').setInputFiles(anexoFile);
+  const [started] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes(`/confunfis/import?mode=merge`) && r.request().method() === 'POST'),
+    page.getByTestId('book-analyze').click(),
+  ]);
+  importJobs.push((await started.json()).id);
+  await page.getByTestId('book-report').waitFor({ timeout: 60000 });
+  await page.getByTestId('book-apply').waitFor();
+  const job = await analystApi('GET', `/import-jobs/${importJobs[0]}`);
+  const c = job.counts;
+  assert(c.new === 0 && c.modified === 0 && c.removed === 0 && c.rejected === 0 && c.unchanged >= now7.rows,
+    `the book comes back with 0 changes (unchanged ${c.unchanged}: ${c.rows_unchanged} rows, ${c.products_unchanged} products, ${c.parts_unchanged} parts)`);
+  assert(await page.getByTestId(`book-count-CON_FUN_FIS-unchanged`).innerText() === String(now7.rows), `the CON_FUN_FIS tab says ${now7.rows} unchanged`);
+  await page.getByTestId('book-sheet-result').click();
+  await page.getByTestId('book-result-observations').waitFor();
+  await page.screenshot({ path: shot('verify-confunfis-9-book-import.png') });
+  const [applied] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes(`/confunfis/import/${importJobs[0]}/apply`)),
+    page.getByTestId('book-apply').click(),
+  ]);
+  assert(applied.status() === 200, 'applying it is accepted');
+  await page.getByTestId('book-done').waitFor();
+  await page.getByTestId('book-close').click();
+  const after7 = await admin('GET', `/materials/${tramontana.id}/confunfis/summary`);
+  assert(after7.rows === now7.rows, `the CONFUNFIS still has ${now7.rows} rows`);
+  await page.getByTestId('confunfis-export').click();
+  const [template] = await Promise.all([page.waitForEvent('download'), page.getByTestId('confunfis-export-plantilla').click()]);
+  const templateFile = shot(template.suggestedFilename());
+  await template.saveAs(templateFile);
+  assert(/^PLANTILLA_CONFUNFIS_.+\.xlsx$/.test(template.suggestedFilename()) && fs.statSync(templateFile).size > 0, `the empty template is downloaded (${template.suggestedFilename()})`);
+
   const unexpected = consoleErrors.filter((e) => !/\b(401|409)\b/.test(e));
   console.log(consoleErrors.length ? `console: ${consoleErrors.join(' | ')}` : 'console: clean');
   assert(unexpected.length === 0, `no console errors${unexpected.length ? `: ${unexpected.join(' | ')}` : ''}`);
@@ -304,6 +355,7 @@ try {
   await browser.contexts()[0]?.pages()[0]?.screenshot({ path: shot('verify-confunfis-error.png') }).catch(() => undefined);
 } finally {
   await browser.close();
+  if (importJobs.length) runBackendScript(python, 'cleanup', [purge, '--import-jobs', ...importJobs]);
   runBackendScript(python, 'cleanup', [purge, '--restore-confunfis', '--snapshot', ROWS_SNAPSHOT]);
   runBackendScript(python, 'cleanup', [purge, '--restore-articles', '--snapshot', ARTICLES_SNAPSHOT]);
   await analystApi('PUT', '/me/ui-preferences', { detail_panel_width: panelWidth }).catch(() => undefined);

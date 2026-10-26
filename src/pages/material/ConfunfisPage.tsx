@@ -3,9 +3,11 @@
 // over its normalized configuration, the Anexo XI table -- and the card of
 // a row in a side panel. The tab and the open row live in the URL (?tab,
 // ?fila), nothing in the browser (HR1). Editing needs confunfis.editar.
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { BookImportDialog } from '@/components/confunfis/BookImportDialog';
 import { CufPartsTable } from '@/components/confunfis/CufPartsTable';
 import { FunctionalView } from '@/components/confunfis/FunctionalView';
 import { PhysicalTree } from '@/components/confunfis/PhysicalTree';
@@ -16,15 +18,22 @@ import { RowsTable } from '@/components/confunfis/RowsTable';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAlternativeCs, useConfunfisSummary } from '@/hooks/useConfunfis';
+import { confunfisKey, useAlternativeCs, useConfunfisSummary } from '@/hooks/useConfunfis';
 import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
+import { useMe } from '@/hooks/useSession';
+import { saveFile } from '@/lib/download';
+import { notifyError } from '@/lib/notify';
 import { describeApiError } from '@/services/apiErrors';
+import { exportBook } from '@/services/confunfisBookApi';
+import type { BookExport } from '@/types/confunfisBook';
 import { positionOf, type PositionRow } from '@/types/confunfis';
 
+const EXPORTS: BookExport[] = ['anexo', 'aal', 'plantilla'];
 const TABS = ['arbol', 'funcional', 'tabla', 'partes', 'productos'] as const;
 type Tab = (typeof TABS)[number];
 
@@ -74,7 +83,15 @@ export function ConfunfisPage(): React.JSX.Element {
   const canEdit = material.permissions.includes('confunfis.editar');
   const [form, setForm] = useState<{ row: PositionRow | null } | null>(null);
   const [altCs, setAltCs] = useState<PositionRow | null>(null);
+  const [importing, setImporting] = useState<'anexo' | 'aal' | null>(null);
+  const me = useMe();
+  const queryClient = useQueryClient();
   const title = t('confunfis.title');
+  const doExport = (kind: BookExport) => {
+    exportBook(material.id, kind)
+      .then(({ blob, fileName }) => saveFile(blob, fileName ?? 'CONFUNFIS.xlsx'))
+      .catch((error: unknown) => notifyError(error, t));
+  };
 
   const go = (next: { tab?: Tab; fila?: string | null }) => {
     const out = new URLSearchParams(params);
@@ -107,11 +124,38 @@ export function ConfunfisPage(): React.JSX.Element {
             ) : null}
           </>
         ) : null}
-        {canEdit ? (
-          <Button className="sm:ml-auto" onClick={() => setForm({ row: null })} data-testid="confunfis-new-row">{t('confunfis.newRow')}</Button>
-        ) : (
-          <p className="text-sm text-muted-foreground sm:ml-auto">{t('confunfis.readOnly')}</p>
-        )}
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+          {canEdit ? null : <p className="text-sm text-muted-foreground">{t('confunfis.readOnly')}</p>}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" data-testid="confunfis-export">{t('confunfisBook.export')}</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {EXPORTS.map((kind) => (
+                <DropdownMenuItem key={kind} onSelect={() => doExport(kind)} data-testid={`confunfis-export-${kind}`}>
+                  {t(`confunfisBook.exports.${kind}`)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {canEdit ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" data-testid="confunfis-import">{t('confunfisBook.import')}</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {(['anexo', 'aal'] as const).map((book) => (
+                    <DropdownMenuItem key={book} onSelect={() => setImporting(book)} data-testid={`confunfis-import-${book}`}>
+                      {t(`confunfisBook.exports.${book}`)}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button onClick={() => setForm({ row: null })} data-testid="confunfis-new-row">{t('confunfis.newRow')}</Button>
+            </>
+          ) : null}
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">{t('confunfis.hint')}</p>
       <Tabs value={tab} onValueChange={(v) => go({ tab: v as Tab })}>
@@ -147,6 +191,14 @@ export function ConfunfisPage(): React.JSX.Element {
       {form ? (
         <RowFormDialog materialId={material.id} row={form.row} onClose={() => setForm(null)} onSaved={(saved) => { setForm(null); go({ fila: saved.id }); }} />
       ) : null}
+      <BookImportDialog
+        materialId={material.id} materialName={material.name} book={importing ?? 'anexo'} isAdmin={Boolean(me.data?.is_admin)}
+        open={importing !== null} onOpenChange={(next) => { if (!next) setImporting(null); }}
+        onApplied={() => {
+          void queryClient.invalidateQueries({ queryKey: confunfisKey(material.id) });
+          void queryClient.invalidateQueries({ queryKey: ['articles'] });
+        }}
+      />
       {altCs ? (
         <AlternativeCsDialog materialId={material.id} row={altCs} onClose={() => setAltCs(null)} onDone={(id) => { setAltCs(null); go({ fila: id }); }} />
       ) : null}
