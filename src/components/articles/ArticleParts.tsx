@@ -114,7 +114,7 @@ export function ArticleParts({ articleId, canEdit }: { articleId: string; canEdi
                         {[p.article?.noc, p.article?.pn && `${p.article.pn} / ${p.article.ncage ?? ''}`].filter(Boolean).join(' · ')}
                       </span>
                       <span className="flex flex-wrap gap-1">
-                        {p.alternative ? <Badge variant="outline">{t('confunfis.badges.alternative')}</Badge> : null}
+                        {p.alternative ? <Badge variant="info">{t('confunfis.badges.alternative')}</Badge> : null}
                         {p.article?.origin === 'confunfis' ? <Badge variant="outline" className="border-warning text-warning">{t('confunfis.card.provisional')}</Badge> : null}
                       </span>
                       {p.observations.map((o, i) => (

@@ -490,7 +490,8 @@
       "confunfis.incompatibility_updated": "Incompatibilidad editada",
       "confunfis.incompatibility_removed": "Incompatibilidad quitada",
       "confunfis.extras_copied": "Productos, funciones adicionales e incompatibilidades copiados",
-      "confunfis.book_imported": "Libro CONFUNFIS importado"
+      "confunfis.book_imported": "Libro CONFUNFIS importado",
+      "article.autocorrected": "Artículo autocorregido"
     },
     "entities": {
       "article": "Artículo",
@@ -745,7 +746,8 @@
       "summary": "Hoja Referencias: {{new}} nuevas, {{unchanged}} sin cambios, {{rejected}} rechazadas. Las referencias que no están en la hoja no se quitan.",
       "reference": "P/N / NCAGE",
       "article": "Artículo"
-    }
+    },
+    "empty": "(vacío)"
   },
   "catalog": {
     "title": "Configuración funcional normalizada",

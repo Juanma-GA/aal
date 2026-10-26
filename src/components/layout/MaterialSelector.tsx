@@ -27,7 +27,7 @@ export function MaterialSelector(): React.JSX.Element | null {
   };
   if (!materials.data) return null;
   if (materials.data.length === 0) {
-    return <span className="text-sm text-muted-foreground">{t('header.noMaterials')}</span>;
+    return <span className="text-sm text-header-control-foreground">{t('header.noMaterials')}</span>;
   }
   const roleLabel = (role: string | null) => (role ? catalogLabel(t, 'roles', role) : me.data?.is_admin ? t('header.admin') : '');
   return (
@@ -36,7 +36,7 @@ export function MaterialSelector(): React.JSX.Element | null {
         value={active?.id ?? ''}
         onValueChange={choose}
       >
-        <SelectTrigger className="w-56 sm:w-72" aria-label={t('header.material')} data-testid="material-selector">
+        <SelectTrigger className="w-56 bg-card text-card-foreground sm:w-72" aria-label={t('header.material')} data-testid="material-selector">
           <SelectValue placeholder={t('header.chooseMaterial')} />
         </SelectTrigger>
         <SelectContent>

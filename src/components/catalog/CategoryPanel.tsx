@@ -28,7 +28,7 @@ export function CategoryPanel({ categories, selected, onSelect }: {
                   data-testid={`subcategory-${s.code}`}
                   className={cn(
                     'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm',
-                    selected === s.code ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
+                    selected === s.code ? 'row-selected' : 'hover:bg-accent',
                   )}
                 >
                   <span className="font-mono text-xs">{s.code}</span>

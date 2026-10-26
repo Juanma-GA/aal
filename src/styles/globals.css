@@ -4,9 +4,21 @@
  * colour, a font or a radius of their own -- only these variables, through
  * Tailwind's semantic classes (bg-primary, text-muted-foreground...).
  *
- * em&e theme (D8, pending confirmation): graphite neutrals (a cool grey,
- * hue 255) and one accessible blue accent. Every text/background pair
- * used by the app meets WCAG 2.2 AA (4.5:1), in light and in dark.
+ * em&e navy theme (D8, E15b): sober. The navy (--primary, hue 255) only
+ * on the primary buttons, the header's bottom line, the sidebar's active
+ * item, the active tab and the main chip (the CONFUNFIS rows); never as the
+ * background of a large surface. The background, the borders, the table
+ * headers, the hover and the sidebar are an almost grey blue (chroma <=
+ * 0.035); the content (trees, tables, cards, the side panel) stays white.
+ * Badges are pale blue with dark text. One brighter blue (--brand) for
+ * links, focus, the selected row's bar and the "available" modules. Every
+ * text/background pair the app uses meets WCAG 2.2 AA (4.5:1; icons 3:1),
+ * in light and in dark, with both variants (scripts/test-contrast.mjs).
+ *
+ * Variants: C (the default) is a white header with a navy line and a very
+ * light grey-blue sidebar; A is a navy header and sidebar with light text.
+ * Choosing A is one attribute on <html> in index.html:
+ * data-theme-variant="a" (its tokens are below).
  */
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -18,94 +30,180 @@
 :root {
   --radius: 0.5rem;
 
-  --background: oklch(0.99 0.002 255);
-  --foreground: oklch(0.22 0.015 255);
+  /* Almost white, a hint of blue, behind white cards. */
+  --background: oklch(0.98 0.006 250);
+  --foreground: oklch(0.22 0.03 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.015 255);
+  --card-foreground: oklch(0.22 0.03 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.015 255);
-  /* Graphite: primary actions and the header. */
-  --primary: oklch(0.3 0.015 255);
-  --primary-foreground: oklch(0.98 0.003 255);
-  --secondary: oklch(0.95 0.005 255);
-  --secondary-foreground: oklch(0.26 0.015 255);
-  --muted: oklch(0.955 0.005 255);
-  --muted-foreground: oklch(0.47 0.015 255);
-  --accent: oklch(0.94 0.008 255);
-  --accent-foreground: oklch(0.26 0.015 255);
+  --popover-foreground: oklch(0.22 0.03 255);
+  /* Navy: primary actions. */
+  --primary: oklch(0.32 0.07 255);
+  --primary-foreground: oklch(0.98 0.005 250);
+  --secondary: oklch(0.955 0.01 250);
+  --secondary-foreground: oklch(0.28 0.03 255);
+  --muted: oklch(0.955 0.01 250);
+  --muted-foreground: oklch(0.46 0.03 255);
+  /* Row hover and the selected row. */
+  --accent: oklch(0.945 0.016 250);
+  --accent-foreground: oklch(0.26 0.03 255);
   --destructive: oklch(0.53 0.2 27);
-  --destructive-foreground: oklch(0.98 0.003 255);
-  --border: oklch(0.89 0.006 255);
-  --input: oklch(0.89 0.006 255);
-  --ring: oklch(0.5 0.13 250);
+  --destructive-foreground: oklch(0.98 0.005 250);
+  --border: oklch(0.89 0.012 250);
+  --input: oklch(0.89 0.012 250);
+  --ring: oklch(0.5 0.14 250);
 
-  /* The PALI sidebar (E02). */
-  --sidebar: oklch(0.975 0.004 255);
-  --sidebar-foreground: oklch(0.24 0.015 255);
-  --sidebar-primary: oklch(0.3 0.015 255);
-  --sidebar-primary-foreground: oklch(0.98 0.003 255);
-  --sidebar-accent: oklch(0.93 0.008 255);
-  --sidebar-accent-foreground: oklch(0.22 0.015 255);
-  --sidebar-border: oklch(0.89 0.006 255);
-  --sidebar-ring: oklch(0.5 0.13 250);
-  /* em&e accent: links, focus, highlights. */
-  --brand: oklch(0.5 0.13 250);
-  --brand-foreground: oklch(0.98 0.003 255);
-  /* Behind a modal dialog or a side panel. */
-  --overlay: oklch(0.15 0.01 255 / 0.5);
-  /* Behind the logo (graphite artwork): keeps it legible in dark mode. */
+  /* The header bar (variant C): white, a 3 px navy line below, the title in navy. */
+  --header: oklch(1 0 0);
+  --header-foreground: oklch(0.32 0.07 255);
+  --header-line: oklch(0.32 0.07 255);
+  --header-accent: oklch(0.945 0.016 250);
+  /* The header's controls (menu, user): normal text in C. */
+  --header-control-foreground: oklch(0.22 0.03 255);
+  /* Behind the logo: nothing on the white header (a plate in dark and in A). */
   --logo-surface: oklch(1 0 0 / 0);
+
+  /* The PALI sidebar (E02), variant C: a very light grey blue. */
+  --sidebar: oklch(0.965 0.012 250);
+  --sidebar-foreground: oklch(0.22 0.03 255);
+  --sidebar-label: oklch(0.46 0.03 255);
+  --sidebar-primary: oklch(0.5 0.14 250);
+  --sidebar-primary-foreground: oklch(0.98 0.005 250);
+  /* Hover. */
+  --sidebar-accent: oklch(0.935 0.02 250);
+  --sidebar-accent-foreground: oklch(0.22 0.03 255);
+  /* The active item: a paler blue, navy text in semibold, a navy bar. */
+  --sidebar-active: oklch(0.92 0.035 250);
+  --sidebar-active-foreground: oklch(0.32 0.07 255);
+  --sidebar-active-bar: oklch(0.32 0.07 255);
+  --sidebar-border: oklch(0.9 0.012 250);
+  --sidebar-ring: oklch(0.5 0.14 250);
+  /* The state of a module, as an icon: available, being built, planned. */
+  --module-available: oklch(0.5 0.14 250);
+  --module-developing: oklch(0.5 0.12 65);
+  --module-planned: oklch(0.6 0.02 255);
+  --sidebar-module-available: oklch(0.48 0.14 250);
+  --sidebar-module-developing: oklch(0.48 0.12 65);
+  --sidebar-module-planned: oklch(0.55 0.02 255);
+
+  /* em&e accent: links, focus, the selected row's bar. */
+  --brand: oklch(0.5 0.14 250);
+  --brand-foreground: oklch(0.98 0.005 250);
+  /* Behind a modal dialog or a side panel. */
+  --overlay: oklch(0.15 0.02 255 / 0.5);
   /* Status. */
   --success: oklch(0.47 0.12 150);
-  --success-foreground: oklch(0.98 0.003 255);
+  --success-foreground: oklch(0.98 0.005 250);
   --warning: oklch(0.5 0.12 65);
-  --warning-foreground: oklch(0.98 0.003 255);
-  /* Links (E11): a blue that reads as a link next to the graphite primary,
-     AA on the background and on cards (scripts/test-contrast.mjs). */
+  --warning-foreground: oklch(0.98 0.005 250);
+  /* Soft badges: information (CT SIGLE, Alternativo) in blue, observations
+     in amber; errors stay destructive. */
+  --info-soft: oklch(0.94 0.03 250);
+  --info-soft-foreground: oklch(0.3 0.05 255);
+  --warning-soft: oklch(0.95 0.05 85);
+  --warning-soft-foreground: oklch(0.44 0.1 60);
+  /* Links (E11): a blue that reads as a link next to the navy primary,
+     AA on the background and on cards. */
   --link: oklch(0.47 0.16 258);
 
   --font-sans-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono-family: "JetBrains Mono", ui-monospace, monospace;
 }
 
-.dark {
-  --background: oklch(0.18 0.01 255);
-  --foreground: oklch(0.95 0.004 255);
-  --card: oklch(0.22 0.012 255);
-  --card-foreground: oklch(0.95 0.004 255);
-  --popover: oklch(0.22 0.012 255);
-  --popover-foreground: oklch(0.95 0.004 255);
-  --primary: oklch(0.9 0.006 255);
-  --primary-foreground: oklch(0.22 0.015 255);
-  --secondary: oklch(0.28 0.012 255);
-  --secondary-foreground: oklch(0.95 0.004 255);
-  --muted: oklch(0.27 0.012 255);
-  --muted-foreground: oklch(0.74 0.01 255);
-  --accent: oklch(0.3 0.012 255);
-  --accent-foreground: oklch(0.95 0.004 255);
-  --destructive: oklch(0.68 0.18 25);
-  --destructive-foreground: oklch(0.18 0.01 255);
-  --border: oklch(0.34 0.012 255);
-  --input: oklch(0.34 0.012 255);
-  --ring: oklch(0.72 0.12 250);
+/* Variant A: navy header and sidebar, light text. */
+:root:not(.dark)[data-theme-variant="a"] {
+  --header: oklch(0.32 0.07 255);
+  --header-foreground: oklch(0.98 0.005 250);
+  --header-line: oklch(0.32 0.07 255);
+  --header-accent: oklch(0.4 0.08 255);
+  --header-control-foreground: oklch(0.98 0.005 250);
+  --logo-surface: oklch(1 0 0);
+  --sidebar: oklch(0.27 0.06 255);
+  --sidebar-foreground: oklch(0.93 0.02 250);
+  --sidebar-label: oklch(0.8 0.03 250);
+  --sidebar-primary: oklch(0.8 0.1 250);
+  --sidebar-primary-foreground: oklch(0.22 0.05 255);
+  --sidebar-accent: oklch(0.33 0.07 255);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-active: oklch(0.38 0.08 255);
+  --sidebar-active-foreground: oklch(1 0 0);
+  --sidebar-active-bar: oklch(0.8 0.1 250);
+  --sidebar-border: oklch(0.36 0.06 255);
+  --sidebar-ring: oklch(0.78 0.11 250);
+  --sidebar-module-available: oklch(0.8 0.12 240);
+  --sidebar-module-developing: oklch(0.84 0.12 80);
+  --sidebar-module-planned: oklch(0.66 0.03 255);
+}
 
-  --sidebar: oklch(0.2 0.011 255);
-  --sidebar-foreground: oklch(0.93 0.004 255);
-  --sidebar-primary: oklch(0.9 0.006 255);
-  --sidebar-primary-foreground: oklch(0.2 0.011 255);
-  --sidebar-accent: oklch(0.29 0.012 255);
-  --sidebar-accent-foreground: oklch(0.95 0.004 255);
-  --sidebar-border: oklch(0.32 0.012 255);
-  --sidebar-ring: oklch(0.72 0.12 250);
-  --logo-surface: oklch(0.97 0.003 255);
-  --overlay: oklch(0.05 0.005 255 / 0.65);
+/* Dark: night blue. */
+.dark {
+  --background: oklch(0.17 0.015 255);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.21 0.018 255);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.21 0.018 255);
+  --popover-foreground: oklch(0.95 0.01 250);
+  --primary: oklch(0.8 0.09 250);
+  --primary-foreground: oklch(0.18 0.03 255);
+  --secondary: oklch(0.27 0.02 255);
+  --secondary-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.26 0.02 255);
+  --muted-foreground: oklch(0.76 0.02 250);
+  --accent: oklch(0.3 0.03 255);
+  --accent-foreground: oklch(0.96 0.01 250);
+  --destructive: oklch(0.68 0.18 25);
+  --destructive-foreground: oklch(0.17 0.025 255);
+  --border: oklch(0.33 0.02 255);
+  --input: oklch(0.33 0.02 255);
+  --ring: oklch(0.74 0.11 250);
+
+  --header: oklch(0.21 0.018 255);
+  --header-foreground: oklch(0.95 0.01 250);
+  --header-line: oklch(0.8 0.09 250);
+  --header-accent: oklch(0.3 0.03 255);
+  --header-control-foreground: oklch(0.95 0.01 250);
+  --logo-surface: oklch(0.97 0.005 250);
+
+  --sidebar: oklch(0.2 0.02 255);
+  --sidebar-foreground: oklch(0.93 0.015 250);
+  --sidebar-label: oklch(0.76 0.02 250);
+  --sidebar-primary: oklch(0.8 0.1 250);
+  --sidebar-primary-foreground: oklch(0.18 0.03 255);
+  --sidebar-accent: oklch(0.27 0.025 255);
+  --sidebar-accent-foreground: oklch(0.95 0.01 250);
+  --sidebar-active: oklch(0.31 0.04 255);
+  --sidebar-active-foreground: oklch(0.85 0.08 250);
+  --sidebar-active-bar: oklch(0.8 0.09 250);
+  --sidebar-border: oklch(0.3 0.02 255);
+  --sidebar-ring: oklch(0.74 0.11 250);
+  --module-available: oklch(0.74 0.11 250);
+  --module-developing: oklch(0.78 0.12 75);
+  --module-planned: oklch(0.6 0.02 255);
+  --sidebar-module-available: oklch(0.78 0.12 245);
+  --sidebar-module-developing: oklch(0.82 0.12 80);
+  --sidebar-module-planned: oklch(0.62 0.03 255);
+
+  --overlay: oklch(0.05 0.01 255 / 0.65);
   --brand: oklch(0.74 0.11 250);
-  --brand-foreground: oklch(0.18 0.01 255);
+  --brand-foreground: oklch(0.17 0.025 255);
   --success: oklch(0.75 0.13 150);
-  --success-foreground: oklch(0.18 0.01 255);
+  --success-foreground: oklch(0.17 0.025 255);
   --warning: oklch(0.78 0.12 75);
-  --warning-foreground: oklch(0.18 0.01 255);
+  --warning-foreground: oklch(0.17 0.025 255);
+  --info-soft: oklch(0.3 0.03 255);
+  --info-soft-foreground: oklch(0.9 0.04 250);
+  --warning-soft: oklch(0.3 0.06 70);
+  --warning-soft-foreground: oklch(0.88 0.1 85);
   --link: oklch(0.8 0.1 250);
+}
+
+.dark[data-theme-variant="a"] {
+  --header: oklch(0.24 0.05 255);
+  --sidebar: oklch(0.24 0.05 255);
+  --sidebar-accent: oklch(0.3 0.06 255);
+  --sidebar-active: oklch(0.34 0.07 255);
+  --sidebar-active-foreground: oklch(0.98 0.005 250);
+  --sidebar-border: oklch(0.33 0.05 255);
 }
 
 @theme inline {
@@ -146,6 +244,18 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-logo-surface: var(--logo-surface);
   --color-overlay: var(--overlay);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+  --color-header-accent: var(--header-accent);
+  --color-header-line: var(--header-line);
+  --color-header-control-foreground: var(--header-control-foreground);
+  --color-module-available: var(--module-available);
+  --color-module-developing: var(--module-developing);
+  --color-module-planned: var(--module-planned);
+  --color-info-soft: var(--info-soft);
+  --color-info-soft-foreground: var(--info-soft-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-soft-foreground: var(--warning-soft-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
@@ -162,6 +272,31 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+  /* Inside the sidebar the module icons take the sidebar's own colours. */
+  [data-sidebar="sidebar"] {
+    --module-available: var(--sidebar-module-available);
+    --module-developing: var(--sidebar-module-developing);
+    --module-planned: var(--sidebar-module-planned);
+  }
+}
+
+/* The sidebar's group titles and its active item (unlayered: over the
+   utilities of src/components/ui/sidebar.tsx). */
+[data-sidebar="group-label"] {
+  color: var(--sidebar-label);
+}
+[data-sidebar="menu-button"][data-active="true"] {
+  background-color: var(--sidebar-active);
+  color: var(--sidebar-active-foreground);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--sidebar-active-bar);
+}
+
+/* The selected row of a tree or a list: the accent and a bar on the left. */
+@utility row-selected {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  box-shadow: inset 3px 0 0 var(--brand);
 }
 
 @media (prefers-reduced-motion: reduce) {

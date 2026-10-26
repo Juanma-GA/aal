@@ -6,6 +6,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChangeValue } from '@/components/import/ChangeDetail';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -80,8 +81,8 @@ function Items({ change, items }: { change: BookChange; items: BookItem[] }): Re
                   <TableCell>{i === 0 ? rowCell : ''}</TableCell>
                   <TableCell className="font-mono">{i === 0 ? item.key : ''}</TableCell>
                   <TableCell>{c.header}</TableCell>
-                  <TableCell className="whitespace-normal text-muted-foreground line-through">{c.before}</TableCell>
-                  <TableCell className="whitespace-normal">{c.after}</TableCell>
+                  <TableCell className="whitespace-normal text-muted-foreground line-through"><ChangeValue change={c} side="before" /></TableCell>
+                  <TableCell className="whitespace-normal"><ChangeValue change={c} side="after" /></TableCell>
                 </TableRow>
               ));
             }

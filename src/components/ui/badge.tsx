@@ -8,7 +8,8 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        // E15b: pale blue with dark text, never filled in strong blue.
+        default: "border-transparent bg-info-soft text-info-soft-foreground [a&]:hover:bg-accent",
         secondary:
           "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
         destructive:
@@ -17,6 +18,11 @@ const badgeVariants = cva(
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
+        // E15b: information (CT SIGLE, Alternativo) and observations, soft.
+        info: "border-transparent bg-info-soft text-info-soft-foreground",
+        // The one chip in navy: the main figure of a page (the CONFUNFIS rows).
+        strong: "border-transparent bg-primary text-primary-foreground",
+        warning: "border-transparent bg-warning-soft text-warning-soft-foreground",
       },
     },
     defaultVariants: {

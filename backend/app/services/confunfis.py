@@ -43,7 +43,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 
 from app.models import Article, ArticleReference, Material, PhysicalPosition, User
 from app.services import audit, cuf
-from app.services.articles import Checker, normalize_identity, reference_owner, register_usage
+from app.services.articles import Checker, autocorrect_article, normalize_identity, reference_owner, register_usage
 from app.services.catalog import SNS_RE
 from app.services.confunfis_graph import ROOT, Graph, Row, key_text
 from app.services.parameters import get_parameter
@@ -185,12 +185,16 @@ async def link_article(
             id=uuid.uuid4(), noc=noc, nombre=name or "", origen_nombre="coloquial", origin="confunfis", version=1,
             created_by=user_id, updated_by=user_id, references=[], life_controls=[],
         )
+        corrections = autocorrect_article(article)
         (await Checker.load(db)).recheck(article)
         db.add(article)
         await db.flush()
         audit.record(
             db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user_id, material_id=material.id if material else None,
-            after={"noc": noc, "nombre": article.nombre, "origin": "confunfis", **(origin or {"material_id": str(material.id) if material else None})}, ip=ip,
+            after={
+                "noc": noc, "nombre": article.nombre, "origin": "confunfis", "corrections": corrections,
+                **(origin or {"material_id": str(material.id) if material else None}),
+            }, ip=ip,
         )
         created = True
     link = Link(article=article, reference=None, created=created)

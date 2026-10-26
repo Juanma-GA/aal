@@ -27,8 +27,12 @@ export function VariesList({ values }: { values: Varies }): React.JSX.Element {
 
 /** One side of a changed field: its value, or how it varies per subcategory. */
 export function ChangeValue({ change, side }: { change: ImportChange; side: 'before' | 'after' }): React.JSX.Element {
+  const { t } = useTranslation();
   const varies = side === 'before' ? change.varies_before : change.varies_after;
-  return varies ? <VariesList values={varies} /> : <>{change[side]}</>;
+  if (varies) return <VariesList values={varies} />;
+  const value = change[side];
+  // An empty value says so: a blank cell reads as "nothing to see" (E15b).
+  return value === '' || value === null || value === undefined ? <span className="italic text-muted-foreground">{t('import.empty')}</span> : <>{value}</>;
 }
 
 /** The rows of an SNS before and after, one line per subcategory, the

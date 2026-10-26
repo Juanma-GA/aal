@@ -45,7 +45,7 @@ from app.models import (
 from app.schemas.materials import NCAGE_PATTERN, NOC_PATTERN, normalize_code
 from app.services.article_fields import FieldDef, field_defs
 from app.services.reference import codes_by_state
-from app.validacion.articulos import LifeControl, check
+from app.validacion.articulos import LifeControl, autocorrect, check
 
 EDIT_PERMISSION = "articulos.editar"
 IDENTITY = ("noc", "pn", "ncage", "nombre", "origen_nombre")
@@ -75,6 +75,17 @@ def set_data(article: Article, data: dict[str, Any]) -> None:
     for prisma, column in FIELD_COLUMNS.items():
         if prisma in data:
             setattr(article, column, data[prisma])
+
+
+def autocorrect_article(article: Article) -> list[dict[str, Any]]:
+    """AR-008 on an article being created or saved by any path (the form, the
+    Fichero Carga, the CONFUNFIS, a parts table): the corrections made.
+    Without it a provisional article would differ from its own export."""
+    data = data_of(article)
+    corrections = autocorrect(data)
+    if corrections:
+        set_data(article, data)
+    return corrections
 
 
 def life_of(article: Article) -> list[LifeControl]:

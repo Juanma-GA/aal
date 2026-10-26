@@ -1,6 +1,8 @@
-// WCAG AA for the link token (E11): --link against the background and the
-// cards, in the light and the dark theme (src/styles/globals.css), at least
-// 4.5:1 (normal text).
+// WCAG 2.2 AA for the theme (src/styles/globals.css): every text/background
+// pair the app uses at least 4.5:1 (normal text) and every status icon at
+// least 3:1 (non-text contrast), in the light and the dark theme, with each
+// variant (C, the default, and A). The link (E11) on the background
+// and on cards, and distinct from the text next to it. (E15b)
 //
 // Run: node scripts/test-contrast.mjs
 import path from 'node:path';
@@ -9,17 +11,20 @@ import { readTextFile } from './lib/textFile.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const css = readTextFile(path.join(ROOT, 'src', 'styles', 'globals.css'));
-const MIN = 4.5;
+const TEXT = 4.5;
+const ICON = 3;
 
 function block(selector) {
-  const start = css.indexOf(`${selector} {`);
+  const start = css.indexOf(`\n${selector} {`);
+  if (start < 0) throw new Error(`${selector} not found`);
   return css.slice(start, css.indexOf('}', start));
 }
 
-function token(scope, name) {
-  const m = new RegExp(`--${name}:\\s*oklch\\(([\\d.]+) ([\\d.]+) ([\\d.]+)\\)`).exec(scope);
-  if (!m) throw new Error(`--${name} not found`);
-  return m.slice(1).map(Number);
+/** Every `--name: oklch(L C H)` of a block (alpha values, like the overlay, aside). */
+function tokens(scope) {
+  const out = {};
+  for (const m of scope.matchAll(/--([\w-]+):\s*oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)/g)) out[m[1]] = m.slice(2).map(Number);
+  return out;
 }
 
 // OKLCH -> linear sRGB (Björn Ottosson's OKLab).
@@ -41,16 +46,75 @@ const ratio = (x, y) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
+// [text or icon, on, minimum]: what the components put on what.
+const PAIRS = [
+  ['foreground', 'background', TEXT],
+  ['card-foreground', 'card', TEXT],
+  ['popover-foreground', 'popover', TEXT],
+  ['primary-foreground', 'primary', TEXT],
+  ['secondary-foreground', 'secondary', TEXT],
+  ['muted-foreground', 'muted', TEXT],
+  ['muted-foreground', 'background', TEXT],
+  ['muted-foreground', 'card', TEXT],
+  ['muted-foreground', 'accent', TEXT],
+  ['accent-foreground', 'accent', TEXT],
+  ['destructive-foreground', 'destructive', TEXT],
+  ['destructive', 'card', TEXT],
+  ['success-foreground', 'success', TEXT],
+  ['warning-foreground', 'warning', TEXT],
+  ['warning', 'card', TEXT],
+  ['brand-foreground', 'brand', TEXT],
+  ['link', 'background', TEXT],
+  ['link', 'card', TEXT],
+  ['link', 'accent', TEXT],
+  // The active tab: primary text on the card.
+  ['primary', 'card', TEXT],
+  ['info-soft-foreground', 'info-soft', TEXT],
+  ['warning-soft-foreground', 'warning-soft', TEXT],
+  ['header-foreground', 'header', TEXT],
+  ['header-control-foreground', 'header', TEXT],
+  ['header-control-foreground', 'header-accent', TEXT],
+  ['sidebar-foreground', 'sidebar', TEXT],
+  ['sidebar-label', 'sidebar', TEXT],
+  ['sidebar-accent-foreground', 'sidebar-accent', TEXT],
+  ['sidebar-active-foreground', 'sidebar-active', TEXT],
+  ['sidebar-active-bar', 'sidebar-active', ICON],
+  ['header-line', 'background', ICON],
+  ['sidebar-primary-foreground', 'sidebar-primary', TEXT],
+  ['sidebar-primary', 'sidebar', ICON],
+  ['sidebar-primary', 'sidebar-accent', ICON],
+  ['module-available', 'card', ICON],
+  ['module-developing', 'card', ICON],
+  ['module-planned', 'card', ICON],
+  ['sidebar-module-available', 'sidebar', ICON],
+  ['sidebar-module-available', 'sidebar-active', ICON],
+  ['sidebar-module-developing', 'sidebar', ICON],
+  ['sidebar-module-planned', 'sidebar', ICON],
+  ['brand', 'accent', ICON],
+  ['ring', 'background', ICON],
+];
+
+const root = tokens(block(':root'));
+const dark = { ...root, ...tokens(block('.dark')) };
+const THEMES = [
+  ['light C', root],
+  ['light A', { ...root, ...tokens(block(':root:not(.dark)[data-theme-variant="a"]')) }],
+  ['dark C', dark],
+  ['dark A', { ...dark, ...tokens(block('.dark[data-theme-variant="a"]')) }],
+];
+
 let failures = 0;
-for (const [theme, scope] of [['light', block(':root')], ['dark', block('.dark')]]) {
-  for (const surface of ['background', 'card']) {
-    const value = ratio(token(scope, 'link'), token(scope, surface));
-    const ok = value >= MIN;
-    if (!ok) failures += 1;
-    console.log(`${ok ? 'OK' : 'FAIL'} ${theme}: link on ${surface} ${value.toFixed(2)}:1`);
+for (const [theme, t] of THEMES) {
+  for (const [fg, bg, min] of PAIRS) {
+    if (!t[fg] || !t[bg]) throw new Error(`${theme}: --${!t[fg] ? fg : bg} not found`);
+    const value = ratio(t[fg], t[bg]);
+    if (value < min) {
+      failures += 1;
+      console.log(`FAIL ${theme}: ${fg} on ${bg} ${value.toFixed(2)}:1 (needs ${min}:1)`);
+    }
   }
   // A link must not look like the plain text next to it.
-  const apart = ratio(token(scope, 'link'), token(scope, 'foreground'));
-  console.log(`${theme}: link vs text ${apart.toFixed(2)}:1 (distinct hue)`);
+  console.log(`${theme}: ${PAIRS.length} pairs checked; link vs text ${ratio(t.link, t.foreground).toFixed(2)}:1 (distinct hue)`);
 }
+console.log(failures ? `${failures} pairs below AA` : 'all pairs AA');
 process.exit(failures ? 1 : 0);

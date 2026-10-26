@@ -375,7 +375,8 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   en el artículo (`findings`, `finding_codes` para filtrar) y la ficha los recalcula. "Dónde se usa" es un
   registro (`USAGE_PROVIDERS`, `register_usage`): E13/E14/E17 añaden lo suyo. Editar: `articulos.editar` en
   algún material (o admin); importar: admin. Importación Fichero Carga / Maestro AAL
-  (`app/services/article_import.py`): las filas rechazadas se listan y no bloquean el resto.
+  (`app/services/article_import.py`): las filas rechazadas se listan y no bloquean el resto. AR-008 (código de seguridad vacío → `U`) se aplica en toda alta y edición, también la de
+  un provisional desde la CONFUNFIS o una tabla de partes (`autocorrect_article`, E15b; migración 0015 para lo ya guardado).
 - **Artículos (E13)**: las columnas de `article` no tienen longitud (texto y `numeric`): la longitud y los
   decimales son los de `article_field_definition`, que el admin corrige en Ajustes → "Campos del artículo"
   (`PATCH /api/article-fields/{código}`, auditado, con versión; nunca deja datos guardados que no quepan;
@@ -442,6 +443,13 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   sin fondo oscurecido, y la lista sigue pulsable; por debajo, el `sheet` de shadcn. Ancho arrastrando el borde, el mismo para
   todas, en `ui_preferences.detail_panel_width` (límites en el parámetro `ui`, `useDetailPanelWidth`). Se cierra con ×, Esc
   (salvo con un diálogo abierto) o volviendo a pulsar la fila (lo hace la página).
+- **Tema (E15b, D8)**: "azul marino em&e", variante C por defecto (cabecera blanca con línea de 3 px en `--primary`,
+  sidebar azul grisáceo muy claro, fondo casi blanco, contenido en blanco). El azul marino solo en botones principales,
+  línea de la cabecera, ítem activo del sidebar, pestaña activa y chip principal (`Badge variant="strong"`); nunca como
+  fondo de una superficie grande. Badges `info` (azul pálido) y `warning` (ámbar suave); el `default` también es pálido.
+  Fila seleccionada con la utilidad `row-selected` (acento + barra de 3 px en `--brand`). La variante A (cabecera y
+  sidebar en azul marino) es `data-theme-variant="a"` en el `<html>` de `index.html`. `scripts/test-contrast.mjs`
+  comprueba AA de todos los pares texto/fondo (iconos 3:1) en claro y oscuro con las dos variantes.
 - **Sidebar (E12)**: ancho (borde arrastrable, límites en el parámetro `ui`), plegado a iconos (botón al pie y
   `Ctrl+B`) y lado, en `ui_preferences` (`useSidebarLayout`); `/api/me/ui-settings` da los límites.
 - **Listas navegables y enlaces (E11)**: toda fila que abre algo es un `NavRow`

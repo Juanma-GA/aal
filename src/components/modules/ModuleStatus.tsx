@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import type { ModuleStatus as Status } from '@/types/modules';
 
 const ICONS = { disponible: CircleCheck, en_desarrollo: Hammer, planificado: CircleDashed } as const;
-const COLOURS = { disponible: 'text-success', en_desarrollo: 'text-warning', planificado: 'text-muted-foreground' } as const;
+const COLOURS = { disponible: 'text-module-available', en_desarrollo: 'text-module-developing', planificado: 'text-module-planned' } as const;
 
 /** The state of a module as an icon, with its text for assistive tech. */
 export function ModuleStatusIcon({ status, className }: { status: Status; className?: string }): React.JSX.Element {

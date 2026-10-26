@@ -266,3 +266,51 @@ async def test_a_rejected_article_adds_no_references(client, people):
     assert [i["code"] for i in job["report"]["references"]["rejected"][0]["issues"]] == ["reference_article_not_found"]
     applied = await client.post(f"/api/import-jobs/{job['id']}/apply", headers=admin)
     assert applied.status_code == 200, applied.text
+
+
+async def test_the_maestro_round_trip_with_provisional_articles(client, people):
+    """E15b: AR-008 on every path that creates an article. A provisional one
+    from the CONFUNFIS (or a parts table) and one created by hand go out in the
+    Maestro AAL and come back with 0 changes (before, the security code went
+    from empty to U on the way back)."""
+    from app.services import confunfis
+
+    admin = people["admin"]
+    await imported(client, admin)
+    async with async_session_factory() as session:
+        link = await confunfis.link_article(session, noc=None, pn=None, ncage=None, name="SOPORTE PROVISIONAL E15B", user_id=None, material=None)
+        await session.commit()
+        assert link.created and link.article.codigo_seguridad == "U"
+    made = await client.post("/api/articles", json={"nombre": "ARTÍCULO A MANO E15B"}, headers=admin)
+    assert made.status_code == 201, made.text
+    data = (await client.get("/api/articles/export", params={"template": "maestro"}, headers=admin)).content
+    res = await client.post("/api/articles/import", params={"template": "maestro"}, files={"file": ("MAESTRO.xlsx", data, XLSX)}, headers=admin)
+    job = (await client.get(f"/api/import-jobs/{res.json()['id']}", headers=admin)).json()
+    assert (job["counts"]["new"], job["counts"]["modified"], job["counts"].get("rejected", 0)) == (0, 0, 0), job["report"]["modified"]
+
+
+async def test_migration_0015_corrects_the_stored_articles(client, people):
+    """An article stored before E15b with an empty security code: the migration gives it U, bumps its
+    version and audits it as an autocorrection."""
+    import os
+    import subprocess
+    import sys
+    import uuid
+    from pathlib import Path
+
+    from app.models import Article
+
+    async with async_session_factory() as session:
+        article = Article(id=uuid.uuid4(), nombre="ANTIGUO SIN CÓDIGO E15B", origen_nombre="coloquial", origin="confunfis", version=1, references=[], life_controls=[])
+        session.add(article)
+        await session.commit()
+        article_id = article.id
+    backend = Path(__file__).resolve().parents[2]
+    for step in (("downgrade", "0014"), ("upgrade", "head")):
+        done = subprocess.run([sys.executable, "-m", "alembic", *step], cwd=backend, env={**os.environ, "PYTHONIOENCODING": "utf-8"}, capture_output=True, check=False)
+        assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
+    async with async_session_factory() as session:
+        stored = await session.get(Article, article_id)
+        audited = (await session.execute(select(AuditLog).where(AuditLog.action == "article.autocorrected", AuditLog.entity_id == str(article_id)))).scalars().all()
+    assert (stored.codigo_seguridad, stored.version) == ("U", 2)
+    assert [a.after["corrections"] for a in audited] == [[{"code": "AR-008", "field": "cdSegArt", "value": "U"}]]

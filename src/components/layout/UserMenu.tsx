@@ -33,7 +33,10 @@ export function UserMenu(): React.JSX.Element | null {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" aria-label={t('header.userMenu', { name: me.data.display_name })} data-testid="user-menu">
+        <Button
+          variant="ghost" className="text-header-control-foreground hover:bg-header-accent hover:text-header-control-foreground"
+          aria-label={t('header.userMenu', { name: me.data.display_name })} data-testid="user-menu"
+        >
           <span className="max-w-40 truncate">{me.data.display_name}</span>
           <ChevronDown aria-hidden="true" />
         </Button>

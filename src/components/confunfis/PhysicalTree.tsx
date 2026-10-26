@@ -253,7 +253,7 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
                 data-testid={`tree-row-${row.sns}-${row.co}-${row.al}`}
                 className={cn(
                   'absolute left-0 flex w-full items-center gap-1 pr-2 text-sm',
-                  selected === row.id ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
+                  selected === row.id ? 'row-selected' : 'hover:bg-accent',
                   line.key === targetKey && 'ring-2 ring-inset ring-ring',
                 )}
                 data-hit={line.key === targetKey ? 'true' : undefined}
@@ -276,9 +276,9 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
                   <span className="shrink-0 font-mono text-xs">{positionOf(row)}</span>
                   <span className="truncate">{row.article_name ?? row.article?.nombre ?? t('confunfis.noName')}</span>
                   {row.article?.noc ? <span className="hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline">{row.article.noc}</span> : null}
-                  {row.alternative ? <Badge variant="outline" className="shrink-0">{t('confunfis.badges.alternative')}</Badge> : null}
-                  {row.cs_alternative ? <Badge variant="outline" className="shrink-0">{t('confunfis.badges.csAlternative')}</Badge> : null}
-                  {row.ct_sigle === 'S' ? <Badge variant="secondary" className="shrink-0">{t('confunfis.badges.ctSigle')}</Badge> : null}
+                  {row.alternative ? <Badge variant="info" className="shrink-0">{t('confunfis.badges.alternative')}</Badge> : null}
+                  {row.cs_alternative ? <Badge variant="info" className="shrink-0">{t('confunfis.badges.csAlternative')}</Badge> : null}
+                  {row.ct_sigle === 'S' ? <Badge variant="info" className="shrink-0">{t('confunfis.badges.ctSigle')}</Badge> : null}
                   {row.extra_function_count ? (
                     <Badge variant="outline" className="shrink-0" data-testid={`tree-multifunction-${row.sns}`}>{t('confunfis.badges.multifunction', { count: row.extra_function_count })}</Badge>
                   ) : null}
