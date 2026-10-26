@@ -73,7 +73,7 @@ async def _list(db: AsyncSession, parent_id: uuid.UUID) -> list[PartOut]:
 
 
 async def _done(db: AsyncSession, parent_id: uuid.UUID, part_id: uuid.UUID) -> PartOut:
-    await extras.refresh_parts(db)
+    await extras.refresh_parts(db, {parent_id})
     await db.commit()
     return next(p for p in await _list(db, parent_id) if p.id == part_id)
 
@@ -134,7 +134,7 @@ async def delete_part(
     await extras.remove_part(db, part, user.id, ip)
     if reset_alp:
         await extras.reset_alone_alp(db, parent, part.cop, user.id, ip)
-    await extras.refresh_parts(db)
+    await extras.refresh_parts(db, {parent.id})
     await db.commit()
 
 

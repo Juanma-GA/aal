@@ -1447,7 +1447,8 @@
       "sns_repeated": "La fila ya tiene la función adicional {{sns}}.",
       "not_in_table": "No es un valor activo de la tabla {{table}}.",
       "row_not_found": "Esa fila ya no está en la CONFUNFIS.",
-      "same_row": "Una fila no puede ser incompatible consigo misma."
+      "same_row": "Una fila no puede ser incompatible consigo misma.",
+      "part_identity_required": "Indica el artículo de la parte: NOC, P/N o al menos su nombre."
     },
     "observationsCount": "{{count}} observaciones",
     "parts": {

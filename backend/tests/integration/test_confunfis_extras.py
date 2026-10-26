@@ -91,8 +91,13 @@ async def test_the_parts_and_their_observations(client, demo):
 
     bad = await client.post(url, json={"cop": "1", "alp": "100", "quantity": "x"}, headers=analyst)
     assert bad.status_code == 422 and {(p["field"], p["code"]) for p in bad.json()["detail"]["problems"]} == {
-        ("cop", "two_digits"), ("alp", "two_digits"), ("quantity", "not_a_number"),
+        ("cop", "two_digits"), ("alp", "two_digits"), ("quantity", "not_a_number"), ("part_name", "part_identity_required"),
     }
+    # A number that cannot be stored, Unicode digits: refused (never a 500, never a blank provisional article).
+    bad = await client.post(url, json={"cop": "09", "noc": PISTON, "quantity": "1E-20000"}, headers=analyst)
+    assert [(p["field"], p["code"]) for p in bad.json()["detail"]["problems"]] == [("quantity", "out_of_range")]
+    bad = await client.post(url, json={"cop": "\u0660\u0661", "noc": PISTON}, headers=analyst)
+    assert [(p["field"], p["code"]) for p in bad.json()["detail"]["problems"]] == [("cop", "two_digits")]
     bad = await client.post(url, json={"cop": "00", "noc": PISTON}, headers=analyst)
     assert [(p["field"], p["code"]) for p in bad.json()["detail"]["problems"]] == [("cop", "out_of_range")]
 

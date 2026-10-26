@@ -52,8 +52,11 @@ from app.services.parameters import get_parameter
 from app.services.permissions import accessible_materials
 from app.services.reference import codes_by_state
 
-_TWO_DIGITS = re.compile(r"^\d{2}$")
+_TWO_DIGITS = re.compile(r"^[0-9]{2}$")
 CRITERIA_TABLE = "CRITERIO_MULTIFUNCION"
+# The quantities a part or a product takes: those of a CONFUNFIS row (the
+# parameter confunfis.qty's defaults, read where the parameter is at hand).
+_MAX_QUANTITY, _MAX_DECIMALS = 1_000_000, 6
 PART_CODES = ("OP-001", "OP-002", "OP-003", "OP-004", "OP-005", "OP-006", "OP-007")
 PRODUCT_CODES = ("OPF-001", "OPF-002", "OPF-003", "OPF-004", "OPF-005", "OPF-006")
 INCOMPATIBILITY_CODES = ("OI-001", "OI-002", "OI-003")
@@ -85,8 +88,10 @@ def _number(value: Any, field: str, problems: list[dict[str, Any]], *, bulk: boo
     except InvalidOperation:
         problems.append({"field": field, "code": "not_a_number", "params": {}})
         return None
-    if not number.is_finite() or abs(number) > 10**9:
-        problems.append({"field": field, "code": "not_a_number", "params": {}})
+    exponent = number.as_tuple().exponent if number.is_finite() else 0
+    # A number nobody counts (1E-20000) cannot be stored: refused, never cut (HR6).
+    if not number.is_finite() or abs(number) > _MAX_QUANTITY or (isinstance(exponent, int) and -exponent > _MAX_DECIMALS and number != number.to_integral_value()):
+        problems.append({"field": field, "code": "out_of_range", "params": {"min": "0", "max": str(_MAX_QUANTITY)}})
         return None
     return number.to_integral_value() if number == number.to_integral_value() else number.normalize()
 
@@ -181,6 +186,9 @@ async def save_part(
         problems += [{"field": w, "code": f"{w}_invalid", "params": {}} for w in wrong]
         if ncage and not pn:
             problems.append({"field": "pn", "code": "pn_required", "params": {}})
+        # Something to find the part by: never a blank provisional article.
+        if not (identity.get("article_id") or noc or pn or clean["part_name"]):
+            problems.append({"field": "part_name", "code": "part_identity_required", "params": {}})
         if problems:
             raise ExtraError(problems)
         try:
@@ -235,17 +243,24 @@ async def reset_alone_alp(db: AsyncSession, parent: Article, cop: str, user_id: 
     return True
 
 
-async def refresh_parts(db: AsyncSession) -> None:
-    """Every part's observations: a cycle can cross any breakdown, and a
-    part in a CONFUNFIS depends on every CUF that mounts its parent."""
-    parts = await live_parts(db)
-    if not parts:
+async def refresh_parts(db: AsyncSession, articles: set[uuid.UUID] | None = None) -> None:
+    """The parts' observations: those of `articles` (as parent or part),
+    those on a cycle and those already marked with one that may go (OP-002,
+    OP-005); every part when None. A cycle can cross any breakdown, so the
+    edges are all read; the CONFUNFIS rows, only for those parts."""
+    every = await live_parts(db)
+    if not every:
         return
     edges: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
-    for p in parts:
+    for p in every:
         if p.part_article_id:
             edges[p.parent_article_id].add(p.part_article_id)
     cyclic = _cycles(edges)
+    parts = every if articles is None else [
+        p for p in every
+        if {p.parent_article_id, p.part_article_id} & articles or (p.parent_article_id in cyclic and p.part_article_id in cyclic)
+        or {"OP-002", "OP-005"} & set(p.observation_codes)
+    ]
     # Materials each article sits in (its CONFUNFIS rows).
     ids = {p.parent_article_id for p in parts} | {p.part_article_id for p in parts if p.part_article_id}
     in_materials: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
@@ -253,9 +268,11 @@ async def refresh_parts(db: AsyncSession) -> None:
         select(PhysicalPosition.article_id, PhysicalPosition.material_id).where(PhysicalPosition.article_id.in_(ids), PhysicalPosition.deleted_at.is_(None))
     ):
         in_materials[article_id].add(material_id)
+    # Repeated COP + ALP and lone ALP are within a breakdown: all its parts count.
+    parents = {p.parent_article_id for p in parts}
     keys: dict[tuple, list[uuid.UUID]] = defaultdict(list)
     alps: dict[tuple, set[str]] = defaultdict(set)
-    for p in parts:
+    for p in (x for x in every if x.parent_article_id in parents):
         keys[(p.parent_article_id, p.cop, p.alp)].append(p.id)
         alps[(p.parent_article_id, p.cop)].add(p.alp)
     for p in parts:
@@ -490,8 +507,9 @@ confunfis.REFRESH_EXTENSIONS.append(refresh_incompatibilities)
 
 
 async def _refresh_parts(db: AsyncSession, material: Material, rows: list[PhysicalPosition], graph: Graph) -> None:
-    """A row changed: which parts also sit in a CONFUNFIS may have too."""
-    await refresh_parts(db)
+    """A row changed: which parts also sit in a CONFUNFIS may have too
+    (those of the articles in this CUF; the others are left alone)."""
+    await refresh_parts(db, {r.article_id for r in rows if r.article_id})
 
 
 confunfis.REFRESH_EXTENSIONS.append(_refresh_parts)
@@ -628,6 +646,13 @@ async def parts_using_reference(db: AsyncSession, reference_id: uuid.UUID) -> bo
     return found is not None
 
 
-async def unlink_products(db: AsyncSession, article_id: uuid.UUID) -> None:
-    """An article removed: the functional products keep its NOC, unlinked."""
-    await db.execute(update(FunctionalProduct).where(FunctionalProduct.article_id == article_id).values(article_id=None).execution_options(synchronize_session=False))
+async def unlink_products(db: AsyncSession, article_id: uuid.UUID, user_id: uuid.UUID | None, ip: str | None) -> None:
+    """An article removed: the functional products keep its NOC, unlinked
+    (audited in each material)."""
+    products = (await db.execute(select(FunctionalProduct).where(FunctionalProduct.article_id == article_id, FunctionalProduct.deleted_at.is_(None)))).scalars().all()
+    for p in products:
+        p.article_id, p.version, p.updated_by = None, p.version + 1, user_id
+        audit.record(
+            db, action="confunfis.product_updated", entity_type="functional_product", entity_id=str(p.id), user_id=user_id, material_id=p.material_id,
+            before={"article_id": str(article_id)}, after={"article_id": None, "reason": "article_deleted"}, ip=ip,
+        )

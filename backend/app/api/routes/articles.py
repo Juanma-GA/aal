@@ -461,7 +461,7 @@ async def delete_article(
     # Its own breakdown goes with it, each part audited (E14).
     for part in await extras.live_parts(db, article.id):
         await extras.remove_part(db, part, user.id, ip)
-    await extras.unlink_products(db, article.id)
+    await extras.unlink_products(db, article.id, user.id, ip)
     before = snapshot(article)
     article.deleted_at = datetime.now(UTC)
     # Its P/N + NCAGE go with it: free for another article (uq_article_reference_pn_ncage).
@@ -470,7 +470,7 @@ async def delete_article(
     article.version += 1
     article.updated_by = user.id
     audit.record(db, action="article.deleted", entity_type="article", entity_id=str(article.id), user_id=user.id, before=before, after=None, ip=ip)
-    await extras.refresh_parts(db)
+    await extras.refresh_parts(db, {article.id})
     await db.commit()
 
 

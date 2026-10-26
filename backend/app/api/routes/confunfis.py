@@ -104,7 +104,7 @@ async def _context(db: AsyncSession, material: Material, user: User) -> Context:
     incompatibilities = await extras.live_incompatibilities(db, material.id)
     live = {r.id for r in rows}
     missing = {i for x in incompatibilities for i in (x.row_a_id, x.row_b_id) if i not in live}
-    gone = {r.id: r for r in (await db.execute(select(PhysicalPosition).where(PhysicalPosition.id.in_(missing)))).scalars()} if missing else {}
+    gone = {r.id: r for r in (await db.execute(select(PhysicalPosition).where(PhysicalPosition.id.in_(missing), PhysicalPosition.material_id == material.id))).scalars()} if missing else {}
     if material.catalog_version_id and extra_rows:
         more = {e.sns for e in extra_rows} - set(names)
         if more:
