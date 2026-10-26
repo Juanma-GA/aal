@@ -231,7 +231,7 @@ try {
   await page.getByTestId('extra-function-A21030').waitFor();
   const [extraGone] = await Promise.all([
     page.waitForResponse((r) => r.url().includes('/confunfis/extra-functions/') && r.request().method() === 'DELETE'),
-    page.getByTestId('extra-function-remove-A21030').click(),
+    (async () => { await page.getByTestId('extra-function-remove-A21030').click(); await page.getByTestId('confirm-action').click(); })(),
   ]);
   assert(extraGone.status() === 204 && (await page.getByTestId('extra-function-A21030').count()) === 0, 'and removed');
 
@@ -248,7 +248,7 @@ try {
   await page.screenshot({ path: shot('verify-confunfis-8-incompatibility.png') });
   const [incGone] = await Promise.all([
     page.waitForResponse((r) => r.url().includes('/confunfis/incompatibilities/') && r.request().method() === 'DELETE'),
-    page.getByTestId('incompatibility-remove').click(),
+    (async () => { await page.getByTestId('incompatibility-remove').click(); await page.getByTestId('confirm-action').click(); })(),
   ]);
   assert(incGone.status() === 204, 'and removed');
   await page.keyboard.press('Escape');

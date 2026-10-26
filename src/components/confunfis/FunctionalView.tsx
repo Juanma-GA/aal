@@ -62,7 +62,7 @@ export function FunctionalView({ materialId, onSelect }: { materialId: string; o
     setSelected(hits[next].sns);
   };
   const rows = useConfunfisRows(materialId, { sns: selected ?? undefined }, 1);
-  const holders = useConfunfisRows(materialId, { extra_sns: selected ?? undefined }, 1);
+  const holders = useConfunfisRows(materialId, { extra_sns: selected ?? undefined }, 1, Boolean(selected));
   const outside = top.data?.outside ?? [];
 
   return (

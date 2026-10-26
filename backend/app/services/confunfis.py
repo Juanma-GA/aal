@@ -403,6 +403,9 @@ async def refresh_materials(db: AsyncSession, *, article_ids: set[uuid.UUID] | N
         )).scalars())
     for material in (await db.execute(select(Material).where(Material.id.in_(ids), Material.deleted_at.is_(None)))).scalars() if ids else []:
         await refresh_observations(db, material)
+    if article_ids:
+        for extension in ARTICLE_CHANGE_EXTENSIONS:
+            await extension(db, article_ids)
 
 
 async def rows_using_reference(db: AsyncSession, reference_id: uuid.UUID) -> list[PhysicalPosition]:
@@ -459,6 +462,8 @@ RefreshExtension = Callable[[AsyncSession, Material, list[PhysicalPosition], Gra
 COPY_EXTENSIONS: list[CopyExtension] = []
 ROW_REMOVAL_EXTENSIONS: list[RemovalExtension] = []
 REFRESH_EXTENSIONS: list[RefreshExtension] = []
+# An article changed (NOC, name, references): what else depends on the master (E14: the products' link).
+ARTICLE_CHANGE_EXTENSIONS: list[Callable[[AsyncSession, set[uuid.UUID]], Awaitable[None]]] = []
 
 
 @cuf.register_copier("confunfis")

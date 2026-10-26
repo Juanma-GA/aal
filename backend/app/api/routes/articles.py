@@ -344,6 +344,8 @@ async def create_article(body: ArticleIn, request: Request, user: User = Depends
         db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user.id,
         after={**snapshot(article), "corrections": corrections}, ip=client_ip(request),
     )
+    # A functional product with its NOC is linked to it now (E14).
+    await confunfis.refresh_materials(db, article_ids={article.id})
     await db.commit()
     return await _out(db, await _one(db, article.id), checker, user, corrections)
 

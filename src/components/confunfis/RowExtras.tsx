@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ import { fetchRows } from '@/services/confunfisApi';
 import { searchNormalized } from '@/services/cufApi';
 import { observationText } from '@/lib/confunfisText';
 import { positionOf, type RowDetail } from '@/types/confunfis';
-import { INCOMPATIBILITY_KINDS, type IncompatibilityKind, type RowRef } from '@/types/confunfisExtras';
+import { INCOMPATIBILITY_KINDS, type ExtraFunction, type Incompatibility, type IncompatibilityKind, type RowRef } from '@/types/confunfisExtras';
 import { SearchPick } from './SearchPick';
 
 export const CRITERIA_TABLE = 'CRITERIO_MULTIFUNCION';
@@ -97,6 +98,7 @@ export function ExtraFunctionsSection({ materialId, row, canEdit }: { materialId
   const [sns, setSns] = useState<{ sns: string; name: string } | null>(null);
   const [criterion, setCriterion] = useState('');
   const [comment, setComment] = useState('');
+  const [removing, setRemoving] = useState<ExtraFunction | null>(null);
   const active = (criteria.data ?? []).filter((c) => c.is_active);
   const label = (code: string) => (criteria.data ?? []).find((c) => c.code === code)?.description ?? code;
   const reset = () => { setAdding(false); setSns(null); setCriterion(''); setComment(''); create.reset(); };
@@ -114,7 +116,7 @@ export function ExtraFunctionsSection({ materialId, row, canEdit }: { materialId
               <span className="flex-1">{e.sns_name}</span>
               <Badge variant="outline">{label(e.criterion)}</Badge>
               {canEdit ? (
-                <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} onClick={() => remove.mutate(e)} data-testid={`extra-function-remove-${e.sns}`}>
+                <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} onClick={() => setRemoving(e)} data-testid={`extra-function-remove-${e.sns}`}>
                   {t('confunfis.extras.remove')}
                 </Button>
               ) : null}
@@ -155,6 +157,15 @@ export function ExtraFunctionsSection({ materialId, row, canEdit }: { materialId
           </div>
         </div>
       ) : null}
+      {removing ? (
+        <ConfirmDialog
+          open onOpenChange={(open) => { if (!open) setRemoving(null); }}
+          title={t('confunfis.extras.removeExtraTitle', { sns: removing.sns })}
+          description={t('confunfis.extras.removeHint')}
+          confirmLabel={t('confunfis.extras.remove')}
+          onConfirm={() => { remove.mutate(removing); setRemoving(null); }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -168,6 +179,7 @@ export function IncompatibilitiesSection({ materialId, row, canEdit, onOpen }: {
   const [other, setOther] = useState<{ id: string; label: string } | null>(null);
   const [kind, setKind] = useState<IncompatibilityKind>('excluye');
   const [reason, setReason] = useState('');
+  const [removing, setRemoving] = useState<Incompatibility | null>(null);
   const reset = () => { setAdding(false); setOther(null); setKind('excluye'); setReason(''); create.reset(); };
   return (
     <section className="flex flex-col gap-2 text-sm" data-testid="row-incompatibilities">
@@ -187,7 +199,7 @@ export function IncompatibilitiesSection({ materialId, row, canEdit, onOpen }: {
                   <Badge variant="outline">{verb}</Badge>
                   <RowName row={mine ? i.row_b : i.row_a} onOpen={onOpen} />
                   {canEdit ? (
-                    <Button size="sm" variant="ghost" className="ml-auto text-destructive" disabled={remove.isPending} onClick={() => remove.mutate(i)} data-testid="incompatibility-remove">
+                    <Button size="sm" variant="ghost" className="ml-auto text-destructive" disabled={remove.isPending} onClick={() => setRemoving(i)} data-testid="incompatibility-remove">
                       {t('confunfis.extras.remove')}
                     </Button>
                   ) : null}
@@ -235,6 +247,15 @@ export function IncompatibilitiesSection({ materialId, row, canEdit, onOpen }: {
             <Button size="sm" variant="outline" onClick={reset}>{t('actions.cancel')}</Button>
           </div>
         </div>
+      ) : null}
+      {removing ? (
+        <ConfirmDialog
+          open onOpenChange={(open) => { if (!open) setRemoving(null); }}
+          title={t('confunfis.extras.removeIncompatibilityTitle')}
+          description={t('confunfis.extras.removeHint')}
+          confirmLabel={t('confunfis.extras.remove')}
+          onConfirm={() => { remove.mutate(removing); setRemoving(null); }}
+        />
       ) : null}
     </section>
   );

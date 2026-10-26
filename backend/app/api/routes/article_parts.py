@@ -17,7 +17,7 @@ from app.api.routes.confunfis import alps_of, articles_by_id, part_out
 from app.api.routes.users import confirmation_required, version_conflict
 from app.core.errors import error_detail
 from app.db.base import get_db
-from app.models import Article, ArticlePart, User
+from app.models import Article, ArticlePart, ArticleReference, User
 from app.schemas.confunfis import VersionIn
 from app.schemas.confunfis_extras import PartIn, PartOut, PartUpdate
 from app.services import confunfis_extras as extras
@@ -59,6 +59,17 @@ async def _part(db: AsyncSession, parent: Article, part_id: uuid.UUID, version: 
     if part.version != version:
         raise version_conflict(part.version)
     return part
+
+
+async def _identity_after(db: AsyncSession, part: ArticlePart, body: PartUpdate, sent: set[str]) -> dict:
+    """What the part is linked by after an edit: the fields sent, the
+    others as the part's article has them (sending a P/N alone keeps the NOC)."""
+    if "article_id" in sent and body.article_id:
+        return {"article_id": body.article_id}
+    current = await db.get(Article, part.part_article_id) if part.part_article_id else None
+    reference = next((r for r in current.live_references if r.id == part.article_reference_id), None) if current else None
+    now = {"noc": current.noc if current else None, "pn": reference.pn if reference else None, "ncage": reference.ncage if reference else None}
+    return {k: getattr(body, k) if k in sent else now[k] for k in ("noc", "pn", "ncage")}
 
 
 def _invalid(exc: extras.ExtraError) -> HTTPException:
@@ -108,7 +119,7 @@ async def update_part(
     sent = body.model_fields_set - {"version"}
     values = {**extras.snapshot(part, extras.PART_FIELDS), **{k: getattr(body, k) for k in sent if k in extras.PART_FIELDS}}
     checked = {k for k in sent if k in extras.PART_FIELDS and getattr(body, k) != getattr(part, k)}
-    identity = {k: getattr(body, k) for k in _IDENTITY} if sent & set(_IDENTITY) else None
+    identity = await _identity_after(db, part, body, sent) if sent & set(_IDENTITY) else None
     try:
         await extras.save_part(db, parent, values, user.id, source=part.source, strict=True, part=part, identity=identity, checked=checked, ip=client_ip(request))
     except extras.ExtraError as exc:
@@ -171,10 +182,11 @@ async def duplicate_alternative(
         for p in [p for p in same if p.alp == "00"]:
             await extras.save_part(db, parent, {**extras.snapshot(p, extras.PART_FIELDS), "alp": f"{free[0]:02d}"}, user.id, source=p.source, strict=False, part=p, ip=ip)
         free.pop(0)
+    # The same article and P/N + NCAGE as the original (in the copy's audit too).
+    reference = await db.get(ArticleReference, part.article_reference_id) if part.article_reference_id else None
+    identity = {"article_id": part.part_article_id, "pn": reference.pn if reference else None, "ncage": reference.ncage if reference else None}
     copy = await extras.save_part(
         db, parent, {**extras.snapshot(part, extras.PART_FIELDS), "alp": f"{free[0]:02d}"}, user.id, source="manual", strict=False,
-        identity={"article_id": part.part_article_id} if part.part_article_id else None, ip=ip,
+        identity=identity if part.part_article_id else None, ip=ip,
     )
-    if part.article_reference_id and copy.article_reference_id is None:
-        copy.article_reference_id = part.article_reference_id
     return await _done(db, parent.id, copy.id)

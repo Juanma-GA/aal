@@ -35,7 +35,7 @@ export function CufPartsTable({ materialId }: { materialId: string }): React.JSX
             </TableHeader>
             <TableBody>
               {parts.data.map((p) => (
-                <TableRow key={p.id} data-testid={`cuf-part-${p.cop}-${p.alp}`}>
+                <TableRow key={p.id} data-testid={`cuf-part-${p.parent.id}-${p.cop}-${p.alp}`}>
                   <TableCell>
                     <Link to={`${ARTICLES_PATH}/${p.parent.id}#${PARTS_ANCHOR}`} className="text-link underline-offset-2 hover:underline">{p.parent.nombre}</Link>
                     <span className="block font-mono text-xs text-muted-foreground">{p.parent_positions.join(' · ')}</span>
@@ -52,7 +52,7 @@ export function CufPartsTable({ materialId }: { materialId: string }): React.JSX
                     ) : null}
                   </TableCell>
                   <TableCell>{p.quantity ?? '—'}</TableCell>
-                  <TableCell data-testid={`cuf-part-total-${p.cop}-${p.alp}`}>{p.total ?? '—'}</TableCell>
+                  <TableCell data-testid={`cuf-part-total-${p.parent.id}-${p.cop}-${p.alp}`}>{p.total ?? '—'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

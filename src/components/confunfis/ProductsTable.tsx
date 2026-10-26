@@ -99,7 +99,11 @@ function ProductDialog({ materialId, product, onClose }: { materialId: string; p
         </DialogHeader>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <CodeSelect field="pol_code" value={form.pol_code} onChange={(code, description) => set({ pol_code: code, ...(description && !form.designation.trim() ? { designation: description } : {}) })} />
+            <CodeSelect
+              field="pol_code" value={form.pol_code}
+              // Its description is proposed as the designation, unless the user wrote one of their own.
+              onChange={(code, description) => set({ pol_code: code, ...(description && (!form.designation.trim() || form.designation === (product?.pol_description ?? '')) ? { designation: description } : {}) })}
+            />
           </div>
           <div className="flex flex-col gap-1 sm:col-span-2">
             <Label htmlFor="product-designation">{t('confunfis.products.fields.designation')}</Label>

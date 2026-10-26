@@ -42,7 +42,7 @@ from app.schemas.reference import (
     ReferenceValueOut,
     ReferenceValueUpdate,
 )
-from app.services import audit, import_jobs, revalidation
+from app.services import audit, confunfis_extras, import_jobs, revalidation
 from app.services.article_fields import LIFE_FIELDS, NUMERIC, FieldDef, FieldError, coerce, field_defs
 from app.services.reference import attribute_problem
 from app.services.reference_import import (
@@ -173,6 +173,7 @@ async def create_value(
         user_id=admin.id, after=value_snapshot(value), ip=client_ip(request),
     )
     run = await revalidation.after_table_change(db, code, admin.id)
+    await confunfis_extras.refresh_all_products(db, code)
     await db.commit()
     if run:
         revalidation.schedule(run)
@@ -224,6 +225,8 @@ async def update_value(
     )
     # Only whether a code is active counts for the AR rules.
     run = await revalidation.after_table_change(db, code, admin.id) if action != "reference_value.updated" else None
+    # The products' observations: a code (in)active, a POL description changed (E14).
+    await confunfis_extras.refresh_all_products(db, code)
     await db.commit()
     if run:
         revalidation.schedule(run)

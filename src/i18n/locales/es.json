@@ -1527,7 +1527,10 @@
       "kindHints": {
         "excluye": "Excluye: no pueden ir juntas (vale en los dos sentidos)",
         "requiere": "Requiere: esta fila necesita la otra"
-      }
+      },
+      "removeExtraTitle": "¿Quitar la función adicional {{sns}}?",
+      "removeIncompatibilityTitle": "¿Quitar esta incompatibilidad?",
+      "removeHint": "Se da de baja (queda en el historial)."
     }
   }
 }

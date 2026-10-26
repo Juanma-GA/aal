@@ -172,6 +172,10 @@ class ReferenceTableTarget:
         if not (job.report["pending"]["new"] or job.report["pending"]["modified"]):
             return
         run = await revalidation.after_table_change(db, job.params["table"], job.user_id)
+        # And the functional products' observations (E14).
+        from app.services.confunfis_extras import refresh_all_products
+
+        await refresh_all_products(db, job.params["table"])
         await db.commit()
         if run:
             revalidation.schedule(run)

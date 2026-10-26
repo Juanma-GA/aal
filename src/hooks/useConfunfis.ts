@@ -23,8 +23,8 @@ export function useConfunfisSummary(materialId: string) {
   return useQuery({ queryKey: ['confunfis', materialId, 'summary'], queryFn: () => fetchSummary(materialId) });
 }
 
-export function useConfunfisRows(materialId: string, filters: RowFilters, page: number) {
-  return useQuery({ queryKey: [...rowsKey(materialId), filters, page], queryFn: () => fetchRows(materialId, filters, page, PAGE_SIZE) });
+export function useConfunfisRows(materialId: string, filters: RowFilters, page: number, enabled = true) {
+  return useQuery({ queryKey: [...rowsKey(materialId), filters, page], queryFn: () => fetchRows(materialId, filters, page, PAGE_SIZE), enabled });
 }
 
 export function useConfunfisRow(materialId: string, rowId: string | null) {

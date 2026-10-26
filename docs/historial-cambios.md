@@ -512,3 +512,36 @@ protegidos, revalidación sin perder cambios, escrituras serializadas por materi
 
 **Tests.** `npm run check:all` verde (343 tests de backend). `verify-confunfis`, `verify-articles`,
 `verify-articles-perf`, `verify-materials`, `verify-navigation` y `verify-reference-tables` en verde.
+
+## E14 — Partes, productos funcionales, multifunción e incompatibilidades (resto de RF-02)
+
+**Qué.**
+- **Flecos de E13:** un alternativo que se queda solo ofrece volver a AL 00 (con el CS de las hijas),
+  observación OF-012 y botón en la ficha; buscador del árbol físico (ruta abierta, resaltado, "n de m",
+  expandir/contraer todo) y de la vista funcional. Demo: unidad `L` → `LI` en productos funcionales.
+- **Backend (0011, 0012):** `article_part` (del artículo, global), `functional_product`, `extra_function` e
+  `incompatibility` (del CUF), con versión, borrado lógico y auditoría; observaciones OP-001…007, OPF-001…006
+  y OI-001…003; total de una parte en el CUF; copia remapeada, baja de fila con lo que cuelga, guarda de
+  subcategorías y "dónde se usa"; tabla `CRITERIO_MULTIFUNCION`; módulos "Tabla de partes" y "Productos
+  funcionales" encendidos. `seed_demo_confunfis.py` carga las dos hojas nuevas, los ejemplos y su copia al
+  Puesto de mando (idempotente). Cifras del §2.3 reproducidas.
+- **Frontend:** pestañas "Tabla de partes" y "Productos funcionales" (agrupados por POL, N/A/E juntos),
+  secciones de la ficha de fila (partes, funciones adicionales, incompatibilidades), badge multifunción e
+  icono de incompatibilidad, "por función adicional" en la vista funcional, tarjeta "Partes" en la ficha del
+  artículo, contadores en el Panel.
+- **Arreglo previo (E13):** `purge_verify_data.py --restore-articles` dejaba las filas de CONFUNFIS sin
+  referencia (`ON DELETE SET NULL`); ahora guarda y repone el enlace, y las tablas de E14.
+
+**Decisiones.** La "pestaña Partes" del artículo es una tarjeta de su ficha (la ficha no tiene pestañas).
+Las P/N enlazadas desde una tabla de partes llevan origen `confunfis`. OP-005 se calcula con todos los CUF
+(la tabla de partes es global): revela un sí/no sobre materiales ajenos, sin nombres. OI-002 no puede darse
+hoy (la baja de una fila se lleva sus incompatibilidades) y se mantiene porque lo pide el encargo.
+
+**Por qué.** Encargo E14 (`docs/encargos/E14.md`).
+
+**Revisión (AACF).** Seguridad: refresco de partes acotado, cantidades extremas (422, nunca 500), parte sin
+identidad rechazada, dígitos ASCII en COP/ALP, filas de otro material excluidas, desenlace de productos
+auditado. Código: ciclos por componentes fuertemente conexos (y solo aristas del ciclo), total de una parte
+sin cifras parciales (HR7), confirmación al quitar funciones adicionales e incompatibilidades (HR9), límites
+del parámetro `confunfis.qty` (HR8), productos que siguen a sus tablas y al maestro, auditoría completa de
+"Duplicar como alternativo", ficha que no relee una fila borrada (el 404 de la CI).

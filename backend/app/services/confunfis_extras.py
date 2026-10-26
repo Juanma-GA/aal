@@ -54,9 +54,6 @@ from app.services.reference import codes_by_state
 
 _TWO_DIGITS = re.compile(r"^[0-9]{2}$")
 CRITERIA_TABLE = "CRITERIO_MULTIFUNCION"
-# The quantities a part or a product takes: those of a CONFUNFIS row (the
-# parameter confunfis.qty's defaults, read where the parameter is at hand).
-_MAX_QUANTITY, _MAX_DECIMALS = 1_000_000, 6
 PART_CODES = ("OP-001", "OP-002", "OP-003", "OP-004", "OP-005", "OP-006", "OP-007")
 PRODUCT_CODES = ("OPF-001", "OPF-002", "OPF-003", "OPF-004", "OPF-005", "OPF-006")
 INCOMPATIBILITY_CODES = ("OI-001", "OI-002", "OI-003")
@@ -79,7 +76,9 @@ def _text(value: Any, *, upper: bool = False) -> str | None:
     return (text.upper() if upper else text) or None
 
 
-def _number(value: Any, field: str, problems: list[dict[str, Any]], *, bulk: bool = False) -> Decimal | None:
+def _number(value: Any, field: str, problems: list[dict[str, Any]], bounds: dict[str, Any], *, bulk: bool = False) -> Decimal | None:
+    """`bounds`: the largest quantity and its decimals, those of a CONFUNFIS
+    row (the parameter confunfis.qty)."""
     """A quantity; empty (or "N/A" for a product in bulk) is None."""
     if value is None or (isinstance(value, str) and (not value.strip() or (bulk and value.strip().upper() in ("N/A", "NA")))):
         return None
@@ -90,8 +89,8 @@ def _number(value: Any, field: str, problems: list[dict[str, Any]], *, bulk: boo
         return None
     exponent = number.as_tuple().exponent if number.is_finite() else 0
     # A number nobody counts (1E-20000) cannot be stored: refused, never cut (HR6).
-    if not number.is_finite() or abs(number) > _MAX_QUANTITY or (isinstance(exponent, int) and -exponent > _MAX_DECIMALS and number != number.to_integral_value()):
-        problems.append({"field": field, "code": "out_of_range", "params": {"min": "0", "max": str(_MAX_QUANTITY)}})
+    if not number.is_finite() or abs(number) > bounds["max"] or (isinstance(exponent, int) and -exponent > bounds["decimals"] and number != number.to_integral_value()):
+        problems.append({"field": field, "code": "out_of_range", "params": {"min": "0", "max": str(bounds["max"])}})
         return None
     return number.to_integral_value() if number == number.to_integral_value() else number.normalize()
 
@@ -117,31 +116,58 @@ def _observed(model: Any, obj: Any, found: list[dict[str, Any]]) -> Any:
     )
 
 
-def _cycles(edges: dict[Any, set[Any]]) -> set[Any]:
-    """The nodes on a cycle of `edges` (node -> nodes it points to)."""
-    on_cycle: set[Any] = set()
-    state: dict[Any, int] = {}  # 1 visiting, 2 done
-    for start in list(edges):
-        if start in state:
+def _cycles(edges: dict[Any, set[Any]]) -> dict[Any, int]:
+    """The nodes on a cycle of `edges` (node -> nodes it points to), each
+    with its strongly connected component (Tarjan, iterative): an edge is on
+    a cycle when both ends share a component (`on_cycle`)."""
+    index: dict[Any, int] = {}
+    low: dict[Any, int] = {}
+    comp: dict[Any, int] = {}
+    stack: list[Any] = []
+    on_stack: set[Any] = set()
+    counter = 0
+    nodes = set(edges) | {n for targets in edges.values() for n in targets}
+    for start in sorted(nodes, key=str):
+        if start in index:
             continue
-        stack: list[tuple[Any, list[Any]]] = [(start, sorted(edges.get(start, ()), key=str))]
-        path = [start]
-        state[start] = 1
-        while stack:
-            node, todo = stack[-1]
+        work: list[tuple[Any, list[Any]]] = [(start, sorted(edges.get(start, ()), key=str))]
+        index[start] = low[start] = counter
+        counter += 1
+        stack.append(start)
+        on_stack.add(start)
+        while work:
+            node, todo = work[-1]
             if todo:
                 nxt = todo.pop()
-                if state.get(nxt) == 1:
-                    on_cycle.update(path[path.index(nxt):])
-                elif nxt not in state:
-                    state[nxt] = 1
-                    path.append(nxt)
-                    stack.append((nxt, sorted(edges.get(nxt, ()), key=str)))
+                if nxt not in index:
+                    index[nxt] = low[nxt] = counter
+                    counter += 1
+                    stack.append(nxt)
+                    on_stack.add(nxt)
+                    work.append((nxt, sorted(edges.get(nxt, ()), key=str)))
+                elif nxt in on_stack:
+                    low[node] = min(low[node], index[nxt])
                 continue
-            state[node] = 2
-            stack.pop()
-            path.pop()
-    return on_cycle
+            work.pop()
+            if work:
+                low[work[-1][0]] = min(low[work[-1][0]], low[node])
+            if low[node] == index[node]:
+                members = []
+                while True:
+                    member = stack.pop()
+                    on_stack.discard(member)
+                    members.append(member)
+                    if member == node:
+                        break
+                if len(members) > 1 or node in edges.get(node, ()):
+                    for member in members:
+                        comp[member] = index[node]
+    return comp
+
+
+def on_cycle(cyclic: dict[Any, int], a: Any, b: Any) -> bool:
+    """The edge a -> b is on a cycle (both ends in one component)."""
+    return a in cyclic and cyclic.get(a) == cyclic.get(b)
 
 
 # ── parts (§9.1.10) ──────────────────────────────────────────────────────
@@ -160,7 +186,7 @@ def clean_part(values: dict[str, Any], params: dict[str, Any], *, strict: bool, 
         "cop": _text(values.get("cop")),
         "alp": _text(values.get("alp")) or ("00" if strict else None),
         "part_name": _text(values.get("part_name")),
-        "quantity": _number(values.get("quantity"), "quantity", problems),
+        "quantity": _number(values.get("quantity"), "quantity", problems, params["qty"]),
     }
     for name in ("cop", "alp"):
         if out[name] is None:
@@ -200,7 +226,7 @@ async def save_part(
             raise ExtraError(exc.problems) from None
     elif problems:
         raise ExtraError(problems)
-    before = snapshot(part, (*PART_FIELDS, "part_article_id")) if part is not None else None
+    before = snapshot(part, (*PART_FIELDS, "part_article_id", "article_reference_id")) if part is not None else None
     if part is None:
         part = ArticlePart(id=uuid.uuid4(), parent_article_id=parent.id, source=source, version=1, created_by=user_id, updated_by=user_id)
         db.add(part)
@@ -218,13 +244,13 @@ async def save_part(
     await db.flush()
     audit.record(
         db, action="article.part_updated" if before else "article.part_added", entity_type="article", entity_id=str(parent.id), user_id=user_id,
-        before={"part": before} if before else None, after={"part": {"id": str(part.id), **snapshot(part, (*PART_FIELDS, "part_article_id"))}}, ip=ip,
+        before={"part": before} if before else None, after={"part": {"id": str(part.id), **snapshot(part, (*PART_FIELDS, "part_article_id", "article_reference_id"))}}, ip=ip,
     )
     return part
 
 
 async def remove_part(db: AsyncSession, part: ArticlePart, user_id: uuid.UUID | None, ip: str | None) -> None:
-    before = snapshot(part, (*PART_FIELDS, "part_article_id"))
+    before = snapshot(part, (*PART_FIELDS, "part_article_id", "article_reference_id"))
     part.deleted_at, part.version, part.updated_by = datetime.now(UTC), part.version + 1, user_id
     audit.record(
         db, action="article.part_removed", entity_type="article", entity_id=str(part.parent_article_id), user_id=user_id,
@@ -258,7 +284,7 @@ async def refresh_parts(db: AsyncSession, articles: set[uuid.UUID] | None = None
     cyclic = _cycles(edges)
     parts = every if articles is None else [
         p for p in every
-        if {p.parent_article_id, p.part_article_id} & articles or (p.parent_article_id in cyclic and p.part_article_id in cyclic)
+        if {p.parent_article_id, p.part_article_id} & articles or on_cycle(cyclic, p.parent_article_id, p.part_article_id)
         or {"OP-002", "OP-005"} & set(p.observation_codes)
     ]
     # Materials each article sits in (its CONFUNFIS rows).
@@ -279,7 +305,7 @@ async def refresh_parts(db: AsyncSession, articles: set[uuid.UUID] | None = None
         found: list[dict[str, Any]] = []
         if p.part_article_id == p.parent_article_id:
             found.append({"code": "OP-001", "params": {}})
-        elif p.part_article_id and p.part_article_id in cyclic and p.parent_article_id in cyclic:
+        elif p.part_article_id and on_cycle(cyclic, p.parent_article_id, p.part_article_id):
             found.append({"code": "OP-002", "params": {}})
         if len(keys[(p.parent_article_id, p.cop, p.alp)]) > 1:
             found.append({"code": "OP-003", "params": {"cop": p.cop, "alp": p.alp}})
@@ -304,8 +330,9 @@ def part_totals(graph: Graph, rows: list[PhysicalPosition], parts: list[ArticleP
     out: dict[uuid.UUID, Decimal | None] = {}
     for p in parts:
         totals = [graph.total(h) for h in sorted(huecos.get(p.parent_article_id, ()))]
-        known = [t for t in totals if t is not None]
-        out[p.id] = p.quantity * sum(known, Decimal(0)) if known and p.quantity is not None else None
+        # A hueco without a total (orphan, cycle, no QTY): no total, never a part of it (HR7).
+        complete = bool(totals) and all(t is not None for t in totals) and p.quantity is not None
+        out[p.id] = p.quantity * sum((t for t in totals if t is not None), Decimal(0)) if complete else None
     return out
 
 
@@ -317,7 +344,7 @@ async def live_products(db: AsyncSession, material_id: uuid.UUID) -> list[Functi
     return list((await db.execute(query.order_by(FunctionalProduct.pol_code, FunctionalProduct.nae, FunctionalProduct.created_at))).scalars())
 
 
-def clean_product(values: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def clean_product(values: dict[str, Any], params: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     problems: list[dict[str, Any]] = []
     noc = normalize_code(values.get("noc"))
     out = {
@@ -326,7 +353,7 @@ def clean_product(values: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str
         "nae": _text(values.get("nae"), upper=True),
         "noc": noc,
         "supply_unit": _text(values.get("supply_unit"), upper=True),
-        "quantity": _number(values.get("quantity"), "quantity", problems, bulk=True),
+        "quantity": _number(values.get("quantity"), "quantity", problems, params["qty"], bulk=True),
         "unit": _text(values.get("unit"), upper=True),
     }
     if not out["designation"]:
@@ -338,7 +365,7 @@ async def save_product(
     db: AsyncSession, material: Material, values: dict[str, Any], user_id: uuid.UUID | None, *, source: str,
     product: FunctionalProduct | None = None, ip: str | None = None,
 ) -> FunctionalProduct:
-    clean, problems = clean_product(values)
+    clean, problems = clean_product(values, await get_parameter(db, "confunfis"))
     if problems:
         raise ExtraError(problems)
     before = snapshot(product, PRODUCT_FIELDS) if product is not None else None
@@ -372,10 +399,25 @@ def _name_key(text: str | None) -> str:
     return re.sub(r"\s+", " ", text or "").strip().casefold()
 
 
+PRODUCT_TABLES = ("POL", "NAE", "D155", "D112")
+
+
 async def refresh_products(db: AsyncSession, material: Material) -> None:
+    """Their observations, and their link with the master by NOC (an article
+    created, imported or renumbered since)."""
     products = await live_products(db, material.id)
     if not products:
         return
+    nocs = {p.noc for p in products if p.noc}
+    by_noc = dict((await db.execute(select(Article.noc, Article.id).where(Article.noc.in_(nocs), Article.deleted_at.is_(None)))).all()) if nocs else {}
+    for p in products:
+        linked = by_noc.get(p.noc) if p.noc else None
+        if linked != p.article_id:
+            await db.execute(
+                update(FunctionalProduct).where(FunctionalProduct.id == p.id).values(article_id=linked, updated_at=FunctionalProduct.updated_at)
+                .execution_options(synchronize_session=False)
+            )
+            set_committed_value(p, "article_id", linked)
     pol = await codes_by_state(db, "POL")
     nae, d155, d112 = [await codes_by_state(db, t) for t in ("NAE", "D155", "D112")]
     codes = {p.pol_code for p in products if p.pol_code}
@@ -387,15 +429,15 @@ async def refresh_products(db: AsyncSession, material: Material) -> None:
         same[tuple(_plain(getattr(p, f)) for f in PRODUCT_FIELDS)].append(p.id)
     for p in products:
         found: list[dict[str, Any]] = []
-        if p.pol_code and not pol.get(p.pol_code):
+        if p.pol_code and p.pol_code not in pol:
             found.append({"code": "OPF-001", "params": {"pol": p.pol_code}})
         elif p.pol_code and _name_key(descriptions.get(p.pol_code)) != _name_key(p.designation):
             found.append({"code": "OPF-002", "params": {"pol": p.pol_code, "description": descriptions.get(p.pol_code) or ""}})
-        if p.nae and not nae.get(p.nae):
+        if p.nae and p.nae not in nae:
             found.append({"code": "OPF-003", "params": {"nae": p.nae}})
-        if p.supply_unit and not d155.get(p.supply_unit):
+        if p.supply_unit and p.supply_unit not in d155:
             found.append({"code": "OPF-004", "params": {"unit": p.supply_unit}})
-        if p.unit and not d112.get(p.unit):
+        if p.unit and p.unit not in d112:
             found.append({"code": "OPF-005", "params": {"unit": p.unit}})
         if len(same[tuple(_plain(getattr(p, f)) for f in PRODUCT_FIELDS)]) > 1:
             found.append({"code": "OPF-006", "params": {}})
@@ -497,7 +539,7 @@ async def refresh_incompatibilities(db: AsyncSession, material: Material, rows: 
             found.append({"code": "OI-001", "params": {}})
         if i.kind == "requiere" and str(i.row_b_id) not in live:
             found.append({"code": "OI-002", "params": {}})
-        if i.kind == "requiere" and i.row_a_id in cyclic and i.row_b_id in cyclic:
+        if i.kind == "requiere" and on_cycle(cyclic, i.row_a_id, i.row_b_id):
             found.append({"code": "OI-003", "params": {}})
         if found != i.observations:
             await db.execute(_observed(Incompatibility, i, found))
@@ -542,6 +584,7 @@ async def copy_extras(db: AsyncSession, source: Material, target: Material, mapp
     for i in incompatibilities:
         db.add(Incompatibility(
             id=uuid.uuid4(), material_id=target.id, row_a_id=mapping[i.row_a_id], row_b_id=mapping[i.row_b_id], kind=i.kind, reason=i.reason,
+            observations=i.observations, observation_codes=i.observation_codes,
             source="copia", version=1, created_by=user_id, updated_by=user_id,
         ))
     await db.flush()
@@ -628,6 +671,23 @@ async def _product_of(db: AsyncSession, article: Article, user: User) -> list[di
         for p in sorted(products, key=lambda p: (names.get(p.material_id, ""), p.pol_code or ""))
         if p.material_id in names
     ]
+
+
+async def refresh_all_products(db: AsyncSession, table: str | None = None) -> None:
+    """Every CUF's products, after a change of one of their tables (or of
+    the master: `table` None)."""
+    if table is not None and table not in PRODUCT_TABLES:
+        return
+    ids = set((await db.execute(select(FunctionalProduct.material_id).where(FunctionalProduct.deleted_at.is_(None)).distinct())).scalars())
+    for material in (await db.execute(select(Material).where(Material.id.in_(ids), Material.deleted_at.is_(None)))).scalars() if ids else []:
+        await refresh_products(db, material)
+
+
+async def _after_articles(db: AsyncSession, article_ids: set[uuid.UUID]) -> None:
+    await refresh_all_products(db)
+
+
+confunfis.ARTICLE_CHANGE_EXTENSIONS.append(_after_articles)
 
 
 async def parents_of(db: AsyncSession, article_id: uuid.UUID) -> str:

@@ -40,7 +40,10 @@ interface Props {
  *  add an alternative CS and remove. */
 export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlternativeCs }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const detail = useConfunfisRow(materialId, rowId);
+  // Once its removal is confirmed the card stops reading its row: closing
+  // may take a render, and a read of a removed row is a 404.
+  const [gone, setGone] = useState(false);
+  const detail = useConfunfisRow(materialId, gone ? null : rowId);
   const remove = useDeleteRow(materialId);
   const duplicate = useDuplicateAlternative(materialId);
   const [removing, setRemoving] = useState(false);
@@ -169,7 +172,7 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
               : t('confunfis.card.removeHint')
           }
           confirmLabel={t('confunfis.card.remove')}
-          onConfirm={() => { onOpen(null); remove.mutate({ row, resetAl: leavesSingle && resetAfter }); }}
+          onConfirm={() => { setGone(true); onOpen(null); remove.mutate({ row, resetAl: leavesSingle && resetAfter }); }}
         >
           {leavesSingle ? (
             <div className="flex items-center gap-2 text-sm">

@@ -193,6 +193,30 @@ async def test_functional_products(client, demo):
     assert twin["id"] not in after and "OPF-006" not in after[named["id"]]["observation_codes"]
 
 
+async def test_products_follow_their_tables_and_the_master(client, demo):
+    """Live observations (the review of E14): adding ZZ to D155 clears OPF-004;
+    a NOC that arrives in the master links its product."""
+    admin, analyst = demo["people"]["admin"], demo["people"]["analista"]
+    url = f"{base(demo)}/products"
+    made = await client.post("/api/reference-tables/D155/values", json={"code": "ZZ", "description": "Unidad de prueba"}, headers=admin)
+    assert made.status_code == 201, made.text
+    try:
+        products = (await client.get(url, headers=analyst)).json()
+        assert all(not p["observation_codes"] for p in products)
+        oil = next(p for p in products if p["noc"] == "915033X902001")
+        assert oil["article"] is None
+        article = await client.post("/api/articles", json={"noc": "915033X902001", "nombre": "ACEITE 15W/40"}, headers=analyst)
+        assert article.status_code == 201, article.text
+        oil = next(p for p in (await client.get(url, headers=analyst)).json() if p["noc"] == "915033X902001")
+        assert oil["article"]["id"] == article.json()["id"]
+    finally:
+        async with async_session_factory() as session:
+            from app.models import ReferenceValue
+
+            await session.execute(ReferenceValue.__table__.delete().where(ReferenceValue.table_code == "D155", ReferenceValue.code == "ZZ"))
+            await session.commit()
+
+
 async def test_extra_functions(client, demo):
     analyst = demo["people"]["analista"]
     url = f"{base(demo)}/extra-functions"
