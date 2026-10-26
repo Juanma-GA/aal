@@ -561,7 +561,10 @@
       "unchanged": "Sin cambios",
       "errors": "Errores",
       "warnings": "Avisos",
-      "removed": "Eliminados"
+      "removed": "Eliminados",
+      "rejected": "Rechazadas",
+      "ar": "Avisos AR",
+      "corrections": "Autocorrecciones"
     },
     "row": "Fila",
     "key": "Clave",
@@ -625,7 +628,8 @@
       "name_required": "Falta el nombre coloquial: un artículo necesita al menos su nombre.",
       "duplicate_article": "El mismo artículo ya está en la fila {{first_row}}."
     },
-    "page": "Página {{page}} de {{pages}} · {{total}} filas"
+    "page": "Página {{page}} de {{pages}} · {{total}} filas",
+    "rejectedSummary": "{{count}} filas rechazadas (no se aplican; el resto, sí)."
   },
   "catalog": {
     "title": "Configuración funcional normalizada",
@@ -810,5 +814,164 @@
         "rechazada": "Rechazada"
       }
     }
+  },
+  "articles": {
+    "title": "Artículos — datos básicos",
+    "hint": "Maestro único de artículos, común a todos los CUF (D16), con los 30 campos del Fichero Carga de SIGLE. Abrir un artículo no cambia el material activo.",
+    "search": "Buscar",
+    "searchHint": "NOC, P/N o nombre",
+    "all": "Todos",
+    "filters": {
+      "rule": "Regla AR",
+      "withFindings": "Con algún aviso AR",
+      "repairable": "Reparable",
+      "lifeControl": "Control de vida",
+      "group": "Grupo estructural",
+      "noNoc": "Sin NOC"
+    },
+    "total_one": "{{count}} artículo",
+    "total_other": "{{count}} artículos",
+    "empty": "No hay artículos con estos filtros.",
+    "columns": {
+      "noc": "NOC",
+      "name": "Nombre",
+      "group": "Grupo",
+      "repairable": "Reparable",
+      "lifeControl": "Ctrl. vida",
+      "findings": "Avisos AR",
+      "article": "Artículo"
+    },
+    "open": "Abrir {{name}}",
+    "provisional": "Provisional (sin NOC)",
+    "new": "Nuevo artículo",
+    "newTitle": "Nuevo artículo",
+    "newHint": "Basta el nombre: un artículo sin NOC queda provisional (aviso AR-001). El resto se rellena en su ficha.",
+    "editGrid": "Editar en rejilla",
+    "leaveGrid": "Salir de la rejilla",
+    "import": "Importar",
+    "importTitle": "Importar {{template}}",
+    "export": "Exportar",
+    "exportHint": "Antes de exportar: cuántos artículos van y cuántos tienen avisos AR. En esta fase la exportación no se bloquea; el paquete SIGLE lo hará.",
+    "exportCount_one": "Se exporta {{count}} artículo; {{withFindings}} con avisos AR.",
+    "exportCount_other": "Se exportan {{count}} artículos; {{withFindings}} con avisos AR.",
+    "templates": {
+      "fichero_carga": "Fichero Carga SIGLE",
+      "maestro": "Maestro AAL (con P/N, NCAGE y controles de vida 2 y 3)"
+    },
+    "groups": {
+      "identification": "Identificación",
+      "logistics": "Clasificación y logística",
+      "maintenance": "Mantenimiento",
+      "control": "Control unitario y de vida",
+      "dimensions": "Peso y dimensiones",
+      "costs": "Costes",
+      "pol": "POL"
+    },
+    "identity": {
+      "pn": "P/N",
+      "ncage": "NCAGE",
+      "origen_nombre": "Origen del nombre"
+    },
+    "origins": {
+      "coloquial": "Coloquial",
+      "aprobado": "Aprobado",
+      "comercial": "Comercial"
+    },
+    "yesNo": {
+      "S": "Sí",
+      "N": "No"
+    },
+    "unknownCode": "{{code}} (no está en la tabla)",
+    "mar06": "MAR06 {{number}}",
+    "helpOf": "Ayuda de {{name}}",
+    "noHelp": "Sin ayuda en la guía.",
+    "help": {
+      "definicion": "Definición",
+      "finalidad": "Finalidad",
+      "observaciones": "Observaciones"
+    },
+    "noLifeControl": "Sin controles de vida.",
+    "addLifeControl": "Añadir control de vida",
+    "removeLifeControl": "Quitar el control de vida {{position}}",
+    "lifeQuantity": "Cantidad del control de vida {{position}}",
+    "discardChanges": "Descartar cambios",
+    "delete": "Borrar artículo",
+    "deleteTitle": "¿Borrar {{name}}?",
+    "deleteHint": "Deja de verse en la lista y en las exportaciones; se conserva con su historial.",
+    "readOnly": "Solo lectura: editar artículos necesita el permiso «Editar los artículos» en algún material.",
+    "findingsTitle": "Avisos",
+    "findingsHint": "Las reglas AR que incumple el artículo, comprobadas ahora.",
+    "noFindings": "Cumple todas las reglas AR.",
+    "goToField": "Ir a «{{field}}»",
+    "whereUsed": "Dónde se usa",
+    "notUsed": "Todavía no se usa en ningún material.",
+    "usage": {
+      "material_cuf": "Es el CUF del material"
+    },
+    "history": "Historial",
+    "byScript": "Script de carga",
+    "rules": {
+      "AR-001": {
+        "title": "Datos básicos"
+      },
+      "AR-002": {
+        "title": "Reparable sin escalones de mantenimiento"
+      },
+      "AR-003": {
+        "title": "Medida sin su unidad"
+      },
+      "AR-004": {
+        "title": "Control unitario sin código"
+      },
+      "AR-005": {
+        "title": "Control de vida sin pares código y cantidad"
+      },
+      "AR-006": {
+        "title": "Mantenimiento preventivo sin control de vida"
+      },
+      "AR-007": {
+        "title": "Control de configuración sin control unitario o fuera del grupo 0/7"
+      }
+    },
+    "problems": {
+      "required": "Falta «{{field}}», obligatorio.",
+      "required_if": "Falta «{{field}}»: es obligatorio porque {{flag}} = S.",
+      "not_in_table": "«{{value}}» no está en la tabla {{table}} ({{field}}).",
+      "inactive_in_table": "«{{value}}» está desactivado en la tabla {{table}} ({{field}}).",
+      "no_level": "Es reparable y no tiene ningún escalón de mantenimiento = S.",
+      "gap": "Desde el primer escalón con S, todos los siguientes deben ser S (faltan: {{levels}}).",
+      "unit_missing": "Hay {{measure}} pero falta «{{field}}».",
+      "code_missing": "Tiene control unitario = S y falta «{{field}}».",
+      "no_pair": "Tiene control de vida = S y ningún par código de vida + cantidad.",
+      "pair_incomplete": "El control de vida {{position}} está incompleto: falta «{{field}}».",
+      "too_many": "Más de {{max}} controles de vida.",
+      "requires": "Tiene mantenimiento preventivo = S y «{{field}}» no es S.",
+      "unit_control": "Tiene control de configuración = S y «{{field}}» no es S.",
+      "group": "Tiene control de configuración = S y el grupo estructural es «{{value}}» (debe ser {{groups}})."
+    },
+    "corrections": {
+      "AR-008": "Código de seguridad vacío: se carga «{{value}}» (no clasificado)."
+    },
+    "cellProblems": {
+      "not_in_table": "No está en la tabla {{table}}.",
+      "unknown_field": "No es un campo del artículo.",
+      "noc_invalid": "No es un NOC: 13 letras mayúsculas y cifras.",
+      "ncage_invalid": "No es un NCAGE: 5 letras mayúsculas y cifras.",
+      "required": "Obligatorio."
+    },
+    "bulkField": "Campo",
+    "bulkValue": "Valor",
+    "bulkApply_one": "Aplicar a la selección ({{count}})",
+    "bulkApply_other": "Aplicar a la selección ({{count}})",
+    "saveRows_one": "Guardar {{count}} fila",
+    "saveRows_other": "Guardar {{count}} filas",
+    "selectAll": "Seleccionar todos",
+    "selectRow": "Seleccionar {{name}}",
+    "rowNotSaved": "No se ha guardado esta fila.",
+    "bulkApply": "Aplicar a la selección ({{count}})",
+    "saveRows": "Guardar {{count}} filas",
+    "exportCount": "Se exportan {{count}} artículos; {{withFindings}} con avisos AR.",
+    "total": "{{count}} artículos",
+    "noMar06": "Sin campo MAR06"
   }
 }

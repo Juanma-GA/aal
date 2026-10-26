@@ -71,6 +71,7 @@ cp .env.example .env                     # y ajustar DATABASE_URL si hace falta
 .venv/bin/python scripts/create_admin_user.py admin@empresa.es   # contraseña: INITIAL_ADMIN_PASSWORD o se pide
 .venv/bin/python scripts/seed_dev_data.py                 # material sintético + analista/revisor/observador
 .venv/bin/python scripts/seed_demo_materials.py           # los 5 materiales de demo/LEEME_DATOS_DEMO.md
+.venv/bin/python scripts/seed_demo_articles.py            # los 45 artículos de demo/FICHERO_CARGA_DEMO.xlsx
 .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -191,12 +192,21 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
 - **`verify-materials.mjs`** (E11): con el catálogo de demo importado (`scripts/import-demo-catalog.mjs`) y
   `seed_demo_materials.py`, el analista abre la ficha del Tramontana, quita 0102 (62 SNS) y la vuelve a
   poner (65), busca `E12300` en la configuración normalizada, crea y envía una solicitud de SNS, y el admin
-  crea un CUF "a partir de otro" y comprueba que es independiente. Deja la base como estaba (subcategorías
-  devueltas; solicitud y CUF `[verify] …` borrados).
+  crea un CUF "a partir de otro" y comprueba que es independiente; (E12) descarta un borrador y el admin anula
+  la solicitud enviada con motivo y la ve con "Mostrar anuladas". Deja la base como estaba (subcategorías
+  devueltas; solicitudes y CUF `[verify] …` borrados). `verify-conf-fun` (E12) importa además una copia con
+  `A22140` cambiado en 06-01 (CN-007 = 1, filas alineadas por subcategoría, "Varía por subcategoría") y borra
+  la primera versión desde "Versiones"; `verify-navigation` (E12) arrastra el borde del sidebar, lo pliega con
+  `Ctrl+B`, lo pasa a la derecha y comprueba que todo se conserva al recargar.
+- **`verify-articles.mjs`** (E12): el admin importa `demo/FICHERO_CARGA_DEMO.xlsx` (45 artículos; AR-001,
+  002, 003, 006 y 007 uno cada uno), el analista abre la `BIELA DM-6` desde su fila, ve AR-006 y la ayuda del
+  campo 53, activa el control de vida (D114 + cantidad) y AR-006 desaparece; en la rejilla aplica "Escalón 4 =
+  S" a dos artículos y exporta el Fichero Carga. Deja la base como estaba (`purge_verify_data.py
+  --save-articles` / `--restore-articles` y su `import_job` borrado).
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
-  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) con Chrome
+  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) + `verify-articles` con Chrome
   contra uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
@@ -324,6 +334,20 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   `SUBCATEGORY_REMOVAL_GUARDS` (E13 impedirá quitar una subcategoría cuyos SNS usa la CONFUNFIS) y
   `MATERIAL_COPIERS` (`register_copier`: E12–E15 añaden lo suyo a "Crear a partir de otro" sin tocar el
   endpoint). Ficha en `/materiales/:materialId/ficha`.
+- **Artículos (E12, RF-04, D16)**: maestro único global en `/articulos` (como el catálogo, no cambia el
+  material activo). `article` tiene una columna tipada por campo del Fichero Carga (`FIELD_COLUMNS`, PRISMA →
+  columna; tipos y longitudes iguales a `article_field_definition`, lo vigila `test_article_model.py`) y los
+  controles de vida en `article_life_control` (1–3 pares; el Fichero Carga lleva el primero). La validación es
+  genérica, por la definición (`app/services/article_fields.py`, sobre `io_excel`): lo que no se puede guardar
+  se rechaza (HR6); lo que falta o no está en su tabla es AR-001. Reglas AR-001…AR-008 en
+  `app/validacion/articulos.py` (código, severidad, campos MAR06 y parámetros; los campos por código PRISMA,
+  nunca por columna; los textos en `es.json` `articles.rules`/`articles.problems`). Los hallazgos se guardan
+  en el artículo (`findings`, `finding_codes` para filtrar) y la ficha los recalcula. "Dónde se usa" es un
+  registro (`USAGE_PROVIDERS`, `register_usage`): E13/E14/E17 añaden lo suyo. Editar: `articulos.editar` en
+  algún material (o admin); importar: admin. Importación Fichero Carga / Maestro AAL
+  (`app/services/article_import.py`): las filas rechazadas se listan y no bloquean el resto.
+- **Sidebar (E12)**: ancho (borde arrastrable, límites en el parámetro `ui`), plegado a iconos (botón al pie y
+  `Ctrl+B`) y lado, en `ui_preferences` (`useSidebarLayout`); `/api/me/ui-settings` da los límites.
 - **Listas navegables y enlaces (E11)**: toda fila que abre algo es un `NavRow`
   (`src/components/layout/NavRow.tsx`: fila entera clicable con chevron); los enlaces usan el token
   `text-link` (contraste AA en ambos temas, `scripts/test-contrast.mjs`), nunca `text-primary`.

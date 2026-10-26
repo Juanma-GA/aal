@@ -26,7 +26,9 @@ const POLL_MS = 1000;
 // Rows per page of a report tab: a first real CONF_FUN import has thousands
 // of new SNS, and the whole list is still there page by page (HR6).
 const PAGE_SIZE = 200;
-const TABS = ['new', 'modified', 'unchanged', 'removed', 'errors', 'warnings'] as const;
+const TABS = ['new', 'modified', 'unchanged', 'removed', 'rejected', 'ar', 'corrections', 'errors', 'warnings'] as const;
+// Tabs only some templates have (their part of the report is absent otherwise).
+const OPTIONAL: Partial<Record<Tab, keyof ImportReport>> = { removed: 'removed', rejected: 'rejected', ar: 'ar', corrections: 'corrections' };
 type Tab = (typeof TABS)[number];
 
 interface Props {
@@ -103,21 +105,28 @@ function Issues({ issues, testId }: { issues: ImportIssue[]; testId: string }): 
 
 function Report({ report, counts }: { report: ImportReport; counts: ImportJob['counts'] }): React.JSX.Element {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>(counts.errors ? 'errors' : counts.modified ? 'modified' : counts.new ? 'new' : 'unchanged');
+  const [tab, setTab] = useState<Tab>(
+    counts.errors ? 'errors' : counts.rejected ? 'rejected' : counts.modified ? 'modified' : counts.new ? 'new' : 'unchanged',
+  );
   const valueColumns = report.columns.filter((c) => c.field !== report.columns[0]?.field);
   const empty = <p className="py-4 text-sm text-muted-foreground">{t('import.nothing')}</p>;
   const [newRows, newPages] = usePage(report.new);
   const [modifiedRows, modifiedPages] = usePage(report.modified);
   const [unchangedRows, unchangedPages] = usePage(report.unchanged);
   const [removedRows, removedPages] = usePage(report.removed ?? []);
+  const [rejectedRows, rejectedPages] = usePage(report.rejected ?? []);
+  const [correctionRows, correctionPages] = usePage(report.corrections ?? []);
+  const issueText = useIssueText();
+  const arRules = Object.entries(report.ar ?? {});
+  const badge = (name: Tab) => (name === 'ar' ? arRules.reduce((n, [, items]) => n + new Set(items.map((i) => i.row)).size, 0) : (counts[name] ?? 0));
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
       <TabsList className="flex-wrap">
-        {TABS.filter((name) => name !== 'removed' || report.removed).map((name) => (
+        {TABS.filter((name) => !OPTIONAL[name] || report[OPTIONAL[name]]).map((name) => (
           <TabsTrigger key={name} value={name} data-testid={`import-tab-${name}`}>
             {t(`import.tabs.${name}`)}
-            <Badge variant={name === 'errors' && counts.errors ? 'destructive' : 'secondary'} data-testid={`import-count-${name}`}>
-              {counts[name] ?? 0}
+            <Badge variant={(name === 'errors' && counts.errors) || (name === 'rejected' && counts.rejected) ? 'destructive' : 'secondary'} data-testid={`import-count-${name}`}>
+              {badge(name)}
             </Badge>
           </TabsTrigger>
         ))}
@@ -228,6 +237,84 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
             </Table>
           )}
           {removedPages}
+        </TabsContent>
+        <TabsContent value="rejected">
+          {!report.rejected?.length ? empty : (
+            <Table data-testid="import-rejected">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('import.row')}</TableHead>
+                  <TableHead>{t('import.key')}</TableHead>
+                  <TableHead>{t('import.message')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rejectedRows.map((row) => (
+                  <TableRow key={row.row}>
+                    <TableCell>{row.row}</TableCell>
+                    <TableCell className="font-mono">{row.key}</TableCell>
+                    <TableCell className="whitespace-normal">
+                      {row.issues.map((issue, i) => (
+                        <span key={`${issue.code}-${i}`} className="block">
+                          {issue.header ? `${issue.header}: ` : ''}
+                          {issueText(issue)}
+                        </span>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {rejectedPages}
+        </TabsContent>
+        <TabsContent value="ar">
+          <div className="flex flex-col gap-3" data-testid="import-ar">
+            {arRules.map(([code, items]) => (
+              <section key={code} data-testid={`import-ar-${code}`}>
+                <h4 className="flex items-center gap-2 text-sm font-medium">
+                  <Badge variant={items.length ? 'outline' : 'secondary'}>{code}</Badge>
+                  {t(`articles.rules.${code}.title`)}
+                  <span className="text-muted-foreground" data-testid={`import-ar-count-${code}`}>
+                    {new Set(items.map((i) => i.row)).size}
+                  </span>
+                </h4>
+                {items.length ? (
+                  <ul className="mt-1 flex flex-col gap-0.5 text-sm">
+                    {items.map((i) => (
+                      <li key={`${i.row}-${i.field}-${i.problem}`}>
+                        {t('import.rowOnly', { row: i.row })} · <span className="font-mono text-xs">{i.key}</span> {i.name} —{' '}
+                        {t(`articles.problems.${i.problem}`, { ...i.params, field: i.field })}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ))}
+          </div>
+        </TabsContent>
+        <TabsContent value="corrections">
+          {!report.corrections?.length ? empty : (
+            <Table data-testid="import-corrections">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('import.row')}</TableHead>
+                  <TableHead>{t('import.key')}</TableHead>
+                  <TableHead>{t('import.message')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {correctionRows.map((c) => (
+                  <TableRow key={`${c.row}-${c.field}`}>
+                    <TableCell>{c.row}</TableCell>
+                    <TableCell className="font-mono">{c.key}</TableCell>
+                    <TableCell className="whitespace-normal">{t(`articles.corrections.${c.code}`, { field: c.field, value: c.value })}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {correctionPages}
         </TabsContent>
         <TabsContent value="errors">
           <Issues issues={report.errors} testId="import-errors" />
@@ -345,6 +432,7 @@ export function ImportWizard({ open, onOpenChange, title, start, onApplied }: Pr
                 modified: current.counts.modified ?? 0,
                 unchanged: current.counts.unchanged ?? 0,
               })}
+              {current.counts.rejected ? ` ${t('import.rejectedSummary', { count: current.counts.rejected })}` : ''}
             </p>
             {blocked ? (
               <Alert variant="destructive" data-testid="import-blocked">

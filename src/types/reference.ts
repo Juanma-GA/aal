@@ -61,4 +61,19 @@ export interface ArticleField {
   supplied_by_contractor: string;
   reference_table_code: string | null;
   reference_table_name: string | null;
+  /** E12: its name in the Fichero Carga, its S/N values, its MAR06 help. */
+  header: string | null;
+  allowed_values: string[] | null;
+  help: FieldHelp | null;
+}
+
+/** The MAR06 help of a field (app/seeds/article_field_help.yaml), literal. */
+export interface FieldHelp {
+  titulo: string | null;
+  importancia: string | null;
+  tipo: string | null;
+  tamano: string | null;
+  definicion: string | null;
+  finalidad: string | null;
+  observaciones: string | null;
 }

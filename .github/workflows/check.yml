@@ -99,7 +99,7 @@ jobs:
           .venv/bin/python scripts/seed_dev_data.py
       - name: npm run check:all
         run: npm run check:all
-      - name: verify-health, verify-auth-settings, verify-navigation, verify-reference-tables, verify-conf-fun and verify-materials (real Chromium, backend and Vite)
+      - name: verify-health, verify-auth-settings, verify-navigation, verify-reference-tables, verify-conf-fun, verify-materials and verify-articles (real Chromium, backend and Vite)
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
           SHOTS_DIR: ${{ runner.temp }}/shots
@@ -120,6 +120,7 @@ jobs:
           node scripts/import-demo-catalog.mjs
           (cd backend && .venv/bin/python scripts/seed_demo_materials.py)
           node scripts/verify-materials.mjs
+          node scripts/verify-articles.mjs
       - name: Screenshots
         if: always()
         uses: actions/upload-artifact@v4

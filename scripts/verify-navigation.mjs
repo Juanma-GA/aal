@@ -144,9 +144,9 @@ try {
   assert((await page.getByTestId('module-requirements').textContent()).includes('RF-02'), 'the card shows RF-02');
   const deps = await page.getByTestId('module-depends-on').textContent();
   assert(deps.includes('Materiales / CUF') && deps.includes('Artículos — datos básicos'), 'the card shows its dependencies');
-  // Materiales / CUF is available since E11; Artículos still planned.
+  // Materiales / CUF is available since E11, Artículos since E12.
   const states = page.getByTestId('module-depends-on');
-  assert((await states.getByRole('img', { name: es.modules.status.disponible }).count()) === 1 && (await states.getByRole('img', { name: es.modules.status.planificado }).count()) === 1, 'each dependency shows its state');
+  assert((await states.getByRole('img', { name: es.modules.status.disponible }).count()) === 2, 'each dependency shows its state');
   assert((await page.getByTestId('module-used-by').textContent()).includes('Tabla de partes'), 'the card shows who uses it');
   assert((await page.getByTestId('module-planned').textContent()).includes(es.modules.planned), 'the planned notice');
   assert((await page.getByTestId('module-card').getByRole('button').count()) === 0, 'no button on a planned module');

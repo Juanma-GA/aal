@@ -45,6 +45,11 @@ export interface ImportReport {
   removed?: { row: null; key: string; values: Record<string, string> }[] | null;
   errors: ImportIssue[];
   warnings: ImportIssue[];
+  /** Articles (E12): rows refused with their reasons (they do not block
+   *  applying the rest), the AR findings by rule, the AR-008 corrections. */
+  rejected?: { row: number; key: string; issues: ImportIssue[] }[] | null;
+  ar?: Record<string, { row: number; key: string; name: string; field: string; problem: string; params: Record<string, string | number> }[]> | null;
+  corrections?: { row: number; key: string; code: string; field: string; value: string }[] | null;
 }
 
 export interface ImportCounts {

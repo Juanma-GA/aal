@@ -368,3 +368,84 @@ abre también el catálogo desde el sidebar), `verify-reference-tables`, `verify
 **Tests.** `npm run check:all` verde (ver el informe). `verify-materials`, `verify-reference-tables`
 (entra por la fila), `verify-conf-fun`, `verify-navigation` (ahora fija el material activo del
 analista y espera "Materiales / CUF" disponible), `verify-auth-settings` y `verify-health` en verde.
+
+## E12 — Artículos (RF-04): maestro único con los 30 campos del Fichero Carga y reglas AR
+
+**Qué.**
+- **Flecos:**
+  1. Versiones del catálogo: borrado lógico (admin, confirmación, auditoría antes/después). No se borra
+     la activa ni una que use un CUF; el error nombra los CUF y remite a "Cambiar versión". Como no
+     existía, se añade "Activar esta versión" (admin), para poder borrar la que estaba activa.
+  2. Solicitudes de SNS: el autor (o quien tenga `material.editar`) descarta su borrador con un botón
+     visible ("Descartar borrador"). Una enviada, aceptada o rechazada solo la anula el admin, con motivo
+     obligatorio: borrado lógico, fuera de la lista y de la exportación, en la auditoría, y vuelve con
+     "Mostrar anuladas".
+  3. "Comparar versiones": en el caso (b) el diff ya era correcto; el problema era el caso (a). Ahora:
+     - el bloque FILAS es una tabla alineada por subcategoría, con las columnas cambiadas resaltadas;
+     - un campo que varía entre subcategorías muestra "Varía por subcategoría" con cada valor (también en
+       la ficha del SNS);
+     - aviso CN-007 (0 en la demo, 1 en la copia a).
+  4. Sidebar: redimensionable por el borde, plegable a iconos con tooltips (botón al pie y `Ctrl+B`) y
+     "Panel a la derecha", guardado por usuario en `ui_preferences`.
+  5. Entorno:
+     - Node: `.nvmrc` 24, `engines.node >=24.22.1`, CI con `node-version-file` y `check-latest`, y aviso
+       en `run-checks`.
+     - README: Node, Defender y la secuencia "después de un `git pull`".
+     - `npm audit fix` (zod 4.6.7; fast-uri ya no está): 0 vulnerabilidades.
+     - `allowScripts` de `esbuild@0.25.12`.
+     - ESLint 10.11 sin tocar la configuración.
+  6. `demo/`: FICHERO_CARGA_DEMO.xlsx y LEEME_DATOS_DEMO.md nuevos.
+- **Backend:**
+  - Migraciones `0007` (flecos) y `0008` (artículos).
+  - `article` y `article_life_control`.
+  - Cabecera, valores S/N y ayuda MAR06 en `article_field_definition`.
+  - Validación genérica y reglas AR-001…AR-008.
+  - API `/api/articles`: lista y filtros, ficha, alta, edición, borrado lógico, avisos, historial, lote
+    de la rejilla, exportación Fichero Carga / Maestro AAL con resumen previo, e importación.
+  - "Dónde se usa" como registro.
+  - `seed_demo_articles.py`.
+- **Frontend:**
+  - `/articulos`: lista virtualizada con buscador, filtros y badges por regla; filas clicables.
+  - Ficha con los campos agrupados, número MAR06, código PRISMA, ayuda, selectores de tabla, avisos con
+    enlace al campo, "Dónde se usa" e historial.
+  - Rejilla con validación por celda, "Aplicar a la selección" y guardado por lotes.
+  - Asistente de importación con las pestañas "Rechazadas", "Avisos AR" y "Autocorrecciones".
+- `verify-articles` en la CI; `verify-conf-fun`, `verify-materials` y `verify-navigation` ampliados.
+
+**Decisiones.**
+- **Migraciones:** la `0007` lleva los flecos y la `0008` los artículos. La parte 1 se subió aparte, sin
+  reescribir una migración ya aplicada; el encargo hablaba de una sola `0007`.
+- **Ancho de los campos numéricos:** el ancho de la definición cuenta todas las cifras, decimales
+  incluidos (como el motor de E03): `Numeric(longitud, decimales)`.
+  - `vaUsoArt` (2, 2) admite como máximo 0,99 €/h. Probable error de la plantilla: la guía dice
+    tamaño 5. Manda E03.
+- **Controles de vida:** solo el primer par va al Fichero Carga. Los pares 2 y 3, en el Maestro AAL.
+- **Lo que no se puede guardar se rechaza** (un texto largo, un tipo imposible: HR6). Lo que falta, o un
+  código que no está en su tabla, se guarda y lo avisa AR-001.
+  - En la importación, una fila así es "rechazada" y el resto se aplica.
+  - En la ficha, un código nuevo que no está en su tabla da 422; el valor ya guardado sigue valiendo.
+- **Clave de importación:** NOC; si falta, P/N + NCAGE (Maestro); si falta, el nombre exacto entre los
+  artículos sin NOC ni P/N.
+- **Importar es solo del admin**, como E03/E10. Editar necesita `articulos.editar` en algún material.
+- **S/N:** un campo es S/N por sus `valores` en la semilla. La tabla D114 de `snCtrlVidaArt` es la del
+  campo relacionado (64): no se valida contra ella.
+- **Duplicado de AR-001 y AR-004:** AR-001 incluye los obligatorios condicionales del encargo (p. ej.
+  `cdCtrlUniArt` si control unitario = S), así que un mismo hueco lo avisan AR-001 y AR-004.
+- **Formato de exportación:** la cabecera del Fichero Carga sigue la oficial (Calibri 8, negrita, fila
+  de códigos en blanco, sin paneles fijados). Los códigos van como texto.
+
+**Diferencias entre `article_field_help.yaml` y `article_field_definition`** (manda E03):
+- peso, largo, ancho y alto (campos 40, 42, 43, 44): tamaño 8 en la guía, 7 en la definición;
+- volumen (campo 46): 8 frente a 6;
+- `vaUsoArt` (campo 56): "Opcional", tamaño 5, frente a "Recomendado", longitud 2;
+- `cdCtrlUniArt` (campo 60): la guía dice "S o N", pero es un código D113;
+- `snCtrlVidaArt` (campo 63): la definición tiene tabla D114, la guía dice S/N;
+- `cdPolEl`: no tiene ficha en la guía ("Sin ayuda en la guía").
+
+**ESLint:** 10.11 funciona sin cambios en `eslint.config.js`; los plugins admiten 10.
+
+**Commits.** `c388e7a` (parte 1), `5d3c3da` (parte 2) y el de cierre (se anota).
+
+**Tests.** `npm run check:all` verde (ver el informe). `verify-articles`, `verify-materials`,
+`verify-conf-fun`, `verify-navigation`, `verify-reference-tables`, `verify-auth-settings` y `verify-health`
+en verde.
