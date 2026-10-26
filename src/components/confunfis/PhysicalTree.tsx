@@ -301,11 +301,13 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
                 ) : null}
                 {row.is_mounted ? (
                   row.mounted ? (
-                    <Link to={`/materiales/${row.mounted.id}/confunfis`} className="shrink-0 text-xs text-link underline-offset-2 hover:underline" data-testid={`tree-mounted-${row.sns}`}>
-                      {t('confunfis.badges.mounted')}
-                    </Link>
+                    <Badge asChild variant="info" className="shrink-0">
+                      <Link to={`/materiales/${row.mounted.id}/confunfis`} data-testid={`tree-mounted-${row.sns}`}>
+                        {t('confunfis.badges.mounted')}
+                      </Link>
+                    </Badge>
                   ) : (
-                    <Badge variant="outline" className="shrink-0">{t('confunfis.badges.mounted')}</Badge>
+                    <Badge variant="info" className="shrink-0">{t('confunfis.badges.mounted')}</Badge>
                   )
                 ) : null}
               </div>

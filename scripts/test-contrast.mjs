@@ -1,7 +1,7 @@
 // WCAG 2.2 AA for the theme (src/styles/globals.css): every text/background
 // pair the app uses at least 4.5:1 (normal text) and every status icon at
 // least 3:1 (non-text contrast), in the light and the dark theme, with each
-// variant (C, the default, and A). The link (E11) on the background
+// variant (the default, C and A). The link (E11) on the background
 // and on cards, and distinct from the text next to it. (E15b)
 //
 // Run: node scripts/test-contrast.mjs
@@ -47,6 +47,7 @@ const ratio = (x, y) => {
 };
 
 // [text or icon, on, minimum]: what the components put on what.
+// Borders (the header's line among them) are decorative: WCAG asks them no contrast.
 const PAIRS = [
   ['foreground', 'background', TEXT],
   ['card-foreground', 'card', TEXT],
@@ -79,7 +80,6 @@ const PAIRS = [
   ['sidebar-accent-foreground', 'sidebar-accent', TEXT],
   ['sidebar-active-foreground', 'sidebar-active', TEXT],
   ['sidebar-active-bar', 'sidebar-active', ICON],
-  ['header-line', 'background', ICON],
   ['sidebar-primary-foreground', 'sidebar-primary', TEXT],
   ['sidebar-primary', 'sidebar', ICON],
   ['sidebar-primary', 'sidebar-accent', ICON],
@@ -91,16 +91,25 @@ const PAIRS = [
   ['sidebar-module-developing', 'sidebar', ICON],
   ['sidebar-module-planned', 'sidebar', ICON],
   ['brand', 'accent', ICON],
+  ['selected-foreground', 'selected', TEXT],
+  ['link', 'selected', TEXT],
+  ['brand', 'selected', ICON],
+  ['tab-active-foreground', 'card', TEXT],
   ['ring', 'background', ICON],
 ];
 
 const root = tokens(block(':root'));
+const C = '[data-theme-variant="c"], [data-theme-variant="a"]';
+const c = { ...root, ...tokens(block(`:root:not(.dark):is(${C})`)) };
 const dark = { ...root, ...tokens(block('.dark')) };
+const darkC = { ...dark, ...tokens(block(`.dark:is(${C})`)) };
 const THEMES = [
-  ['light C', root],
-  ['light A', { ...root, ...tokens(block(':root:not(.dark)[data-theme-variant="a"]')) }],
-  ['dark C', dark],
-  ['dark A', { ...dark, ...tokens(block('.dark[data-theme-variant="a"]')) }],
+  ['light', root],
+  ['light C', c],
+  ['light A', { ...c, ...tokens(block(':root:not(.dark)[data-theme-variant="a"]')) }],
+  ['dark', dark],
+  ['dark C', darkC],
+  ['dark A', { ...darkC, ...tokens(block('.dark[data-theme-variant="a"]')) }],
 ];
 
 let failures = 0;

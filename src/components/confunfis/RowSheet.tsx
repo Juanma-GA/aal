@@ -73,7 +73,7 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
               {row.alternative ? <Badge variant="info">{t('confunfis.badges.alternative')}</Badge> : null}
               {row.cs_alternative ? <Badge variant="info">{t('confunfis.badges.csAlternative')}</Badge> : null}
               {row.ct_sigle === 'S' ? <Badge variant="info">{t('confunfis.badges.ctSigle')}</Badge> : null}
-              {row.is_mounted ? <Badge variant="outline">{t('confunfis.badges.mounted')}</Badge> : null}
+              {row.is_mounted ? <Badge variant="info">{t('confunfis.badges.mounted')}</Badge> : null}
               {row.extra_function_count ? <Badge variant="outline">{t('confunfis.badges.multifunction', { count: row.extra_function_count })}</Badge> : null}
               <ObservationBadges row={row} />
             </div>

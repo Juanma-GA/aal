@@ -9,7 +9,7 @@ const LOGO_SRC = '/brand/eme-group-logo.png';
 export function AppHeader({ withSidebar }: { withSidebar: boolean }): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <header className="border-b-[3px] border-header-line bg-header text-header-foreground">
+    <header className="border-b-(length:--header-line-width) border-header-line bg-header text-header-foreground">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         {withSidebar ? <SidebarTrigger className="text-header-control-foreground hover:bg-header-accent hover:text-header-control-foreground" data-testid="sidebar-trigger" /> : null}
         <Link to="/" className="flex items-center gap-4">

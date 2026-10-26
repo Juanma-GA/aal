@@ -443,13 +443,15 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   sin fondo oscurecido, y la lista sigue pulsable; por debajo, el `sheet` de shadcn. Ancho arrastrando el borde, el mismo para
   todas, en `ui_preferences.detail_panel_width` (límites en el parámetro `ui`, `useDetailPanelWidth`). Se cierra con ×, Esc
   (salvo con un diálogo abierto) o volviendo a pulsar la fila (lo hace la página).
-- **Tema (E15b, D8)**: "azul marino em&e", variante C por defecto (cabecera blanca con línea de 3 px en `--primary`,
-  sidebar azul grisáceo muy claro, fondo casi blanco, contenido en blanco). El azul marino solo en botones principales,
-  línea de la cabecera, ítem activo del sidebar, pestaña activa y chip principal (`Badge variant="strong"`); nunca como
-  fondo de una superficie grande. Badges `info` (azul pálido) y `warning` (ámbar suave); el `default` también es pálido.
-  Fila seleccionada con la utilidad `row-selected` (acento + barra de 3 px en `--brand`). La variante A (cabecera y
-  sidebar en azul marino) es `data-theme-variant="a"` en el `<html>` de `index.html`. `scripts/test-contrast.mjs`
-  comprueba AA de todos los pares texto/fondo (iconos 3:1) en claro y oscuro con las dos variantes.
+- **Tema (E15b, D8)**: por defecto, el aspecto de siempre (neutros grafito, cabecera blanca con su borde gris fino,
+  sidebar y fondo blancos, botones grafito) con los **estados en azul**: badges `info` (azul pálido: CT SIGLE,
+  Alternativo, CUF montado) y `warning` (ámbar suave: observaciones); fila seleccionada con la utilidad `row-selected`
+  (`--selected` azul muy pálido y una barra fina en `--brand`, pintada como fondo para no tapar el anillo de foco);
+  ítem activo del sidebar en `--sidebar-active` y seminegrita, sin barra; iconos de módulo disponible en
+  `--module-available` (azul), planificado en gris. Alternativas por tokens con un atributo en el `<html>` de
+  `index.html`: `data-theme-variant="c"` (azul marino: línea de 3 px bajo la cabecera, sidebar azul grisáceo, pestaña
+  activa subrayada) y `"a"` (C con cabecera y sidebar en azul marino). `scripts/test-contrast.mjs` comprueba AA de
+  todos los pares texto/fondo (iconos 3:1) en claro y oscuro con las tres.
 - **Sidebar (E12)**: ancho (borde arrastrable, límites en el parámetro `ui`), plegado a iconos (botón al pie y
   `Ctrl+B`) y lado, en `ui_preferences` (`useSidebarLayout`); `/api/me/ui-settings` da los límites.
 - **Listas navegables y enlaces (E11)**: toda fila que abre algo es un `NavRow`

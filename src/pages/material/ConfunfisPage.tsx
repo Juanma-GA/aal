@@ -114,11 +114,11 @@ export function ConfunfisPage(): React.JSX.Element {
       <div className="flex flex-wrap items-center gap-2">
         {summary.data ? (
           <>
-            <Badge variant="strong" data-testid="confunfis-summary-rows">{t('confunfis.summary.rows', { count: summary.data.rows })}</Badge>
+            <Badge data-testid="confunfis-summary-rows">{t('confunfis.summary.rows', { count: summary.data.rows })}</Badge>
             <Badge variant="secondary">{t('confunfis.summary.positions', { count: summary.data.positions })}</Badge>
             <Badge variant="secondary">{t('confunfis.summary.covered', { covered: summary.data.sns_covered, total: summary.data.sns_in_config })}</Badge>
-            {summary.data.multifunction_rows ? <Badge variant="secondary">{t('confunfis.summary.multifunction', { count: summary.data.multifunction_rows })}</Badge> : null}
-            {summary.data.incompatibility_rows ? <Badge variant="secondary">{t('confunfis.summary.incompatible', { count: summary.data.incompatibility_rows })}</Badge> : null}
+            {summary.data.multifunction_rows ? <Badge variant="outline">{t('confunfis.summary.multifunction', { count: summary.data.multifunction_rows })}</Badge> : null}
+            {summary.data.incompatibility_rows ? <Badge variant="outline">{t('confunfis.summary.incompatible', { count: summary.data.incompatibility_rows })}</Badge> : null}
             {summary.data.with_observations ? (
               <Badge variant="warning">{t('confunfis.summary.observations', { count: summary.data.with_observations })}</Badge>
             ) : null}

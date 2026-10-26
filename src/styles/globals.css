@@ -4,21 +4,21 @@
  * colour, a font or a radius of their own -- only these variables, through
  * Tailwind's semantic classes (bg-primary, text-muted-foreground...).
  *
- * em&e navy theme (D8, E15b): sober. The navy (--primary, hue 255) only
- * on the primary buttons, the header's bottom line, the sidebar's active
- * item, the active tab and the main chip (the CONFUNFIS rows); never as the
- * background of a large surface. The background, the borders, the table
- * headers, the hover and the sidebar are an almost grey blue (chroma <=
- * 0.035); the content (trees, tables, cards, the side panel) stays white.
- * Badges are pale blue with dark text. One brighter blue (--brand) for
- * links, focus, the selected row's bar and the "available" modules. Every
+ * em&e theme (D8, E15b): the graphite neutrals of the logo, as before E15b
+ * (white header with its thin grey border, white sidebar and background,
+ * graphite primary buttons), with the states in blue: pale blue badges for
+ * information (CT SIGLE, Alternativo, CUF montado) and soft amber for
+ * observations; the selected row and the sidebar's active item on a very
+ * pale blue (the row with a thin --brand bar on the left, the item in
+ * semibold); "available" module icons in blue, "planned" in grey. Every
  * text/background pair the app uses meets WCAG 2.2 AA (4.5:1; icons 3:1),
- * in light and in dark, with both variants (scripts/test-contrast.mjs).
+ * in light and in dark, with each variant (scripts/test-contrast.mjs).
  *
- * Variants: C (the default) is a white header with a navy line and a very
- * light grey-blue sidebar; A is a navy header and sidebar with light text.
- * Choosing A is one attribute on <html> in index.html:
- * data-theme-variant="a" (its tokens are below).
+ * Alternatives, one attribute on <html> in index.html:
+ *   data-theme-variant="c": navy -- white header with a 3 px navy line, a
+ *     grey-blue sidebar, the navy on the primary buttons, the active tab and
+ *     the main chip;
+ *   data-theme-variant="a": C with a navy header and a navy sidebar.
  */
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -30,6 +30,93 @@
 :root {
   --radius: 0.5rem;
 
+  --background: oklch(0.99 0.002 255);
+  --foreground: oklch(0.22 0.015 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.015 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.015 255);
+  /* Graphite: primary actions. */
+  --primary: oklch(0.3 0.015 255);
+  --primary-foreground: oklch(0.98 0.003 255);
+  --secondary: oklch(0.95 0.005 255);
+  --secondary-foreground: oklch(0.26 0.015 255);
+  --muted: oklch(0.955 0.005 255);
+  --muted-foreground: oklch(0.47 0.015 255);
+  --accent: oklch(0.94 0.008 255);
+  --accent-foreground: oklch(0.26 0.015 255);
+  --destructive: oklch(0.53 0.2 27);
+  --destructive-foreground: oklch(0.98 0.003 255);
+  --border: oklch(0.89 0.006 255);
+  --input: oklch(0.89 0.006 255);
+  --ring: oklch(0.5 0.13 250);
+
+  /* The header bar: white, its thin grey border, normal text. */
+  --header: oklch(1 0 0);
+  --header-foreground: oklch(0.22 0.015 255);
+  --header-control-foreground: oklch(0.22 0.015 255);
+  --header-accent: oklch(0.94 0.008 255);
+  --header-line: oklch(0.89 0.006 255);
+  --header-line-width: 1px;
+  /* Behind the logo (graphite artwork): keeps it legible in dark mode. */
+  --logo-surface: oklch(1 0 0 / 0);
+
+  /* The PALI sidebar (E02). */
+  --sidebar: oklch(0.975 0.004 255);
+  --sidebar-foreground: oklch(0.24 0.015 255);
+  --sidebar-label: oklch(0.47 0.015 255);
+  --sidebar-primary: oklch(0.3 0.015 255);
+  --sidebar-primary-foreground: oklch(0.98 0.003 255);
+  --sidebar-accent: oklch(0.93 0.008 255);
+  --sidebar-accent-foreground: oklch(0.22 0.015 255);
+  /* The active item: a very pale blue, semibold, no bar. */
+  --sidebar-active: oklch(0.935 0.03 250);
+  --sidebar-active-foreground: oklch(0.22 0.015 255);
+  --sidebar-active-bar: oklch(0.3 0.015 255);
+  --sidebar-active-bar-width: 0px;
+  --sidebar-border: oklch(0.89 0.006 255);
+  --sidebar-ring: oklch(0.5 0.13 250);
+  /* The state of a module, as an icon: available, being built, planned. */
+  --module-available: oklch(0.5 0.13 250);
+  --module-developing: oklch(0.5 0.12 65);
+  --module-planned: oklch(0.6 0.015 255);
+  --sidebar-module-available: oklch(0.5 0.13 250);
+  --sidebar-module-developing: oklch(0.5 0.12 65);
+  --sidebar-module-planned: oklch(0.6 0.015 255);
+  /* The selected row of a tree or a list: a very pale blue, a thin bar. */
+  --selected: oklch(0.95 0.025 250);
+  --selected-foreground: oklch(0.22 0.015 255);
+  --selected-bar-width: 2px;
+  /* The active tab: as shadcn draws it (C underlines it in navy). */
+  --tab-active-foreground: oklch(0.22 0.015 255);
+  --tab-active-line: oklch(1 0 0 / 0);
+
+  /* em&e accent: links, focus, the selected row's bar. */
+  --brand: oklch(0.5 0.13 250);
+  --brand-foreground: oklch(0.98 0.003 255);
+  /* Behind a modal dialog or a side panel. */
+  --overlay: oklch(0.15 0.01 255 / 0.5);
+  /* Status. */
+  --success: oklch(0.47 0.12 150);
+  --success-foreground: oklch(0.98 0.003 255);
+  --warning: oklch(0.5 0.12 65);
+  --warning-foreground: oklch(0.98 0.003 255);
+  /* Soft badges: information (CT SIGLE, Alternativo, CUF montado) in blue,
+     observations in amber; errors stay destructive. */
+  --info-soft: oklch(0.94 0.03 250);
+  --info-soft-foreground: oklch(0.3 0.05 255);
+  --warning-soft: oklch(0.95 0.05 85);
+  --warning-soft-foreground: oklch(0.44 0.1 60);
+  /* Links (E11): a blue that reads as a link next to the graphite primary,
+     AA on the background and on cards. */
+  --link: oklch(0.47 0.16 258);
+
+  --font-sans-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Variant C: navy. */
+:root:not(.dark):is([data-theme-variant="c"], [data-theme-variant="a"]) {
   /* Almost white, a hint of blue, behind white cards. */
   --background: oklch(0.98 0.006 250);
   --foreground: oklch(0.22 0.03 255);
@@ -106,11 +193,17 @@
      AA on the background and on cards. */
   --link: oklch(0.47 0.16 258);
 
-  --font-sans-family: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono-family: "JetBrains Mono", ui-monospace, monospace;
+  /* What makes C stand out over the default. */
+  --header-line-width: 3px;
+  --sidebar-active-bar-width: 3px;
+  --selected: oklch(0.945 0.016 250);
+  --selected-foreground: oklch(0.26 0.03 255);
+  --selected-bar-width: 3px;
+  --tab-active-foreground: oklch(0.32 0.07 255);
+  --tab-active-line: oklch(0.32 0.07 255);
 }
 
-/* Variant A: navy header and sidebar, light text. */
+/* Variant A: C with a navy header and a navy sidebar, light text. */
 :root:not(.dark)[data-theme-variant="a"] {
   --header: oklch(0.32 0.07 255);
   --header-foreground: oklch(0.98 0.005 250);
@@ -135,8 +228,71 @@
   --sidebar-module-planned: oklch(0.66 0.03 255);
 }
 
-/* Dark: night blue. */
 .dark {
+  --background: oklch(0.18 0.01 255);
+  --foreground: oklch(0.95 0.004 255);
+  --card: oklch(0.22 0.012 255);
+  --card-foreground: oklch(0.95 0.004 255);
+  --popover: oklch(0.22 0.012 255);
+  --popover-foreground: oklch(0.95 0.004 255);
+  --primary: oklch(0.9 0.006 255);
+  --primary-foreground: oklch(0.22 0.015 255);
+  --secondary: oklch(0.28 0.012 255);
+  --secondary-foreground: oklch(0.95 0.004 255);
+  --muted: oklch(0.27 0.012 255);
+  --muted-foreground: oklch(0.74 0.01 255);
+  --accent: oklch(0.3 0.012 255);
+  --accent-foreground: oklch(0.95 0.004 255);
+  --destructive: oklch(0.68 0.18 25);
+  --destructive-foreground: oklch(0.18 0.01 255);
+  --border: oklch(0.34 0.012 255);
+  --input: oklch(0.34 0.012 255);
+  --ring: oklch(0.72 0.12 250);
+
+  --header: oklch(0.22 0.012 255);
+  --header-foreground: oklch(0.95 0.004 255);
+  --header-control-foreground: oklch(0.95 0.004 255);
+  --header-accent: oklch(0.3 0.012 255);
+  --header-line: oklch(0.34 0.012 255);
+  --logo-surface: oklch(0.97 0.003 255);
+
+  --sidebar: oklch(0.2 0.011 255);
+  --sidebar-foreground: oklch(0.93 0.004 255);
+  --sidebar-label: oklch(0.74 0.01 255);
+  --sidebar-primary: oklch(0.9 0.006 255);
+  --sidebar-primary-foreground: oklch(0.2 0.011 255);
+  --sidebar-accent: oklch(0.29 0.012 255);
+  --sidebar-accent-foreground: oklch(0.95 0.004 255);
+  --sidebar-active: oklch(0.3 0.04 255);
+  --sidebar-active-foreground: oklch(0.95 0.004 255);
+  --sidebar-active-bar: oklch(0.9 0.006 255);
+  --sidebar-border: oklch(0.32 0.012 255);
+  --sidebar-ring: oklch(0.72 0.12 250);
+  --module-available: oklch(0.74 0.11 250);
+  --module-developing: oklch(0.78 0.12 75);
+  --module-planned: oklch(0.6 0.012 255);
+  --sidebar-module-available: oklch(0.74 0.11 250);
+  --sidebar-module-developing: oklch(0.78 0.12 75);
+  --sidebar-module-planned: oklch(0.6 0.012 255);
+  --selected: oklch(0.29 0.035 255);
+  --selected-foreground: oklch(0.95 0.004 255);
+  --tab-active-foreground: oklch(0.95 0.004 255);
+
+  --overlay: oklch(0.05 0.005 255 / 0.65);
+  --brand: oklch(0.74 0.11 250);
+  --brand-foreground: oklch(0.18 0.01 255);
+  --success: oklch(0.75 0.13 150);
+  --success-foreground: oklch(0.18 0.01 255);
+  --warning: oklch(0.78 0.12 75);
+  --warning-foreground: oklch(0.18 0.01 255);
+  --info-soft: oklch(0.3 0.03 255);
+  --info-soft-foreground: oklch(0.9 0.04 250);
+  --warning-soft: oklch(0.3 0.06 70);
+  --warning-soft-foreground: oklch(0.88 0.1 85);
+  --link: oklch(0.8 0.1 250);
+}
+
+.dark:is([data-theme-variant="c"], [data-theme-variant="a"]) {
   --background: oklch(0.17 0.015 255);
   --foreground: oklch(0.95 0.01 250);
   --card: oklch(0.21 0.018 255);
@@ -195,6 +351,14 @@
   --warning-soft: oklch(0.3 0.06 70);
   --warning-soft-foreground: oklch(0.88 0.1 85);
   --link: oklch(0.8 0.1 250);
+
+  --header-line-width: 3px;
+  --sidebar-active-bar-width: 3px;
+  --selected: oklch(0.3 0.03 255);
+  --selected-foreground: oklch(0.96 0.01 250);
+  --selected-bar-width: 3px;
+  --tab-active-foreground: oklch(0.8 0.09 250);
+  --tab-active-line: oklch(0.8 0.09 250);
 }
 
 .dark[data-theme-variant="a"] {
@@ -249,6 +413,8 @@
   --color-header-accent: var(--header-accent);
   --color-header-line: var(--header-line);
   --color-sidebar-label: var(--sidebar-label);
+  --color-tab-active-foreground: var(--tab-active-foreground);
+  --color-tab-active-line: var(--tab-active-line);
   --color-header-control-foreground: var(--header-control-foreground);
   --color-module-available: var(--module-available);
   --color-module-developing: var(--module-developing);
@@ -288,18 +454,18 @@
 }
 [data-sidebar="menu-button"][data-active="true"] {
   background-color: var(--sidebar-active);
-  /* The bar as a background, not a box-shadow: the focus ring is one. */
-  background-image: linear-gradient(to right, var(--sidebar-active-bar) 3px, transparent 3px);
+  /* The bar (none by default) as a background, not a box-shadow: the focus ring is one. */
+  background-image: linear-gradient(to right, var(--sidebar-active-bar) var(--sidebar-active-bar-width), transparent var(--sidebar-active-bar-width));
   color: var(--sidebar-active-foreground);
   font-weight: 600;
 }
 
 /* The selected row of a tree or a list: the accent and a bar on the left. */
 @utility row-selected {
-  background-color: var(--accent);
+  background-color: var(--selected);
   /* The bar as a background, not a box-shadow: a search hit's ring is one. */
-  background-image: linear-gradient(to right, var(--brand) 3px, transparent 3px);
-  color: var(--accent-foreground);
+  background-image: linear-gradient(to right, var(--brand) var(--selected-bar-width), transparent var(--selected-bar-width));
+  color: var(--selected-foreground);
 }
 
 @media (prefers-reduced-motion: reduce) {
