@@ -15,6 +15,7 @@ from app.models.article import (
 )
 from app.models.audit_log import AuditLog
 from app.models.confunfis import POSITION_SOURCES, PhysicalPosition
+from app.models.confunfis_extras import INCOMPATIBILITY_KINDS, ArticlePart, ExtraFunction, FunctionalProduct, Incompatibility
 from app.models.catalog import CatalogVersion, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, SubcategorySns
 from app.models.import_job import IMPORT_JOB_STATUSES, ImportJob
 from app.models.login_failure import LoginFailure
@@ -40,9 +41,14 @@ __all__ = [
     "Article",
     "ArticleLifeControl",
     "ArticleFieldDefinition",
+    "ArticlePart",
     "ArticleReference",
     "ArticleRevalidation",
     "EDITABLE_FIELD_ATTRIBUTES",
+    "ExtraFunction",
+    "FunctionalProduct",
+    "INCOMPATIBILITY_KINDS",
+    "Incompatibility",
     "AuditLog",
     "CatalogVersion",
     "FIELD_COLUMNS",

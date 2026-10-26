@@ -8,6 +8,7 @@ from typing import Annotated, Any
 from pydantic import BaseModel, Field
 
 from app.schemas.common import StrictModel
+from app.schemas.confunfis_extras import ArticleBrief, CufPartOut, ExtraFunctionOut, IncompatibilityOut
 
 _Short = Field(default=None, max_length=40)
 
@@ -62,15 +63,6 @@ class AlternativeCsIn(StrictModel):
     cs_al: str = Field(min_length=1, max_length=40)
 
 
-class ArticleBrief(BaseModel):
-    id: uuid.UUID
-    noc: str | None
-    pn: str | None
-    ncage: str | None
-    nombre: str
-    origin: str
-
-
 class MaterialBrief(BaseModel):
     id: uuid.UUID
     name: str
@@ -103,6 +95,9 @@ class RowOut(BaseModel):
     # not open stays unknown, as a 404.
     is_mounted: bool
     mounted: MaterialBrief | None
+    # E14: its extra functions (a multifunction component) and incompatibilities.
+    extra_function_count: int = 0
+    incompatibility_count: int = 0
     version: int
     updated_at: datetime
 
@@ -137,6 +132,10 @@ class RowDetail(RowOut):
     history: list[dict[str, Any]]
     # The distinct AL of its hueco (E14: removing one may leave a single AL).
     hueco_als: list[str] = []
+    # E14: what hangs from the row, and the parts of its article (with their total in the CUF).
+    extra_functions: list[ExtraFunctionOut] = []
+    incompatibilities: list[IncompatibilityOut] = []
+    parts: list[CufPartOut] = []
 
 
 class PathStep(BaseModel):
@@ -164,6 +163,9 @@ class FunctionalNode(BaseModel):
     row_count: int
     # Rows in this SNS and every SNS below it in the configuration.
     rows_below: int
+    # E14: extra functions of rows elsewhere that cover this SNS (and below it).
+    extra_count: int = 0
+    extras_below: int = 0
 
 
 class FunctionalLevel(BaseModel):
@@ -180,6 +182,11 @@ class Summary(BaseModel):
     sns_in_config: int
     with_observations: int
     by_observation: dict[str, int]
+    # E14
+    sns_covered_by_extra: int = 0
+    products: int = 0
+    multifunction_rows: int = 0
+    incompatibility_rows: int = 0
 
 
 class NextSlot(BaseModel):

@@ -104,7 +104,8 @@ async def test_the_figures_of_the_demo(client, demo):
     async with async_session_factory() as session:
         refs = await session.scalar(select(func.count()).select_from(ArticleReference).where(ArticleReference.origin == "confunfis", ArticleReference.deleted_at.is_(None)))
         provisional = await session.scalar(select(func.count()).select_from(Article).where(Article.origin == "confunfis"))
-    assert (len(articles), refs, provisional) == (41, 41, 0)
+    # 41 from the rows, and (E14) 3 from the pump's parts table (gasket and both racores).
+    assert (len(articles), refs, provisional) == (41, 44, 0)
 
     # CUF montado: the radio (and the motor, whose NOC is also a demo material's CUF).
     admin_rows = (await all_rows(client, demo, demo["people"]["admin"]))["items"]

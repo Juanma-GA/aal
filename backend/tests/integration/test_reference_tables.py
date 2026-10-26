@@ -14,7 +14,7 @@ from unit.test_reference_seed import COUNTS
 async def test_the_migration_loaded_the_tables_and_the_fields(db):
     rows = await db.execute(select(ReferenceValue.table_code, func.count()).group_by(ReferenceValue.table_code))
     assert dict(rows.all()) == COUNTS
-    assert await db.scalar(select(func.count()).select_from(ReferenceTable)) == 15
+    assert await db.scalar(select(func.count()).select_from(ReferenceTable)) == 16
     assert await db.scalar(select(func.count()).select_from(ArticleFieldDefinition)) == 30
     def codes(table):
         return db.execute(select(ReferenceValue.code).where(ReferenceValue.table_code == table))

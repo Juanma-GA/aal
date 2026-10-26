@@ -13,6 +13,8 @@
 #   llevarlos a columnas de Excel.
 # - El código 09 de D114 va entre comillas: los códigos son siempre texto
 #   (la carga rechaza cualquier código que no lo sea).
+# - E14: tabla CRITERIO_MULTIFUNCION (criterio de ubicación de un componente
+#   multifunción, §9.1.1), configurable por el admin.
 # - E13: vaUsoArt (campo 56) pasa de longitud 2 a 5 y caVoluArt (campo 46) de
 #   6 a 8, como la guía MAR06. Convención de `longitud` en los numéricos: el
 #   número de dígitos, sin contar la coma (la precisión de SQL); `decimales`,
@@ -1753,6 +1755,17 @@ tablas:
     descripcion: Producto de sustitución aceptable
   - codigo: E
     descripcion: Producto de sustitución de emergencia
+- codigo: CRITERIO_MULTIFUNCION
+  nombre: Criterio de ubicación de un componente multifunción
+  fuente: NT 10/17 (mayo 2017) §9.1.1 (E14)
+  nota: Por qué un componente que realiza varias funciones se ubica en el SNS de su fila y no en los de sus funciones adicionales.
+  valores:
+  - codigo: funcion_principal
+    descripcion: Función principal
+  - codigo: funcion_mas_critica
+    descripcion: Función más crítica
+  - codigo: otro
+    descripcion: Otro criterio
 campos_articulo:
 - codigo_prisma: cdART
   cabecera: 'NOC del artículo'

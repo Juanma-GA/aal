@@ -25,7 +25,7 @@ from app.api.routes.catalog import like_text
 from app.api.routes.users import confirmation_required, version_conflict
 from app.core.errors import error_detail
 from app.db.base import get_db
-from app.models import Article, AuditLog, Material, PhysicalPosition, SnsPosition, User
+from app.models import Article, ArticlePart, AuditLog, ExtraFunction, Incompatibility, Material, PhysicalPosition, SnsPosition, User
 from app.schemas.confunfis import (
     AlternativeCsIn,
     ArticleBrief,
@@ -46,7 +46,9 @@ from app.schemas.confunfis import (
     TreeLevel,
     VersionIn,
 )
+from app.schemas.confunfis_extras import CufPartOut, ExtraFunctionOut, IncompatibilityOut, PartOut, RowRef
 from app.services import audit, confunfis, cuf
+from app.services import confunfis_extras as extras
 from app.services.catalog_tree import tree_level
 from app.services.confunfis_graph import ROOT, Graph, key_text, well_formed
 from app.services.parameters import get_parameter
@@ -76,6 +78,10 @@ class Context:
     # Row -> the material whose CUF it is; `visible`: those the user may open.
     mounted: dict[uuid.UUID, Material]
     visible: set[uuid.UUID]
+    # E14: what hangs from the rows; `gone`, removed rows an incompatibility still names.
+    extras: list[ExtraFunction]
+    incompatibilities: list[Incompatibility]
+    gone: dict[uuid.UUID, PhysicalPosition]
 
     def by_id(self, row_id: uuid.UUID) -> PhysicalPosition:
         found = next((r for r in self.rows if r.id == row_id), None)
@@ -94,24 +100,110 @@ async def _context(db: AsyncSession, material: Material, user: User) -> Context:
     names[ROOT[0]] = material.name
     visible = {a.material.id for a in await accessible_materials(db, user)}
     mounted = await confunfis.mounted(db, material, rows, articles)
-    return Context(material, rows, Graph(confunfis.graph_row(r) for r in rows), articles, names, mounted, visible)
+    extra_rows = await extras.live_extras(db, material.id)
+    incompatibilities = await extras.live_incompatibilities(db, material.id)
+    live = {r.id for r in rows}
+    missing = {i for x in incompatibilities for i in (x.row_a_id, x.row_b_id) if i not in live}
+    gone = {r.id: r for r in (await db.execute(select(PhysicalPosition).where(PhysicalPosition.id.in_(missing)))).scalars()} if missing else {}
+    if material.catalog_version_id and extra_rows:
+        more = {e.sns for e in extra_rows} - set(names)
+        if more:
+            names.update(dict((await db.execute(select(SnsPosition.sns, SnsPosition.name).where(SnsPosition.version_id == material.catalog_version_id, SnsPosition.sns.in_(more)))).all()))
+    return Context(material, rows, Graph(confunfis.graph_row(r) for r in rows), articles, names, mounted, visible, extra_rows, incompatibilities, gone)
+
+
+def article_brief(a: Article | None, reference_id: uuid.UUID | None) -> ArticleBrief | None:
+    if a is None:
+        return None
+    ref = next((x for x in a.live_references if x.id == reference_id), None)
+    return ArticleBrief(id=a.id, noc=a.noc, pn=ref.pn if ref else None, ncage=ref.ncage if ref else None, nombre=a.nombre, origin=a.origin)
+
+
+def part_out(p: ArticlePart, articles: dict[uuid.UUID, Article], alps: dict[tuple[uuid.UUID, str], set[str]]) -> PartOut:
+    return PartOut(
+        id=p.id, parent_article_id=p.parent_article_id, cop=p.cop, alp=p.alp, quantity=_plain(p.quantity), part_name=p.part_name,
+        article=article_brief(articles.get(p.part_article_id) if p.part_article_id else None, p.article_reference_id),
+        source=p.source, observations=p.observations, observation_codes=list(p.observation_codes),
+        alternative=len(alps.get((p.parent_article_id, p.cop), set())) > 1, version=p.version, updated_at=p.updated_at,
+    )
+
+
+async def articles_by_id(db: AsyncSession, ids: set[uuid.UUID | None]) -> dict[uuid.UUID, Article]:
+    ids = {i for i in ids if i}
+    return {a.id: a for a in (await db.execute(select(Article).where(Article.id.in_(ids)))).scalars()} if ids else {}
+
+
+def alps_of(parts: list[ArticlePart]) -> dict[tuple[uuid.UUID, str], set[str]]:
+    out: dict[tuple[uuid.UUID, str], set[str]] = {}
+    for p in parts:
+        out.setdefault((p.parent_article_id, p.cop), set()).add(p.alp)
+    return out
+
+
+async def cuf_parts(db: AsyncSession, ctx: Context, parent_ids: set[uuid.UUID] | None = None) -> list[CufPartOut]:
+    """The parts of the articles in the CUF's rows (or of `parent_ids`), with
+    their parent's positions and their total in the CUF."""
+    in_rows = {r.article_id for r in ctx.rows if r.article_id}
+    wanted = in_rows if parent_ids is None else parent_ids & in_rows
+    if not wanted:
+        return []
+    parts = [p for p in await extras.live_parts(db) if p.parent_article_id in wanted]
+    totals = extras.part_totals(ctx.graph, ctx.rows, parts)
+    articles = {**ctx.articles, **await articles_by_id(db, {p.part_article_id for p in parts} - set(ctx.articles))}
+    positions: dict[uuid.UUID, list[str]] = {}
+    for r in _ordered(ctx.rows):
+        if r.article_id:
+            positions.setdefault(r.article_id, []).append(key_text((r.sns, r.co, r.al)))
+    alps = alps_of(parts)
+    out = [
+        CufPartOut(
+            **part_out(p, articles, alps).model_dump(), parent=article_brief(ctx.articles[p.parent_article_id], None),
+            parent_positions=positions.get(p.parent_article_id, []), total=_plain(totals.get(p.id)),
+        )
+        for p in parts
+    ]
+    return sorted(out, key=lambda x: (x.parent.nombre, x.cop, x.alp, str(x.id)))
+
+
+def row_ref(ctx: Context, row_id: uuid.UUID) -> RowRef:
+    r = next((x for x in ctx.rows if x.id == row_id), None) or ctx.gone.get(row_id)
+    if r is None:
+        return RowRef(id=row_id, position="", name=None, deleted=True)
+    a = ctx.articles.get(r.article_id) if r.article_id else None
+    return RowRef(id=r.id, position=key_text((r.sns, r.co, r.al)), name=r.article_name or (a.nombre if a else None), deleted=r.deleted_at is not None)
+
+
+def extra_out(ctx: Context, e: ExtraFunction) -> ExtraFunctionOut:
+    return ExtraFunctionOut(
+        id=e.id, row=row_ref(ctx, e.position_id), sns=e.sns, sns_name=ctx.names.get(e.sns), criterion=e.criterion, comment=e.comment,
+        source=e.source, version=e.version, updated_at=e.updated_at,
+    )
+
+
+def incompatibility_out(ctx: Context, i: Incompatibility) -> IncompatibilityOut:
+    return IncompatibilityOut(
+        id=i.id, row_a=row_ref(ctx, i.row_a_id), row_b=row_ref(ctx, i.row_b_id), kind=i.kind, reason=i.reason, source=i.source,
+        observations=i.observations, observation_codes=list(i.observation_codes), version=i.version, updated_at=i.updated_at,
+    )
 
 
 def _row_out(ctx: Context, r: PhysicalPosition) -> RowOut:
     a = ctx.articles.get(r.article_id) if r.article_id else None
-    ref = next((x for x in a.live_references if x.id == r.article_reference_id), None) if a else None
     g = ctx.graph.rows[str(r.id)]
     m = ctx.mounted.get(r.id)
     link = m if m is not None and m.id in ctx.visible else None
     return RowOut(
         id=r.id, sns=r.sns, co=r.co, al=r.al, qty=_plain(r.qty), sns_name=ctx.names.get(r.sns),
-        article=ArticleBrief(id=a.id, noc=a.noc, pn=ref.pn if ref else None, ncage=ref.ncage if ref else None, nombre=a.nombre, origin=a.origin) if a else None,
+        article=article_brief(a, r.article_reference_id),
         article_name=r.article_name, function_text=r.function_text, ct_sigle=r.ct_sigle, cs_sns=r.cs_sns, cs_co=r.cs_co, cs_al=r.cs_al,
         source=r.source, observations=r.observations, observation_codes=list(r.observation_codes),
         total=_plain(ctx.graph.total(g.hueco)), orphan=ctx.graph.orphan.get(str(r.id)),
         alternative=ctx.graph.is_alternative(g), cs_alternative=ctx.graph.is_cs_alternative(g),
         child_count=len(ctx.graph.children.get(g.key, [])),
-        is_mounted=link is not None, mounted=MaterialBrief(id=link.id, name=link.name) if link else None, version=r.version, updated_at=r.updated_at,
+        is_mounted=link is not None, mounted=MaterialBrief(id=link.id, name=link.name) if link else None,
+        extra_function_count=sum(1 for e in ctx.extras if e.position_id == r.id),
+        incompatibility_count=sum(1 for i in ctx.incompatibilities if r.id in (i.row_a_id, i.row_b_id)),
+        version=r.version, updated_at=r.updated_at,
     )
 
 
@@ -130,6 +222,8 @@ def _parse_key(text: str) -> tuple[str, str, str]:
 async def summary(access: MaterialAccess = Depends(require_material_permission(READ)), db: AsyncSession = Depends(get_db)) -> Summary:
     rows = await confunfis.live_rows(db, access.material.id)
     config = set(await cuf.normalized_config(db, access.material))
+    extra_rows = await extras.live_extras(db, access.material.id)
+    incompatibilities = await extras.live_incompatibilities(db, access.material.id)
     by_code: dict[str, int] = {}
     for r in rows:
         for code in r.observation_codes:
@@ -138,6 +232,10 @@ async def summary(access: MaterialAccess = Depends(require_material_permission(R
         rows=len(rows), positions=len({(r.sns, r.co, r.al) for r in rows}), huecos=len({(r.sns, r.co) for r in rows}),
         sns_covered=len({r.sns for r in rows} & config), sns_in_config=len(config),
         with_observations=sum(1 for r in rows if r.observation_codes), by_observation=dict(sorted(by_code.items())),
+        sns_covered_by_extra=len(({e.sns for e in extra_rows} & config) - {r.sns for r in rows}),
+        products=len(await extras.live_products(db, access.material.id)),
+        multifunction_rows=len({e.position_id for e in extra_rows}),
+        incompatibility_rows=len({i for x in incompatibilities for i in (x.row_a_id, x.row_b_id)} & {r.id for r in rows}),
     )
 
 
@@ -179,18 +277,32 @@ async def functional(
     count: dict[str, int] = {}
     for r in rows:
         count[r.sns] = count.get(r.sns, 0) + 1
+    # E14: an SNS may be covered by the extra function of a row elsewhere.
+    live = {r.id for r in rows}
+    extra_count: dict[str, int] = {}
+    for e in await extras.live_extras(db, material.id):
+        if e.position_id in live:
+            extra_count[e.sns] = extra_count.get(e.sns, 0) + 1
     items: list[FunctionalNode] = []
     if config:
         pairs = dict((await db.execute(select(SnsPosition.sns, SnsPosition.parent_sns).where(SnsPosition.version_id == material.catalog_version_id, SnsPosition.sns.in_(list(config))))).all())
-        below: dict[str, int] = {}
-        for sns, n in count.items():
-            seen, node = set(), sns
-            while node in pairs and node not in seen:
-                seen.add(node)
-                below[node] = below.get(node, 0) + n
-                node = pairs[node]
+
+        def up(counts: dict[str, int]) -> dict[str, int]:
+            below: dict[str, int] = {}
+            for sns, n in counts.items():
+                seen, node = set(), sns
+                while node in pairs and node not in seen:
+                    seen.add(node)
+                    below[node] = below.get(node, 0) + n
+                    node = pairs[node]
+            return below
+
+        below, extras_below = up(count), up(extra_count)
         items = [
-            FunctionalNode(sns=n.sns, name=n.name, level=n.level, description_pending=n.description_pending, child_count=c, row_count=count.get(n.sns, 0), rows_below=below.get(n.sns, 0))
+            FunctionalNode(
+                sns=n.sns, name=n.name, level=n.level, description_pending=n.description_pending, child_count=c, row_count=count.get(n.sns, 0),
+                rows_below=below.get(n.sns, 0), extra_count=extra_count.get(n.sns, 0), extras_below=extras_below.get(n.sns, 0),
+            )
             for n, c in await tree_level(db, material.catalog_version_id, set(config), parent)
         ]
     level = FunctionalLevel(items=items)
@@ -213,6 +325,9 @@ async def list_rows(
     ct_sigle: str | None = Query(default=None, pattern="^[SN]$"),
     orphans: bool | None = None,
     mounted: bool | None = None,
+    extra_sns: str | None = Query(default=None, min_length=6, max_length=6),
+    multifunction: bool | None = None,
+    incompatible: bool | None = None,
     access: MaterialAccess = Depends(require_material_permission(READ)),
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
@@ -245,6 +360,16 @@ async def list_rows(
     if mounted is not None:
         # Only the materials the user may open: the others stay unknown.
         rows = [r for r in rows if (r.id in ctx.mounted and ctx.mounted[r.id].id in ctx.visible) == mounted]
+    if extra_sns:
+        # E14: the rows whose extra function is this SNS (the functional view).
+        holders = {e.position_id for e in ctx.extras if e.sns == extra_sns.upper()}
+        rows = [r for r in rows if r.id in holders]
+    if multifunction is not None:
+        holders = {e.position_id for e in ctx.extras}
+        rows = [r for r in rows if (r.id in holders) == multifunction]
+    if incompatible is not None:
+        named = {i for x in ctx.incompatibilities for i in (x.row_a_id, x.row_b_id)}
+        rows = [r for r in rows if (r.id in named) == incompatible]
     rows = _ordered(rows)
     window = rows[(page - 1) * size : page * size]
     return RowPage(total=len(rows), page=page, page_size=size, items=[_row_out(ctx, r) for r in window])
@@ -269,6 +394,9 @@ async def _detail(db: AsyncSession, ctx: Context, row: PhysicalPosition) -> RowD
         chains=[[ChainStep(qty=_plain(q), sns=s) for q, s in chain] for chain in ctx.graph.chains(g.hueco)],
         history=[{"id": str(a.id), "at": a.created_at.isoformat(), "action": a.action, "user": name} for a, name in history],
         hueco_als=sorted({r.al for r in ctx.rows if (r.sns, r.co) == (row.sns, row.co)}),
+        extra_functions=[extra_out(ctx, e) for e in ctx.extras if e.position_id == row.id],
+        incompatibilities=[incompatibility_out(ctx, i) for i in ctx.incompatibilities if row.id in (i.row_a_id, i.row_b_id)],
+        parts=await cuf_parts(db, ctx, {row.article_id}) if row.article_id else [],
     )
 
 

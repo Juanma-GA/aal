@@ -42,14 +42,15 @@ def test_where_used_is_a_registry():
     CONFUNFIS positions (registered), E14 the parts and functional products, E17 the
     baseline warning: each registers its own, the endpoint stays."""
     import app.services.confunfis  # noqa: F401  (E13 registers its provider)
+    import app.services.confunfis_extras  # noqa: F401  (and E14 its two)
 
-    assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf", "confunfis"]
+    assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf", "confunfis", "parts", "functional_products"]
 
     @articles.register_usage("prueba")
     async def provider(db, article, user):
         return [{"kind": "prueba"}]
 
     try:
-        assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf", "confunfis", "prueba"]
+        assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf", "confunfis", "parts", "functional_products", "prueba"]
     finally:
         articles.USAGE_PROVIDERS.pop()

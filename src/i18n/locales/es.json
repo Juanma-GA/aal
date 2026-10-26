@@ -125,7 +125,19 @@
     "article_in_confunfis": "No se puede dar de baja: {{count}} filas de la CONFUNFIS son este artículo ({{rows}}). Cámbialas antes.",
     "article_reference_in_confunfis": "Esa referencia la usan {{count}} filas de la CONFUNFIS ({{rows}}): cámbialas antes.",
     "confunfis_root_has_no_alternative": "La fila del propio CUF (000000 01 00) no tiene alternativos.",
-    "confunfis_not_single_alternative": "Esa fila no es un alternativo único: su hueco tiene otros AL o ya va con AL 00."
+    "confunfis_not_single_alternative": "Esa fila no es un alternativo único: su hueco tiene otros AL o ya va con AL 00.",
+    "article_part_invalid": "La parte tiene datos que no se pueden guardar: revisa los campos marcados.",
+    "article_part_not_found": "Esa parte ya no está en la tabla de partes: recarga la vista.",
+    "article_part_no_free_alternative": "Ese COP ya no tiene ningún alternativo (ALP) libre.",
+    "article_part_not_single_alternative": "Esa parte no es un alternativo único: su COP tiene otros ALP o ya va con ALP 00.",
+    "article_is_part": "No se puede dar de baja: es una parte de otros artículos ({{articles}}). Quítala antes de su tabla de partes.",
+    "article_reference_in_parts": "Esa referencia la usa una parte de otro artículo: cámbiala antes.",
+    "confunfis_extra_invalid": "Hay datos que no se pueden guardar: revisa los campos marcados.",
+    "functional_product_not_found": "Ese producto funcional ya no está: recarga la vista.",
+    "extra_function_not_found": "Esa función adicional ya no está: recarga la vista.",
+    "incompatibility_not_found": "Esa incompatibilidad ya no está: recarga la vista.",
+    "incompatibility_exists": "Esa incompatibilidad ya está registrada entre esas dos filas.",
+    "subcategory_used_by_extra_function": "No se puede quitar: {{count}} funciones adicionales usan SNS que solo aporta esa subcategoría ({{rows}})."
   },
   "actions": {
     "retry": "Reintentar",
@@ -373,7 +385,11 @@
         "al.min": "Alternativo (AL) mínimo",
         "al.max": "Alternativo (AL) máximo",
         "qty.max": "QTY máxima de una fila",
-        "qty.decimals": "Decimales máximos de la QTY"
+        "qty.decimals": "Decimales máximos de la QTY",
+        "cop.min": "Código de parte (COP) mínimo",
+        "cop.max": "Código de parte (COP) máximo",
+        "alp.min": "Alternativo de parte (ALP) mínimo",
+        "alp.max": "Alternativo de parte (ALP) máximo"
       }
     },
     "modules": {
@@ -449,7 +465,20 @@
       "confunfis.row_updated": "Fila de la CONFUNFIS editada",
       "confunfis.row_deleted": "Fila de la CONFUNFIS quitada",
       "confunfis.copied": "CONFUNFIS copiada",
-      "confunfis.seeded": "CONFUNFIS de demo cargada"
+      "confunfis.seeded": "CONFUNFIS de demo cargada",
+      "article.part_added": "Parte añadida",
+      "article.part_updated": "Parte editada",
+      "article.part_removed": "Parte quitada",
+      "confunfis.product_added": "Producto funcional añadido",
+      "confunfis.product_updated": "Producto funcional editado",
+      "confunfis.product_removed": "Producto funcional quitado",
+      "confunfis.extra_function_added": "Función adicional añadida",
+      "confunfis.extra_function_updated": "Función adicional editada",
+      "confunfis.extra_function_removed": "Función adicional quitada",
+      "confunfis.incompatibility_added": "Incompatibilidad añadida",
+      "confunfis.incompatibility_updated": "Incompatibilidad editada",
+      "confunfis.incompatibility_removed": "Incompatibilidad quitada",
+      "confunfis.extras_copied": "Productos, funciones adicionales e incompatibilidades copiados"
     },
     "entities": {
       "article": "Artículo",
@@ -467,7 +496,10 @@
       "sns_request": "Solicitud de SNS",
       "article_field": "Campo del artículo",
       "article_revalidation": "Revalidación de artículos",
-      "physical_position": "Fila de la CONFUNFIS"
+      "physical_position": "Fila de la CONFUNFIS",
+      "functional_product": "Producto funcional",
+      "extra_function": "Función adicional",
+      "incompatibility": "Incompatibilidad"
     }
   },
   "nav": {
@@ -1184,6 +1216,70 @@
       "OF-012": {
         "short": "Alternativo único",
         "text": "Es el único alternativo de su hueco (AL {{al}}): sin alternativos, la NT §9.1.6 pide AL 00."
+      },
+      "OP-001": {
+        "short": "Parte de sí mismo",
+        "text": "El artículo es parte de su propia tabla de partes."
+      },
+      "OP-002": {
+        "short": "Ciclo de despiece",
+        "text": "Esta parte cierra un ciclo: el artículo acaba siendo parte de sí mismo a través de otras tablas de partes."
+      },
+      "OP-003": {
+        "short": "COP/ALP repetido",
+        "text": "Hay otra parte con COP {{cop}} y ALP {{alp}} en este artículo."
+      },
+      "OP-004": {
+        "short": "Cantidad no válida",
+        "text": "La cantidad «{{quantity}}» no es mayor o igual que 1."
+      },
+      "OP-005": {
+        "short": "También en la CONFUNFIS",
+        "text": "La parte también figura en la CONFUNFIS de un CUF donde está montado el artículo; la NT dice que las partes no van en la configuración."
+      },
+      "OP-006": {
+        "short": "Alternativo único",
+        "text": "Es el único alternativo de su COP (ALP {{alp}}): si no hay otro, va con ALP 00."
+      },
+      "OP-007": {
+        "short": "P/N de otro artículo",
+        "text": "El P/N {{pn}} / {{ncage}} ya es de otro artículo: no se ha añadido a este."
+      },
+      "OPF-001": {
+        "short": "Código POL no encontrado",
+        "text": "El código {{pol}} no está en la tabla POL."
+      },
+      "OPF-002": {
+        "short": "Designación distinta de POL",
+        "text": "La designación no es la descripción POL de {{pol}} ({{description}}). Es un aviso, no un error."
+      },
+      "OPF-003": {
+        "short": "N/A/E no válido",
+        "text": "«{{nae}}» no está en la tabla NAE."
+      },
+      "OPF-004": {
+        "short": "Unidad de suministro no válida",
+        "text": "La unidad de suministro {{unit}} no está en la tabla D155."
+      },
+      "OPF-005": {
+        "short": "Unidad de medida no válida",
+        "text": "La unidad de medida {{unit}} no está en la tabla D112."
+      },
+      "OPF-006": {
+        "short": "Duplicado",
+        "text": "Hay otro producto funcional idéntico."
+      },
+      "OI-001": {
+        "short": "Excluye sin alternativos",
+        "text": "Ninguna de las dos filas tiene alternativos: «excluye» dejaría una de ellas inutilizable."
+      },
+      "OI-002": {
+        "short": "Requiere una fila dada de baja",
+        "text": "La fila requerida ya no está en la CONFUNFIS."
+      },
+      "OI-003": {
+        "short": "Ciclo de «requiere»",
+        "text": "Esta incompatibilidad está en un ciclo de «requiere»."
       }
     },
     "tree": {
@@ -1294,7 +1390,14 @@
       "noc_invalid": "No es un NOC: 13 letras mayúsculas y cifras.",
       "ncage_invalid": "No es un NCAGE: 5 letras mayúsculas y cifras.",
       "article_not_found": "Ese artículo ya no está en el maestro.",
-      "qty_out_of_range": "La cantidad no puede pasar de {{max}} ni tener más de {{decimals}} decimales."
+      "qty_out_of_range": "La cantidad no puede pasar de {{max}} ni tener más de {{decimals}} decimales.",
+      "out_of_range": "Fuera del rango {{min}}–{{max}}.",
+      "not_a_number": "Tiene que ser un número.",
+      "sns_of_the_row": "El SNS {{sns}} ya es el de la fila.",
+      "sns_repeated": "La fila ya tiene la función adicional {{sns}}.",
+      "not_in_table": "No es un valor activo de la tabla {{table}}.",
+      "row_not_found": "Esa fila ya no está en la CONFUNFIS.",
+      "same_row": "Una fila no puede ser incompatible consigo misma."
     },
     "observationsCount": "{{count}} observaciones"
   }

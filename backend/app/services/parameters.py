@@ -81,6 +81,9 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
     "confunfis": {
         "co": {"min": 1, "max": 99},
         "al": {"min": 0, "max": 99},
+        # The parts table of an article (E14, §9.1.10): COP and ALP.
+        "cop": {"min": 1, "max": 99},
+        "alp": {"min": 0, "max": 99},
         # The largest QTY a row takes, and its decimals (a bigger one cannot be stored).
         "qty": {"max": 1000000, "decimals": 6},
         "page_size": 200,

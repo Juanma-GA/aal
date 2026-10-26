@@ -58,3 +58,67 @@ def read_sheet(data: bytes, limits: Limits) -> ReadResult:
 def split(values: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """A row of the sheet as (row values, article identity)."""
     return {k: values.get(k) for k in ROW_FIELDS}, {k: values.get(k) for k in IDENTITY_FIELDS}
+
+
+# ── the other sheets of the Anexo XI (E14) ───────────────────────────────
+
+PRODUCTS_SHEET = "TABLA PRODUCTOS FUNCIONALES"
+_PF = "PRODUCTOS FUNCIONALES"
+
+PRODUCTS_TEMPLATE = Template(
+    code="functional_products_sheet",
+    sheet=PRODUCTS_SHEET,
+    header_rows=2,
+    checked_header_rows=(2,),
+    unique_keys=False,
+    columns=(
+        Column("cuf_noc", ("CUF", "NOC"), upper=True, width=16),
+        Column("cuf_pn", ("CUF", "P/N"), width=14),
+        Column("cuf_ncage", ("CUF", "NCAGE"), upper=True, width=10),
+        Column("designation", (_PF, "DESIGNACIÓN"), key=True, width=44),
+        Column("pol_code", (_PF, "Nº de Código OTAN/Nacional"), upper=True, width=12),
+        Column("nae", (_PF, "N/A/E"), upper=True, width=6),
+        Column("noc", (_PF, "NOC"), upper=True, width=16),
+        Column("supply_unit", (_PF, "UNIDAD DE SUMINISTRO"), upper=True, width=12),
+        # Text: "N/A" is a product in bulk.
+        Column("quantity", (_PF, "CANTIDAD"), width=9),
+        Column("unit", (_PF, "UNIDAD DE MEDIDA"), upper=True, width=10),
+    ),
+)
+PRODUCT_FIELDS = ("designation", "pol_code", "nae", "noc", "supply_unit", "quantity", "unit")
+
+PARTS_SHEET = "TABLA DE PARTES"
+_ART, _PARTS = "ARTÍCULO", "PARTES"
+
+PARTS_TEMPLATE = Template(
+    code="article_parts_sheet",
+    sheet=PARTS_SHEET,
+    header_rows=2,
+    checked_header_rows=(2,),
+    unique_keys=False,
+    columns=(
+        Column("parent_noc", (_ART, "NOC"), upper=True, key=True, width=16),
+        Column("parent_pn", (_ART, "P/N"), width=14),
+        Column("parent_ncage", (_ART, "NCAGE"), upper=True, width=10),
+        Column("cop", (_ART, "COP"), zero_pad=2, width=5),
+        Column("alp", (_ART, "ALP"), zero_pad=2, width=5),
+        Column("noc", (_PARTS, "NOC"), upper=True, width=16),
+        Column("pn", (_PARTS, "P/N"), width=16),
+        Column("ncage", (_PARTS, "NCAGE"), upper=True, width=8),
+        Column("quantity", (_PARTS, "CANTIDAD"), ColumnType.DECIMAL, decimals=6, width=9),
+    ),
+)
+
+
+def read_products(data: bytes, limits: Limits) -> ReadResult:
+    return read_rows(PRODUCTS_TEMPLATE, data, limits)
+
+
+def read_parts(data: bytes, limits: Limits) -> ReadResult:
+    return read_rows(PARTS_TEMPLATE, data, limits)
+
+
+def split_part(values: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """A row of TABLA DE PARTES as (its parent's identity, the part's values, the part's identity)."""
+    parent = {"noc": values.get("parent_noc"), "pn": values.get("parent_pn"), "ncage": values.get("parent_ncage")}
+    return parent, {k: values.get(k) for k in ("cop", "alp", "quantity")}, {k: values.get(k) for k in IDENTITY_FIELDS}

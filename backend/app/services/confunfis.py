@@ -31,6 +31,7 @@ the positions of an article, in the materials the user may open.
 
 import re
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -130,7 +131,7 @@ async def _by_name(db: AsyncSession, name: str | None) -> Article | None:
 
 
 async def _attach_reference(
-    db: AsyncSession, article: Article, pn: str | None, ncage: str | None, user_id: uuid.UUID | None, link: Link, material: Material, ip: str | None
+    db: AsyncSession, article: Article, pn: str | None, ncage: str | None, user_id: uuid.UUID | None, link: Link, material: Material | None, ip: str | None
 ) -> None:
     if not pn:
         return
@@ -149,7 +150,7 @@ async def _attach_reference(
     article.version += 1
     await db.flush()
     audit.record(
-        db, action="article.reference_added", entity_type="article", entity_id=str(article.id), user_id=user_id, material_id=material.id,
+        db, action="article.reference_added", entity_type="article", entity_id=str(article.id), user_id=user_id, material_id=material.id if material else None,
         after={"reference": {"id": str(reference.id), "pn": pn, "ncage": ncage, "principal": reference.principal, "origin": "confunfis"}}, ip=ip,
     )
     link.reference = reference
@@ -157,8 +158,10 @@ async def _attach_reference(
 
 async def link_article(
     db: AsyncSession, *, noc: str | None, pn: str | None, ncage: str | None, name: str | None, user_id: uuid.UUID | None,
-    material: Material, article_id: uuid.UUID | None = None, ip: str | None = None,
+    material: Material | None, article_id: uuid.UUID | None = None, ip: str | None = None, origin: dict[str, Any] | None = None,
 ) -> Link:
+    """The article a row (or, E14, a part: no material) is; `origin` says
+    in the audit where a provisional one was born."""
     article: Article | None = None
     if article_id is not None:
         article = (await db.execute(select(Article).where(Article.id == article_id, Article.deleted_at.is_(None)))).scalar_one_or_none()
@@ -186,8 +189,8 @@ async def link_article(
         db.add(article)
         await db.flush()
         audit.record(
-            db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user_id, material_id=material.id,
-            after={"noc": noc, "nombre": article.nombre, "origin": "confunfis", "material_id": str(material.id)}, ip=ip,
+            db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user_id, material_id=material.id if material else None,
+            after={"noc": noc, "nombre": article.nombre, "origin": "confunfis", **(origin or {"material_id": str(material.id) if material else None})}, ip=ip,
         )
         created = True
     link = Link(article=article, reference=None, created=created)
@@ -371,7 +374,8 @@ async def refresh_observations(db: AsyncSession, material: Material) -> None:
     another's: a duplicate, a CS). Only the changed ones are written, not
     through the ORM: neither their version nor updated_at move."""
     rows = await live_rows(db, material.id)
-    found = observations_of(rows, set(await cuf.normalized_config(db, material)), await articles_of(db, rows), await get_parameter(db, "confunfis"))
+    graph = Graph(graph_row(r) for r in rows)
+    found = observations_of(rows, set(await cuf.normalized_config(db, material)), await articles_of(db, rows), await get_parameter(db, "confunfis"), graph)
     for r in rows:
         if found[r.id] != r.observations:
             await db.execute(
@@ -383,6 +387,9 @@ async def refresh_observations(db: AsyncSession, material: Material) -> None:
             # Committed values on the instance: no second UPDATE at commit.
             set_committed_value(r, "observations", found[r.id])
             set_committed_value(r, "observation_codes", sorted({o["code"] for o in found[r.id]}))
+    # What hangs from the rows (E14: incompatibilities, parts) is observed too.
+    for extension in REFRESH_EXTENSIONS:
+        await extension(db, material, rows, graph)
 
 
 async def refresh_materials(db: AsyncSession, *, article_ids: set[uuid.UUID] | None = None, material_ids: set[uuid.UUID] | None = None) -> None:
@@ -444,19 +451,33 @@ async def mounted(db: AsyncSession, material: Material, rows: list[PhysicalPosit
 
 # ── extension points ─────────────────────────────────────────────────────
 
+# E14 hangs functional products, extra functions and incompatibilities from
+# the CONFUNFIS: each copies, removes and observes its own.
+CopyExtension = Callable[[AsyncSession, Material, Material, dict[uuid.UUID, uuid.UUID], uuid.UUID | None], Awaitable[None]]
+RemovalExtension = Callable[[AsyncSession, Material, PhysicalPosition, uuid.UUID | None, str | None], Awaitable[None]]
+RefreshExtension = Callable[[AsyncSession, Material, list[PhysicalPosition], Graph], Awaitable[None]]
+COPY_EXTENSIONS: list[CopyExtension] = []
+ROW_REMOVAL_EXTENSIONS: list[RemovalExtension] = []
+REFRESH_EXTENSIONS: list[RefreshExtension] = []
+
 
 @cuf.register_copier("confunfis")
 async def copy_confunfis(db: AsyncSession, source: Material, target: Material, options: cuf.CopyOptions) -> int:
     """Its rows, new, with the same articles (source "copia"), by whoever copies."""
     user_id = options.user_id
     rows = await live_rows(db, source.id)
+    mapping: dict[uuid.UUID, uuid.UUID] = {}
     for r in rows:
+        mapping[r.id] = uuid.uuid4()
         db.add(PhysicalPosition(
-            id=uuid.uuid4(), material_id=target.id, source="copia", version=1, created_by=user_id, updated_by=user_id,
+            id=mapping[r.id], material_id=target.id, source="copia", version=1, created_by=user_id, updated_by=user_id,
             article_id=r.article_id, article_reference_id=r.article_reference_id, link_notes=r.link_notes,
             **{name: getattr(r, name) for name in FIELDS},
         ))
     await db.flush()
+    # What hangs from the rows goes with them, remapped (E14).
+    for extension in COPY_EXTENSIONS:
+        await extension(db, source, target, mapping, user_id)
     if rows:
         audit.record(
             db, action="confunfis.copied", entity_type="material", entity_id=str(target.id), user_id=user_id, material_id=target.id,
@@ -545,3 +566,6 @@ async def delete_row(db: AsyncSession, material: Material, row: PhysicalPosition
     before = snapshot(row)
     row.deleted_at, row.version, row.updated_by = datetime.now(UTC), row.version + 1, user_id
     audit.record(db, action="confunfis.row_deleted", entity_type="physical_position", entity_id=str(row.id), user_id=user_id, material_id=material.id, before=before, ip=ip)
+    # What hangs from it goes with it (E14), each audited.
+    for extension in ROW_REMOVAL_EXTENSIONS:
+        await extension(db, material, row, user_id, ip)
