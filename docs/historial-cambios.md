@@ -545,3 +545,9 @@ auditado. Código: ciclos por componentes fuertemente conexos (y solo aristas de
 sin cifras parciales (HR7), confirmación al quitar funciones adicionales e incompatibilidades (HR9), límites
 del parámetro `confunfis.qty` (HR8), productos que siguen a sus tablas y al maestro, auditoría completa de
 "Duplicar como alternativo", ficha que no relee una fila borrada (el 404 de la CI).
+
+**Commits.** `ed9d507` (LEEME de la demo), `267143f`, `abbace6` (parte 1), `e85b743` (parte 2), `a1aa691`
+(parte 3), `71025ef` y `8d459a9` (revisión). **Commit de cierre: `8d459a9`** (CI en verde).
+
+**Tests.** `npm run check:all` verde (360 tests de backend). `verify-confunfis`, `verify-navigation`,
+`verify-articles` y `verify-reference-tables` en verde, y todos los `verify-*` de la CI.
