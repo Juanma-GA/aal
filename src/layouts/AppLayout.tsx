@@ -5,6 +5,7 @@ import { AppSidebar } from '@/components/layout/AppSidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import { useMe, useSessionBootstrap } from '@/hooks/useSession';
+import { useUiStore } from '@/stores/uiStore';
 import { useSidebarLayout } from '@/hooks/useSidebarLayout';
 import { useSystemTheme } from '@/hooks/useSystemTheme';
 import { useAuthStore } from '@/stores/authStore';
@@ -21,6 +22,7 @@ export function AppLayout(): React.JSX.Element {
   const status = useAuthStore((s) => s.status);
   const me = useMe();
   const layout = useSidebarLayout();
+  const setDetailSlot = useUiStore((s) => s.setDetailSlot);
   const ready = status === 'signedIn' && me.data !== undefined && !me.data.must_change_password;
 
   if (!ready) {
@@ -40,9 +42,13 @@ export function AppLayout(): React.JSX.Element {
       {layout.side === 'left' ? <AppSidebar layout={layout} /> : null}
       <SidebarInset className="min-w-0 bg-background">
         <AppHeader withSidebar />
-        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-          <Outlet />
-        </main>
+        {/* A docked detail panel (E15) goes beside <main>: the content narrows. */}
+        <div className="flex min-w-0 flex-1 items-start">
+          <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-8 sm:px-6">
+            <Outlet />
+          </main>
+          <div ref={setDetailSlot} className="contents" data-testid="detail-panel-slot" />
+        </div>
       </SidebarInset>
       {layout.side === 'right' ? <AppSidebar layout={layout} /> : null}
       <Toaster position="bottom-right" />

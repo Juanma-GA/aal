@@ -70,6 +70,10 @@ const materials = await admin('GET', '/materials');
 const tramontana = materials.find((m) => m.name === TRAMONTANA);
 const radio = materials.find((m) => m.name === RADIO);
 if (!tramontana || !radio) notRun('no demo materials -- run backend/scripts/seed_demo_materials.py.');
+// (E15) The analyst's docked-panel width, given back at the end.
+const analystApi = await apiSession(BASE_URL, ANALYST_EMAIL, ANALYST_PASSWORD);
+const panelLimits = (await analystApi('GET', '/me/ui-settings')).detail_panel_width;
+const panelWidth = (await analystApi('GET', '/auth/me')).ui_preferences.detail_panel_width ?? panelLimits.default;
 const summary = await admin('GET', `/materials/${tramontana.id}/confunfis/summary`);
 if (summary.rows !== 46) notRun(`the Tramontana has ${summary.rows} CONFUNFIS rows, not the demo's 46 -- run backend/scripts/seed_demo_confunfis.py.`);
 const startCuf = await admin('GET', `/materials/${tramontana.id}/cuf`);
@@ -116,7 +120,30 @@ try {
   await calculation.waitFor();
   assert((await calculation.textContent()).includes('3 × 6 (A21030) × 1 (A20000) = 18'), 'their card: 3 × 6 (A21030) × 1 (A20000) = 18');
   await page.screenshot({ path: shot('verify-confunfis-1-tree.png') });
+  // (E15) The card is docked: the tree stays visible and clickable beside it.
+  const card = page.getByTestId('row-sheet');
+  assert((await card.getAttribute('data-docked')) === 'true', 'the card is docked beside the tree (no overlay)');
+  const treeBox = await page.getByTestId('physical-tree').boundingBox();
+  const cardBox = await card.boundingBox();
+  assert(treeBox && cardBox && treeBox.x + treeBox.width <= cardBox.x + 1, 'the tree narrows and stays visible, left of the card');
+  await page.getByTestId('tree-row-A21030-01-00').locator('button').last().click();
+  await card.filter({ hasText: 'A21030 01 00' }).waitFor();
+  assert(true, 'another row of the tree opens its card without closing the panel');
+  const widthBefore = cardBox.width;
+  const [saved] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/me/ui-preferences') && r.request().method() === 'PUT'),
+    (async () => { await page.getByTestId('detail-panel-resizer').focus(); await page.keyboard.press('ArrowLeft'); })(),
+  ]);
+  const widthAfter = (await card.boundingBox()).width;
+  assert(saved.ok() && widthAfter > widthBefore && (await saved.json()).ui_preferences.detail_panel_width === Math.round(widthAfter), 'the card widens from its edge and the width is saved');
+  await page.getByTestId('tree-row-A21030-01-00').locator('button').last().click();
+  await card.waitFor({ state: 'detached' });
+  assert(true, 'clicking its row again closes the card');
+  await page.getByTestId('tree-row-A21031-01-00').locator('button').last().click();
+  await card.waitFor();
   await page.keyboard.press('Escape');
+  await card.waitFor({ state: 'detached' });
+  assert(true, 'Esc closes the card');
   // (E14) The search opens the path to "segmentos" on a closed tree and marks it.
   await page.getByTestId('tree-collapse-all').click();
   await page.getByTestId('tree-search').fill('segmentos');
@@ -279,6 +306,7 @@ try {
   await browser.close();
   runBackendScript(python, 'cleanup', [purge, '--restore-confunfis', '--snapshot', ROWS_SNAPSHOT]);
   runBackendScript(python, 'cleanup', [purge, '--restore-articles', '--snapshot', ARTICLES_SNAPSHOT]);
+  await analystApi('PUT', '/me/ui-preferences', { detail_panel_width: panelWidth }).catch(() => undefined);
   // Had the guard failed, the Tramontana gets its subcategories back.
   const now = await admin('GET', `/materials/${tramontana.id}/cuf`);
   const codes = startCuf.subcategories.map((s) => s.code);

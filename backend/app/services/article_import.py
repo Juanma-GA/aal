@@ -8,9 +8,13 @@ the io_excel engine, analyze -> apply) and export of the articles.
   principal reference, E13), the name's origin and the life controls 2 and
   3. Imported with the same key. Its export adds the sheet "Referencias"
   with every reference of every article (the principal one marked); the
-  import reads the "Artículo" sheet only -- the principal reference -- and
-  never removes the others, so exporting and importing again changes
-  nothing.
+  import (E15) reads it too, when it is there: a P/N + NCAGE an article
+  does not have yet is added (with the origin the row says), one it has is
+  unchanged, one of another article is rejected. The principal is the one
+  of the "Artículo" sheet (a "Principal" that says otherwise is a notice);
+  a reference missing from the sheet is never removed. Exporting and
+  importing again changes nothing; importing and exporting again gives the
+  same sheet.
 
 The columns come from article_field_definition (header, PRISMA code, type,
 length, decimals): nothing of a field is written here.
@@ -41,10 +45,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import error_detail
 from app.io_excel.cells import display, from_json, to_json
-from app.io_excel.reader import Issue, ReadResult
+from app.io_excel.reader import Issue, Limits, ReadResult, read_rows, sheet_names
 from app.io_excel.targets import register
 from app.io_excel.template import Column, ColumnType, Template
-from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, NAME_ORIGINS, REFERENCE_ORIGINS, Article, ImportJob, User
+from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, NAME_ORIGINS, REFERENCE_ORIGINS, Article, ArticleReference, ImportJob, User
 from app.models.article import LIFE_CODE_FIELD, LIFE_QUANTITY_FIELD
 from app.services import audit, confunfis
 from app.services.article_fields import FieldDef, field_defs
@@ -164,6 +168,13 @@ class ArticleTarget:
     async def template(self, db: AsyncSession, params: dict[str, Any]) -> Template:
         return build_template(await field_defs(db), self.kind)
 
+    def read_file(self, template: Template, data: bytes, limits: Limits) -> ReadResult:
+        """The "Artículo" sheet and, in the Maestro AAL, "Referencias" if it is there (E15)."""
+        read = read_rows(template, data, limits)
+        if self.kind == MAESTRO and REFERENCES_SHEET in sheet_names(data):
+            read.sheets[REFERENCES_SHEET] = read_rows(references_template(), data, limits)
+        return read
+
     async def stored(self, db: AsyncSession, params: dict[str, Any], template: Template) -> dict:
         return {}
 
@@ -243,6 +254,8 @@ class ArticleTarget:
                 continue
             report["modified"].append({"row": row.row, "key": key, "changes": changes})
             report["pending"]["modified"].append({"row": row.row, "ref": str(match.id), "version": match.version, "values": as_json})
+        if REFERENCES_SHEET in read.sheets:
+            self._analyze_references(report, read.sheets[REFERENCES_SHEET], articles, read)
         ar_counts = {f"ar_{code[-3:]}": len({i["row"] for i in items}) for code, items in report["ar"].items()}
         report["counts"] = {
             "rows": len(read.rows),
@@ -254,9 +267,66 @@ class ArticleTarget:
             "rows_with_errors": 0,
             "warnings": len(report["warnings"]),
             "corrections": len(report["corrections"]),
+            "references_new": len(report.get("references", {}).get("new", [])),
+            "references_unchanged": report.get("references", {}).get("unchanged", 0),
+            "references_rejected": len(report.get("references", {}).get("rejected", [])),
             **ar_counts,
         }
         return report
+
+    def _analyze_references(self, report: dict[str, Any], sheet: ReadResult, articles: list[Article], read: ReadResult) -> None:
+        """The "Referencias" sheet: what it adds to each article (E15)."""
+        section: dict[str, Any] = {"new": [], "unchanged": 0, "rejected": [], "notices": []}
+        report["references"] = section
+        for issue in sheet.errors:
+            report["errors"].append({**issue.as_json(), "sheet": REFERENCES_SHEET})
+        if sheet.errors:
+            return
+        by_noc = {a.noc: a for a in articles if a.noc}
+        by_name = {_name_key(a.nombre): a for a in articles if not a.noc}
+        owner = {(r.pn, r.ncage): a for a in articles for r in a.live_references}
+        # The articles the "Artículo" sheet creates, and the principal each will have.
+        principal: dict[str, tuple[str | None, str | None]] = {}
+        coming: set[str] = set()
+        for row in read.rows:
+            noc, pn, ncage, _wrong = normalize_identity(row.values.get(NOC_FIELD), row.values.get(_PN), row.values.get(_NCAGE))
+            who = f"noc:{noc}" if noc else f"name:{_name_key(row.values.get(NAME_FIELD))}"
+            principal[who] = (pn, ncage)
+            coming.add(who)
+        seen: dict[tuple[str, str | None], int] = {}
+        for row in sheet.rows:
+            values = row.values
+            noc, pn, ncage, wrong = normalize_identity(values.get(NOC_FIELD), values.get(_PN), values.get(_NCAGE))
+            name = values.get(NAME_FIELD)
+            issues = [i.as_json() for i in row.errors] + [Issue(f"{w}_invalid", {"value": str(values.get(w if w != "noc" else NOC_FIELD))}, row=row.row).as_json() for w in wrong]
+            who = f"noc:{noc}" if noc else f"name:{_name_key(name)}"
+            article = by_noc.get(noc) if noc else by_name.get(_name_key(name))
+            if not pn:
+                issues.append(Issue("pn_required", {}, row=row.row).as_json())
+            elif article is None and who not in coming:
+                issues.append(Issue("reference_article_not_found", {"value": noc or name or ""}, row=row.row).as_json())
+            elif (other := owner.get((pn, ncage))) is not None and other is not article:
+                issues.append(Issue("pn_ncage_taken", {"value": f"{pn} / {ncage or ''}"}, row=row.row).as_json())
+            elif (pn, ncage) in seen:
+                issues.append(Issue("duplicate_pn_ncage", {"first_row": seen[(pn, ncage)]}, row=row.row).as_json())
+            key = f"{pn} / {ncage or ''}"
+            if issues:
+                section["rejected"].append({"row": row.row, "key": key, "issues": issues})
+                continue
+            seen[(pn, ncage)] = row.row
+            will_be_principal = principal.get(who, (article.pn, article.ncage) if article else (None, None)) == (pn, ncage)
+            if bool(values.get("principal")) != will_be_principal:
+                section["notices"].append({"row": row.row, "key": key, "code": "reference_principal_from_article_sheet"})
+            if will_be_principal or (article is not None and owner.get((pn, ncage)) is article):
+                # It has it already (or the "Artículo" sheet gives it, as its principal).
+                section["unchanged"] += 1
+                continue
+            origin = values.get("origin") if values.get("origin") in REFERENCE_ORIGINS else "importacion"
+            section["new"].append({
+                "row": row.row, "key": key, "article": (article.nombre if article else name) or "",
+                "noc": noc, "name": name, "pn": pn, "ncage": ncage, "origin": origin,
+            })
+        report["warnings"] += [i.as_json() for r in sheet.rows for i in r.warnings]
 
     def _life_values(self, life: list[LifeControl]) -> dict[str, Any]:
         out: dict[str, Any] = {}
@@ -343,8 +413,40 @@ class ArticleTarget:
                 db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user_id,
                 after={**snapshot(article), **source, "corrections": corrections.get(item["row"], [])}, ip=ip,
             )
+        touched |= await self._apply_references(db, report.get("references", {}).get("new", []), user_id, source, ip)
         # The CONFUNFIS rows of the changed articles (their name, NOC, P/N: E13).
         await confunfis.refresh_materials(db, article_ids=touched)
+
+    async def _apply_references(
+        self, db: AsyncSession, items: list[dict[str, Any]], user_id: uuid.UUID | None, source: dict[str, Any], ip: str | None
+    ) -> set[uuid.UUID]:
+        """The references the "Referencias" sheet adds, after the articles (a new one may own them)."""
+        touched: set[uuid.UUID] = set()
+        for item in items:
+            if item["noc"]:
+                article = (await db.execute(select(Article).where(Article.noc == item["noc"], Article.deleted_at.is_(None)).with_for_update())).scalar_one_or_none()
+            else:
+                candidates = (await db.execute(select(Article).where(Article.noc.is_(None), Article.deleted_at.is_(None)))).scalars()
+                article = next((a for a in candidates if _name_key(a.nombre) == _name_key(item["name"])), None)
+            if article is None or await reference_owner(db, item["pn"], item["ncage"], exclude=article.id):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_stale", row=item["row"]))
+            if any((r.pn, r.ncage) == (item["pn"], item["ncage"]) for r in article.live_references):
+                continue
+            reference = ArticleReference(
+                id=uuid.uuid4(), pn=item["pn"], ncage=item["ncage"], principal=article.principal_reference is None, origin=item["origin"],
+                version=1, created_by=user_id, updated_by=user_id,
+            )
+            article.references.append(reference)
+            article.version += 1
+            article.updated_by = user_id
+            await db.flush()
+            audit.record(
+                db, action="article.reference_added", entity_type="article", entity_id=str(article.id), user_id=user_id,
+                after={"reference": {"id": str(reference.id), "pn": reference.pn, "ncage": reference.ncage, "principal": reference.principal, "origin": reference.origin}, **source},
+                ip=ip,
+            )
+            touched.add(article.id)
+        return touched
 
 
 register(ArticleTarget(FICHERO_CARGA))

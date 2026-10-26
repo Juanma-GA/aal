@@ -45,3 +45,5 @@ class UiPreferencesPatch(StrictModel):
     sidebar_folded: bool | None = None
     sidebar_width: int | None = None
     sidebar_side: Literal["left", "right"] | None = None
+    # The docked detail panel (E15): its width in pixels (within the "ui" parameter's limits).
+    detail_panel_width: int | None = None

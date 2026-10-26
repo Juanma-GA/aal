@@ -88,6 +88,11 @@ también al propio shell (el patrón está en su línea de órdenes).
 **Frontend** (desde la raíz): `npm ci` y `npx vite --port 5173 --strictPort` (el proxy `/api` de
 `vite.config.ts` va al 8000).
 
+**Tras un `git pull`** (E15): `npm run update` (`scripts/update.mjs`) hace solo lo necesario desde la última vez
+(sello en `.aal-update/`, ignorado; si no, `ORIG_HEAD`): `npm ci` si cambió `package-lock.json`, `pip install
+--require-hashes` (o `uv pip` si el venv no tiene pip) si cambió un lockfile, `alembic upgrade head` siempre y
+`npm run test:db:create` si hay migraciones nuevas; `-- --check` añade `check:all`. Resumen al final.
+
 **Base de datos de tests**: `npm run test:db:create` (crea `aal_test` en el mismo servidor, la migra
 y la primera vez añade `TEST_DATABASE_URL` a `backend/.env`).
 
@@ -179,7 +184,7 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   recargar y la vista móvil. Credenciales por entorno: `VERIFY_ADMIN_EMAIL`, `VERIFY_ADMIN_PASSWORD` y
   `DEV_ANALISTA_PASSWORD`. Deja la base como estaba (material `[verify] …` borrado, FTA de vuelta a
   "planificado", preferencias del analista restauradas).
-- **`verify-reference-tables.mjs`** (E03): el admin ve las 16 tablas, abre D114 (13 valores con su tipo por nombre),
+- **`verify-reference-tables.mjs`** (E03): el admin ve las 17 tablas, abre D114 (13 valores con su tipo por nombre),
   edita en línea una descripción de D112, exporta D112, el script lo cambia con openpyxl
   (`backend/scripts/verify_edit_xlsx.py`), lo importa, ve 1 modificado y aplica; el analista ve las
   tablas sin edición. Mismas credenciales que `verify-navigation`. Deja la base como estaba: guarda
@@ -371,7 +376,9 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   numéricos: `longitud` = dígitos sin la coma (el "tamaño" de la guía MAR06 cuenta la coma). P/N + NCAGE en
   `article_reference` (0..n por artículo, una principal = `pn`/`ncage` del artículo, (P/N, NCAGE) único entre las
   vivas; `set_principal`, `reference_owner` en `app/services/articles.py`); el Maestro AAL lleva la principal y
-  la hoja `Referencias` (solo exportación). Revalidación de todos los artículos en segundo plano
+  la hoja `Referencias`, que (E15) también se importa: añade los P/N + NCAGE que falten (con su origen), rechaza los de otro
+  artículo y nunca quita ninguno; la principal la decide la hoja `Artículo`. Un `ImportTarget` que lee varias hojas define
+  `read_file(template, data, limits)` (las demás van en `ReadResult.sheets`). Revalidación de todos los artículos en segundo plano
   (`app/services/revalidation.py`, tabla `article_revalidation`): botón del admin, y sola tras importar o editar
   (activar/desactivar) una tabla de referencia que lean los artículos o corregir una definición de campo; el
   informe da por regla cuántos avisos aparecen y desaparecen. No sube la versión del artículo.
@@ -401,7 +408,13 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   `/api/materials/{id}/confunfis/{parts,products,extra-functions,incompatibilities}` (`confunfis.ver` / `confunfis.editar`).
   Lectores de las hojas `TABLA PRODUCTOS FUNCIONALES` y `TABLA DE PARTES` en `confunfis_sheet.py` (para E15). Pantalla: pestañas
   `/materiales/:materialId/confunfis/{partes,productos}` (módulos encendidos en la migración 0012), secciones en la ficha de
-  fila (`RowExtras.tsx`) y tarjeta "Partes" en la ficha del artículo (`#partes`).
+  fila (`RowExtras.tsx`) y tarjeta "Partes" en la ficha del artículo (`#partes`). La unidad de medida de un producto se
+  valida contra `UNIDAD_MEDIDA_PF` (E15: `L`, `KG`… del Anexo XI y los códigos D112, cada uno con su equivalencia D112).
+- **Ficha lateral acoplada (E15)**: toda ficha de detalle es un `DetailPanel` (`src/components/layout/DetailPanel.tsx`):
+  desde 1024 px se acopla a la derecha del contenido (un hueco de `AppLayout` al lado de `<main>`, vía `uiStore.detailSlot`),
+  sin fondo oscurecido, y la lista sigue pulsable; por debajo, el `sheet` de shadcn. Ancho arrastrando el borde, el mismo para
+  todas, en `ui_preferences.detail_panel_width` (límites en el parámetro `ui`, `useDetailPanelWidth`). Se cierra con ×, Esc
+  (salvo con un diálogo abierto) o volviendo a pulsar la fila (lo hace la página).
 - **Sidebar (E12)**: ancho (borde arrastrable, límites en el parámetro `ui`), plegado a iconos (botón al pie y
   `Ctrl+B`) y lado, en `ui_preferences` (`useSidebarLayout`); `/api/me/ui-settings` da los límites.
 - **Listas navegables y enlaces (E11)**: toda fila que abre algo es un `NavRow`

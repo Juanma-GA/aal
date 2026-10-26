@@ -27,9 +27,9 @@ const POLL_MS = 1000;
 // Rows per page of a report tab: a first real CONF_FUN import has thousands
 // of new SNS, and the whole list is still there page by page (HR6).
 const PAGE_SIZE = 200;
-const TABS = ['new', 'modified', 'unchanged', 'removed', 'rejected', 'ar', 'corrections', 'errors', 'warnings'] as const;
+const TABS = ['new', 'modified', 'unchanged', 'removed', 'rejected', 'references', 'ar', 'corrections', 'errors', 'warnings'] as const;
 // Tabs only some templates have (their part of the report is absent otherwise).
-const OPTIONAL: Partial<Record<Tab, keyof ImportReport>> = { removed: 'removed', rejected: 'rejected', ar: 'ar', corrections: 'corrections' };
+const OPTIONAL: Partial<Record<Tab, keyof ImportReport>> = { removed: 'removed', rejected: 'rejected', references: 'references', ar: 'ar', corrections: 'corrections' };
 type Tab = (typeof TABS)[number];
 
 interface Props {
@@ -121,7 +121,11 @@ function Report({ report, counts, fieldNames }: { report: ImportReport; counts: 
   const [correctionRows, correctionPages] = usePage(report.corrections ?? []);
   const issueText = useIssueText();
   const arRules = Object.entries(report.ar ?? {});
-  const badge = (name: Tab) => (name === 'ar' ? arRules.reduce((n, [, items]) => n + new Set(items.map((i) => i.row)).size, 0) : (counts[name] ?? 0));
+  const badge = (name: Tab) =>
+    name === 'ar' ? arRules.reduce((n, [, items]) => n + new Set(items.map((i) => i.row)).size, 0)
+      : name === 'references' ? (counts.references_new ?? 0)
+        : (counts[name] ?? 0);
+  const references = report.references;
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
       <TabsList className="flex-wrap">
@@ -318,6 +322,39 @@ function Report({ report, counts, fieldNames }: { report: ImportReport; counts: 
             </Table>
           )}
           {correctionPages}
+        </TabsContent>
+        <TabsContent value="references">
+          {references ? (
+            <div className="flex flex-col gap-2 py-2 text-sm" data-testid="import-references">
+              <p className="text-muted-foreground">
+                {t('import.references.summary', { new: references.new.length, unchanged: references.unchanged, rejected: references.rejected.length })}
+              </p>
+              {references.new.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('import.row')}</TableHead>
+                      <TableHead>{t('import.references.reference')}</TableHead>
+                      <TableHead>{t('import.references.article')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {references.new.map((r) => (
+                      <TableRow key={`${r.row}-${r.key}`}>
+                        <TableCell>{r.row}</TableCell>
+                        <TableCell className="font-mono">{r.key}</TableCell>
+                        <TableCell>{r.article}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : null}
+              {[...references.rejected.map((r) => ({ row: r.row, key: r.key, text: r.issues.map(issueText).join(' ') })),
+                ...references.notices.map((n) => ({ row: n.row, key: n.key, text: issueText({ code: n.code, params: {}, row: n.row, column: null, header: null }) }))].map((r) => (
+                <p key={`${r.row}-${r.key}-${r.text}`} className="text-xs"><span className="font-mono">{t('import.rowOnly', { row: r.row })} · {r.key}</span> {r.text}</p>
+              ))}
+            </div>
+          ) : empty}
         </TabsContent>
         <TabsContent value="errors">
           <Issues issues={report.errors} testId="import-errors" />

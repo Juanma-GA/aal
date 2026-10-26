@@ -32,6 +32,9 @@ backend/var/
 private/*
 !private/README.md
 
+# npm run update's stamp (E15): the last commit it brought this machine up to
+.aal-update/
+
 # Logs and editors
 logs/
 *.log

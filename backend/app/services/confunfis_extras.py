@@ -11,7 +11,7 @@ Observations:
   COP, a P/N + NCAGE of another article;
 - functional products (OPF-*): POL code not in POL, designation other than
   its POL description (a notice), N/A/E not in NAE, supply unit not in D155,
-  unit not in D112, a row identical to another;
+  unit not in UNIDAD_MEDIDA_PF (E15), a row identical to another;
 - incompatibilities (OI-*): "excluye" between rows without alternatives on
   either side (one of them would be useless), "requiere" towards a removed
   row, a cycle of "requiere".
@@ -399,7 +399,9 @@ def _name_key(text: str | None) -> str:
     return re.sub(r"\s+", " ", text or "").strip().casefold()
 
 
-PRODUCT_TABLES = ("POL", "NAE", "D155", "D112")
+# The unit of measure is checked against UNIDAD_MEDIDA_PF (E15): the Anexo XI writes L or KG, not only D112.
+UNIT_TABLE = "UNIDAD_MEDIDA_PF"
+PRODUCT_TABLES = ("POL", "NAE", "D155", UNIT_TABLE)
 
 
 async def refresh_products(db: AsyncSession, material: Material) -> None:
@@ -419,7 +421,7 @@ async def refresh_products(db: AsyncSession, material: Material) -> None:
             )
             set_committed_value(p, "article_id", linked)
     pol = await codes_by_state(db, "POL")
-    nae, d155, d112 = [await codes_by_state(db, t) for t in ("NAE", "D155", "D112")]
+    nae, d155, units = [await codes_by_state(db, t) for t in ("NAE", "D155", UNIT_TABLE)]
     codes = {p.pol_code for p in products if p.pol_code}
     descriptions = dict(
         (await db.execute(select(ReferenceValue.code, ReferenceValue.description).where(ReferenceValue.table_code == "POL", ReferenceValue.code.in_(codes)))).all()
@@ -437,7 +439,7 @@ async def refresh_products(db: AsyncSession, material: Material) -> None:
             found.append({"code": "OPF-003", "params": {"nae": p.nae}})
         if p.supply_unit and p.supply_unit not in d155:
             found.append({"code": "OPF-004", "params": {"unit": p.supply_unit}})
-        if p.unit and p.unit not in d112:
+        if p.unit and p.unit not in units:
             found.append({"code": "OPF-005", "params": {"unit": p.unit}})
         if len(same[tuple(_plain(getattr(p, f)) for f in PRODUCT_FIELDS)]) > 1:
             found.append({"code": "OPF-006", "params": {}})

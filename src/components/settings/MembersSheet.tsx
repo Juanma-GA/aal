@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DetailPanel } from '@/components/layout/DetailPanel';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
 import { catalogLabel } from '@/lib/labels';
@@ -17,7 +17,7 @@ interface Props {
   onClose: () => void;
 }
 
-export function MembersSheet({ material, onClose }: Props): React.JSX.Element {
+export function MembersSheet({ material, onClose }: Props): React.JSX.Element | null {
   const { t } = useTranslation();
   const materialId = material?.id ?? '';
   const key = ['materials', materialId, 'members'] as const;
@@ -51,13 +51,13 @@ export function MembersSheet({ material, onClose }: Props): React.JSX.Element {
   const roleOptions = roles.data?.roles ?? [];
   const candidates = (users.data ?? []).filter((u) => !(members.data ?? []).some((m) => m.user_id === u.id));
 
+  // A docked panel (E15): only while a material is chosen.
+  if (!material) return null;
   return (
-    <Sheet open={material !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle>{t('settings.materials.membersTitle', { name: material?.name ?? '' })}</SheetTitle>
-          <SheetDescription>{t('settings.materials.membersHint')}</SheetDescription>
-        </SheetHeader>
+    <DetailPanel
+      title={t('settings.materials.membersTitle', { name: material.name })} description={t('settings.materials.membersHint')}
+      onClose={onClose} overlayClassName="sm:max-w-lg" testId="members-panel"
+    >
         <div className="flex flex-col gap-4 px-4 pb-6">
           {members.isPending ? (
             <Skeleton className="h-24 w-full" />
@@ -130,7 +130,6 @@ export function MembersSheet({ material, onClose }: Props): React.JSX.Element {
             </Button>
           </div>
         </div>
-      </SheetContent>
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
@@ -142,6 +141,6 @@ export function MembersSheet({ material, onClose }: Props): React.JSX.Element {
           setRemoving(null);
         }}
       />
-    </Sheet>
+    </DetailPanel>
   );
 }

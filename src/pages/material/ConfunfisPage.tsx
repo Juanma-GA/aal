@@ -88,7 +88,8 @@ export function ConfunfisPage(): React.JSX.Element {
     const query = out.toString();
     navigate(`${path}${query ? `?${query}` : ''}`);
   };
-  const open = (row: PositionRow) => go({ fila: row.id });
+  // Clicking the open row again closes its card (E15: the panel is docked, the list stays clickable).
+  const open = (row: PositionRow) => go({ fila: row.id === rowId ? null : row.id });
 
   return (
     <div className="flex flex-col gap-6" data-testid="confunfis-page">

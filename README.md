@@ -33,20 +33,29 @@ Siempre `npm ci` (nunca `npm audit fix --force`) y `pip install --require-hashes
 
 ### Después de un `git pull`
 
-Desde `backend/` (Windows: `.venv\Scripts\python.exe`):
+Desde la raíz, el mismo comando en PowerShell y en Linux:
 
 ```bash
-.venv/bin/python -m pip install --require-hashes -r requirements-dev.lock.txt
-.venv/bin/python -m alembic upgrade head
+npm run update              # solo lo necesario: npm ci, pip install, alembic, aal_test
+npm run update -- --check   # y además npm run check:all
 ```
 
-Desde la raíz:
+`npm run update` (`scripts/update.mjs`) mira qué ha cambiado desde la última vez que se lanzó (un sello en
+`.aal-update/`, ignorado por git) o, la primera vez, desde `ORIG_HEAD` (donde empezó el último `git pull`):
 
-```bash
-npm ci
-npm run test:db:create                     # pone al día aal_test con las migraciones nuevas
-npm run check:all
-```
+- `npm ci` si cambió `package-lock.json`;
+- `pip install --require-hashes -r requirements-dev.lock.txt` si cambió un lockfile de Python (con `uv pip` si
+  el virtualenv se creó con uv y no tiene pip);
+- `alembic upgrade head` siempre;
+- `npm run test:db:create` si hay migraciones nuevas.
+
+Al final da un resumen de lo que hizo y de lo que no hacía falta, y por qué. Si un paso falla, el sello no se
+actualiza y la siguiente vez se repite todo. Sin referencia anterior, lo hace todo. Necesita `git` y el Python del
+backend (`backend/.venv`); si falta, lo dice y sale con 2.
+
+A mano, lo mismo es: desde `backend/`, `.venv/bin/python -m pip install --require-hashes -r
+requirements-dev.lock.txt` y `.venv/bin/python -m alembic upgrade head` (Windows: `.venv\Scripts\python.exe`);
+desde la raíz, `npm ci` y `npm run test:db:create`.
 
 Si `check:all` dice `test:backend NOT RUN` porque `aal_test` va por detrás, el propio mensaje da el
 comando: es `npm run test:db:create`.

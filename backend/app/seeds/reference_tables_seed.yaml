@@ -13,6 +13,8 @@
 #   llevarlos a columnas de Excel.
 # - El código 09 de D114 va entre comillas: los códigos son siempre texto
 #   (la carga rechaza cualquier código que no lo sea).
+# - E15: tabla UNIDAD_MEDIDA_PF (unidad de medida de los productos funcionales:
+#   L, ML, KG, G, M, M2, M3, UD y los códigos D112, con su equivalencia D112).
 # - E14: tabla CRITERIO_MULTIFUNCION (criterio de ubicación de un componente
 #   multifunción, §9.1.1), configurable por el admin.
 # - E13: vaUsoArt (campo 56) pasa de longitud 2 a 5 y caVoluArt (campo 46) de
@@ -1766,6 +1768,368 @@ tablas:
     descripcion: Función más crítica
   - codigo: otro
     descripcion: Otro criterio
+- codigo: UNIDAD_MEDIDA_PF
+  nombre: Unidades de medida de los productos funcionales
+  fuente: NT 10/17 (mayo 2017) §9.1.11 y Anexo XI; equivalencias con D112 (E15)
+  nota: El ejemplo oficial del Anexo XI usa L o KG; aquí valen esas abreviaturas y los códigos D112, cada una con su código D112 equivalente.
+  atributos_definicion:
+  - clave: equivalencia_d112
+    nombre: Equivalencia D112
+    tipo: texto
+    obligatorio: true
+  valores:
+  - codigo: L
+    descripcion: Litro
+    atributos:
+      equivalencia_d112: LI
+  - codigo: G
+    descripcion: Gramo
+    atributos:
+      equivalencia_d112: GM
+  - codigo: M
+    descripcion: Metro
+    atributos:
+      equivalencia_d112: MR
+  - codigo: M2
+    descripcion: Metro cuadrado
+    atributos:
+      equivalencia_d112: SM
+  - codigo: M3
+    descripcion: Metro cúbico
+    atributos:
+      equivalencia_d112: CZ
+  - codigo: UD
+    descripcion: Unidad
+    atributos:
+      equivalencia_d112: EA
+  - codigo: BF
+    descripcion: 'Board Foot'
+    atributos:
+      equivalencia_d112: BF
+  - codigo: BQ
+    descripcion: 'Briquet'
+    atributos:
+      equivalencia_d112: BQ
+  - codigo: CC
+    descripcion: 'Cubic Centimeter'
+    atributos:
+      equivalencia_d112: CC
+  - codigo: CD
+    descripcion: 'Cubic Yard'
+    atributos:
+      equivalencia_d112: CD
+  - codigo: CF
+    descripcion: 'Cubic Foot'
+    atributos:
+      equivalencia_d112: CF
+  - codigo: CG
+    descripcion: 'Centigram'
+    atributos:
+      equivalencia_d112: CG
+  - codigo: CI
+    descripcion: 'Cubic Inch'
+    atributos:
+      equivalencia_d112: CI
+  - codigo: CL
+    descripcion: 'Centiliter'
+    atributos:
+      equivalencia_d112: CL
+  - codigo: CM
+    descripcion: 'Centimeter'
+    atributos:
+      equivalencia_d112: CM
+  - codigo: CU
+    descripcion: 'Curie'
+    atributos:
+      equivalencia_d112: CU
+  - codigo: CV
+    descripcion: 'Cubic Decimeter'
+    atributos:
+      equivalencia_d112: CV
+  - codigo: CZ
+    descripcion: 'Cubic Meter'
+    atributos:
+      equivalencia_d112: CZ
+  - codigo: DC
+    descripcion: 'Decagram'
+    atributos:
+      equivalencia_d112: DC
+  - codigo: DE
+    descripcion: 'Decimeter'
+    atributos:
+      equivalencia_d112: DE
+  - codigo: DG
+    descripcion: 'Decigram'
+    atributos:
+      equivalencia_d112: DG
+  - codigo: DL
+    descripcion: 'Deciliter'
+    atributos:
+      equivalencia_d112: DL
+  - codigo: DM
+    descripcion: 'Dram'
+    atributos:
+      equivalencia_d112: DM
+  - codigo: DW
+    descripcion: 'Pennyweight'
+    atributos:
+      equivalencia_d112: DW
+  - codigo: DZ
+    descripcion: 'Dozen'
+    atributos:
+      equivalencia_d112: DZ
+  - codigo: EA
+    descripcion: 'Each'
+    atributos:
+      equivalencia_d112: EA
+  - codigo: EX
+    descripcion: 'Exposure'
+    atributos:
+      equivalencia_d112: EX
+  - codigo: FD
+    descripcion: 'Fold'
+    atributos:
+      equivalencia_d112: FD
+  - codigo: FR
+    descripcion: 'Frame'
+    atributos:
+      equivalencia_d112: FR
+  - codigo: FT
+    descripcion: 'Foot'
+    atributos:
+      equivalencia_d112: FT
+  - codigo: FZ
+    descripcion: 'Fluid Ounce'
+    atributos:
+      equivalencia_d112: FZ
+  - codigo: GB
+    descripcion: 'Gallon (Imperial)'
+    atributos:
+      equivalencia_d112: GB
+  - codigo: GC
+    descripcion: 'Gill (Imperial)'
+    atributos:
+      equivalencia_d112: GC
+  - codigo: GG
+    descripcion: 'Great Gross'
+    atributos:
+      equivalencia_d112: GG
+  - codigo: GI
+    descripcion: 'Gill (US)'
+    atributos:
+      equivalencia_d112: GI
+  - codigo: GL
+    descripcion: 'Gallon (US)'
+    atributos:
+      equivalencia_d112: GL
+  - codigo: GM
+    descripcion: 'Gram'
+    atributos:
+      equivalencia_d112: GM
+  - codigo: GN
+    descripcion: 'Grain'
+    atributos:
+      equivalencia_d112: GN
+  - codigo: GR
+    descripcion: 'Gross'
+    atributos:
+      equivalencia_d112: GR
+  - codigo: HD
+    descripcion: 'Hundred'
+    atributos:
+      equivalencia_d112: HD
+  - codigo: HF
+    descripcion: 'Hundred Feet'
+    atributos:
+      equivalencia_d112: HF
+  - codigo: HG
+    descripcion: 'Hectogram'
+    atributos:
+      equivalencia_d112: HG
+  - codigo: HL
+    descripcion: 'Hectoliter'
+    atributos:
+      equivalencia_d112: HL
+  - codigo: HM
+    descripcion: 'Hectometer'
+    atributos:
+      equivalencia_d112: HM
+  - codigo: HP
+    descripcion: 'Hundred Pounds'
+    atributos:
+      equivalencia_d112: HP
+  - codigo: HS
+    descripcion: 'Hundred Square Feet'
+    atributos:
+      equivalencia_d112: HS
+  - codigo: HW
+    descripcion: 'Hundred Weight'
+    atributos:
+      equivalencia_d112: HW
+  - codigo: HY
+    descripcion: 'Hundred Yards'
+    atributos:
+      equivalencia_d112: HY
+  - codigo: IN
+    descripcion: 'Inch'
+    atributos:
+      equivalencia_d112: IN
+  - codigo: KG
+    descripcion: 'Kilogram'
+    atributos:
+      equivalencia_d112: KG
+  - codigo: KM
+    descripcion: 'Kilometer'
+    atributos:
+      equivalencia_d112: KM
+  - codigo: KR
+    descripcion: 'Carat'
+    atributos:
+      equivalencia_d112: KR
+  - codigo: LB
+    descripcion: 'Pound'
+    atributos:
+      equivalencia_d112: LB
+  - codigo: LF
+    descripcion: 'Linear Foot'
+    atributos:
+      equivalencia_d112: LF
+  - codigo: LI
+    descripcion: 'Liter'
+    atributos:
+      equivalencia_d112: LI
+  - codigo: MC
+    descripcion: 'Thousand Cubic Feet'
+    atributos:
+      equivalencia_d112: MC
+  - codigo: MF
+    descripcion: 'Thousand Feet'
+    atributos:
+      equivalencia_d112: MF
+  - codigo: MG
+    descripcion: 'Milligram'
+    atributos:
+      equivalencia_d112: MG
+  - codigo: MI
+    descripcion: 'Mile'
+    atributos:
+      equivalencia_d112: MI
+  - codigo: ML
+    descripcion: 'Milliliter'
+    atributos:
+      equivalencia_d112: ML
+  - codigo: MM
+    descripcion: 'Millimeter'
+    atributos:
+      equivalencia_d112: MM
+  - codigo: MN
+    descripcion: 'Square Millimeter'
+    atributos:
+      equivalencia_d112: MN
+  - codigo: MR
+    descripcion: 'Meter'
+    atributos:
+      equivalencia_d112: MR
+  - codigo: MX
+    descripcion: 'Thousand'
+    atributos:
+      equivalencia_d112: MX
+  - codigo: OZ
+    descripcion: 'Ounce'
+    atributos:
+      equivalencia_d112: OZ
+  - codigo: PB
+    descripcion: 'Pint (Imperial)'
+    atributos:
+      equivalencia_d112: PB
+  - codigo: PT
+    descripcion: 'Pint (US)'
+    atributos:
+      equivalencia_d112: PT
+  - codigo: QC
+    descripcion: 'Square Centimeter'
+    atributos:
+      equivalencia_d112: QC
+  - codigo: QD
+    descripcion: 'Square Decimeter'
+    atributos:
+      equivalencia_d112: QD
+  - codigo: QT
+    descripcion: 'Quart (US)'
+    atributos:
+      equivalencia_d112: QT
+  - codigo: RA
+    descripcion: 'Ration'
+    atributos:
+      equivalencia_d112: RA
+  - codigo: RD
+    descripcion: 'Round'
+    atributos:
+      equivalencia_d112: RD
+  - codigo: RM
+    descripcion: 'Ream'
+    atributos:
+      equivalencia_d112: RM
+  - codigo: RX
+    descripcion: 'Thousand Rounds'
+    atributos:
+      equivalencia_d112: RX
+  - codigo: SF
+    descripcion: 'Square Foot'
+    atributos:
+      equivalencia_d112: SF
+  - codigo: SH
+    descripcion: 'Sheet'
+    atributos:
+      equivalencia_d112: SH
+  - codigo: '*SI'
+    descripcion: 'Square Inch'
+    atributos:
+      equivalencia_d112: '*SI'
+  - codigo: SK
+    descripcion: 'Skein'
+    atributos:
+      equivalencia_d112: SK
+  - codigo: SM
+    descripcion: 'Square Meter'
+    atributos:
+      equivalencia_d112: SM
+  - codigo: SO
+    descripcion: 'Shot'
+    atributos:
+      equivalencia_d112: SO
+  - codigo: SQ
+    descripcion: 'Square'
+    atributos:
+      equivalencia_d112: SQ
+  - codigo: SY
+    descripcion: 'Square Yard'
+    atributos:
+      equivalencia_d112: SY
+  - codigo: TM
+    descripcion: 'Metric Ton'
+    atributos:
+      equivalencia_d112: TM
+  - codigo: TN
+    descripcion: 'Ton (2,000 lb)'
+    atributos:
+      equivalencia_d112: TN
+  - codigo: TO
+    descripcion: 'Troy Ounce'
+    atributos:
+      equivalencia_d112: TO
+  - codigo: TT
+    descripcion: 'Tablet'
+    atributos:
+      equivalencia_d112: TT
+  - codigo: US
+    descripcion: 'U.S.P. Unit'
+    atributos:
+      equivalencia_d112: US
+  - codigo: YD
+    descripcion: 'Yard'
+    atributos:
+      equivalencia_d112: YD
 campos_articulo:
 - codigo_prisma: cdART
   cabecera: 'NOC del artículo'

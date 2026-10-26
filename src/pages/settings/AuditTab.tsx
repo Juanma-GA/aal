@@ -1,11 +1,11 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DetailPanel } from '@/components/layout/DetailPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { catalogLabel } from '@/lib/labels';
@@ -142,7 +142,7 @@ export function AuditTab(): React.JSX.Element {
                 </TableRow>
               ) : (
                 audit.data.items.map((entry) => (
-                  <TableRow key={entry.id} className="cursor-pointer" onClick={() => setDetail(entry)} data-testid="audit-row">
+                  <TableRow key={entry.id} className="cursor-pointer" onClick={() => setDetail(detail?.id === entry.id ? null : entry)} data-testid="audit-row">
                     <TableCell className="font-mono text-xs">{when(entry.created_at)}</TableCell>
                     <TableCell>{who(entry)}</TableCell>
                     <TableCell>
@@ -170,33 +170,28 @@ export function AuditTab(): React.JSX.Element {
           </div>
         </>
       )}
-      <Sheet open={detail !== null} onOpenChange={(open) => !open && setDetail(null)}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>{detail ? catalogLabel(t, 'audit.actions', detail.action) : t('settings.audit.detailTitle')}</SheetTitle>
-            <SheetDescription>
-              {detail ? `${when(detail.created_at)} · ${who(detail)}` : null}
-            </SheetDescription>
-          </SheetHeader>
-          {detail ? (
-            <div className="flex flex-col gap-4 px-4 pb-6" data-testid="audit-detail">
-              {detail.ip ? (
-                <p className="text-sm text-muted-foreground">
-                  {t('settings.audit.ip')}: <span className="font-mono">{detail.ip}</span>
-                </p>
-              ) : null}
-              <div className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium text-foreground">{t('settings.audit.before')}</h3>
-                <Json value={detail.before} />
-              </div>
-              <div className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium text-foreground">{t('settings.audit.after')}</h3>
-                <Json value={detail.after} />
-              </div>
+      {detail ? (
+        <DetailPanel
+          title={catalogLabel(t, 'audit.actions', detail.action)} description={`${when(detail.created_at)} · ${who(detail)}`}
+          onClose={() => setDetail(null)} testId="audit-detail-panel"
+        >
+          <div className="flex flex-col gap-4 px-4 pb-6" data-testid="audit-detail">
+            {detail.ip ? (
+              <p className="text-sm text-muted-foreground">
+                {t('settings.audit.ip')}: <span className="font-mono">{detail.ip}</span>
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-medium text-foreground">{t('settings.audit.before')}</h3>
+              <Json value={detail.before} />
             </div>
-          ) : null}
-        </SheetContent>
-      </Sheet>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-medium text-foreground">{t('settings.audit.after')}</h3>
+              <Json value={detail.after} />
+            </div>
+          </div>
+        </DetailPanel>
+      ) : null}
     </div>
   );
 }

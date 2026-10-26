@@ -20,11 +20,14 @@ export interface UiPreferences {
   /** Its width in pixels, within UiSettings.sidebar_width. */
   sidebar_width?: number;
   sidebar_side?: SidebarSide;
+  /** The docked detail panel's width in pixels (E15), within UiSettings.detail_panel_width. */
+  detail_panel_width?: number;
 }
 
 /** The interface limits (the "ui" parameter, GET /api/me/ui-settings). */
 export interface UiSettings {
   sidebar_width: { min: number; max: number; default: number };
+  detail_panel_width: { min: number; max: number; default: number };
 }
 
 export interface TokenResponse {

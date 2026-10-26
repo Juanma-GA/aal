@@ -134,6 +134,12 @@ class ImportReportOut(BaseModel):
     rejected: list[dict[str, Any]] | None = None
     ar: dict[str, list[dict[str, Any]]] | None = None
     corrections: list[dict[str, Any]] | None = None
+    # The Maestro AAL's "Referencias" sheet (E15): new, unchanged (a count), rejected, notices.
+    references: dict[str, Any] | None = None
+    # A book of several sheets (E15, the Anexo XI): its report by sheet, the sheets ignored and its notices.
+    sheets: dict[str, Any] | None = None
+    ignored_sheets: list[str] | None = None
+    notices: list[dict[str, Any]] | None = None
 
 
 class ImportJobOut(BaseModel):

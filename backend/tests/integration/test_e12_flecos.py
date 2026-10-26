@@ -112,3 +112,15 @@ async def test_sidebar_preferences(client, factory):
     # Kept across sessions: a new login sees them.
     again = bearer((await login(client, user))[0])
     assert (await client.get("/api/auth/me", headers=again)).json()["ui_preferences"]["sidebar_width"] == 320
+
+
+async def test_the_detail_panel_width(client, factory):
+    """E15: the docked panel's width, kept per user within the "ui" parameter."""
+    user = await factory.user()
+    h = bearer((await login(client, user))[0])
+    limits = (await client.get("/api/me/ui-settings", headers=h)).json()["detail_panel_width"]
+    assert limits == {"min": 320, "max": 960, "default": 480}
+    saved = await client.put("/api/me/ui-preferences", json={"detail_panel_width": 600}, headers=h)
+    assert saved.json()["ui_preferences"]["detail_panel_width"] == 600
+    too_narrow = await client.put("/api/me/ui-preferences", json={"detail_panel_width": 100}, headers=h)
+    assert (too_narrow.status_code, too_narrow.json()["detail"]["code"]) == (422, "detail_panel_width_out_of_range")

@@ -137,7 +137,8 @@
     "extra_function_not_found": "Esa función adicional ya no está: recarga la vista.",
     "incompatibility_not_found": "Esa incompatibilidad ya no está: recarga la vista.",
     "incompatibility_exists": "Esa incompatibilidad ya está registrada entre esas dos filas.",
-    "subcategory_used_by_extra_function": "No se puede quitar: {{count}} funciones adicionales usan SNS que solo aporta esa subcategoría ({{rows}})."
+    "subcategory_used_by_extra_function": "No se puede quitar: {{count}} funciones adicionales usan SNS que solo aporta esa subcategoría ({{rows}}).",
+    "detail_panel_width_out_of_range": "El ancho de la ficha debe estar entre {{min}} y {{max}} píxeles."
   },
   "actions": {
     "retry": "Reintentar",
@@ -389,7 +390,10 @@
         "cop.min": "Código de parte (COP) mínimo",
         "cop.max": "Código de parte (COP) máximo",
         "alp.min": "Alternativo de parte (ALP) mínimo",
-        "alp.max": "Alternativo de parte (ALP) máximo"
+        "alp.max": "Alternativo de parte (ALP) máximo",
+        "detail_panel_width.min": "Ancho mínimo de la ficha acoplada (px)",
+        "detail_panel_width.max": "Ancho máximo de la ficha acoplada (px)",
+        "detail_panel_width.default": "Ancho inicial de la ficha acoplada (px)"
       }
     },
     "modules": {
@@ -652,7 +656,8 @@
       "removed": "Eliminados",
       "rejected": "Rechazadas",
       "ar": "Avisos AR",
-      "corrections": "Autocorrecciones"
+      "corrections": "Autocorrecciones",
+      "references": "Referencias"
     },
     "row": "Fila",
     "key": "Clave",
@@ -717,10 +722,17 @@
       "duplicate_article": "El mismo artículo ya está en la fila {{first_row}}.",
       "duplicate_pn_ncage": "El mismo P/N y NCAGE ya está en la fila {{first_row}}.",
       "pn_ncage_taken": "El P/N y NCAGE {{value}} ya es de otro artículo.",
-      "pn_required": "Hay NCAGE pero no P/N: una referencia necesita su P/N."
+      "pn_required": "Hay NCAGE pero no P/N: una referencia necesita su P/N.",
+      "reference_article_not_found": "Ningún artículo tiene el NOC o el nombre {{value}} (ni lo crea la hoja Artículo).",
+      "reference_principal_from_article_sheet": "La referencia principal es la de la hoja Artículo; la columna «Principal» de esta fila no se aplica."
     },
     "page": "Página {{page}} de {{pages}} · {{total}} filas",
-    "rejectedSummary": "{{count}} filas rechazadas (no se aplican; el resto, sí)."
+    "rejectedSummary": "{{count}} filas rechazadas (no se aplican; el resto, sí).",
+    "references": {
+      "summary": "Hoja Referencias: {{new}} nuevas, {{unchanged}} sin cambios, {{rejected}} rechazadas. Las referencias que no están en la hoja no se quitan.",
+      "reference": "P/N / NCAGE",
+      "article": "Artículo"
+    }
   },
   "catalog": {
     "title": "Configuración funcional normalizada",
@@ -1302,7 +1314,7 @@
       },
       "OPF-005": {
         "short": "Unidad de medida no válida",
-        "text": "La unidad de medida {{unit}} no está en la tabla D112."
+        "text": "La unidad de medida {{unit}} no está en la tabla UNIDAD_MEDIDA_PF (unidades de los productos funcionales)."
       },
       "OPF-006": {
         "short": "Duplicado",
@@ -1532,5 +1544,10 @@
       "removeIncompatibilityTitle": "¿Quitar esta incompatibilidad?",
       "removeHint": "Se da de baja (queda en el historial)."
     }
+  },
+  "detailPanel": {
+    "resize": "Cambiar el ancho de la ficha",
+    "close": "Cerrar la ficha",
+    "label": "Ficha"
   }
 }

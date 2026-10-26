@@ -25,7 +25,8 @@ import type { Product, ProductValues } from '@/types/confunfisExtras';
 const NONE = '__none__';
 const NAE_ORDER = ['N', 'A', 'E'];
 type CodeField = 'pol_code' | 'nae' | 'supply_unit' | 'unit';
-const TABLES: Record<CodeField, string> = { pol_code: 'POL', nae: 'NAE', supply_unit: 'D155', unit: 'D112' };
+// The unit of measure: UNIDAD_MEDIDA_PF (E15), the Anexo XI's L or KG and the D112 codes.
+const TABLES: Record<CodeField, string> = { pol_code: 'POL', nae: 'NAE', supply_unit: 'D155', unit: 'UNIDAD_MEDIDA_PF' };
 
 interface Form {
   designation: string;

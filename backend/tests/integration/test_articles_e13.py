@@ -208,3 +208,38 @@ async def test_the_revalidate_button_and_a_reference_table_change(client, people
 async def _runs() -> int:
     async with async_session_factory() as session:
         return len((await session.execute(select(ArticleRevalidation.id))).all())
+
+
+async def test_the_referencias_sheet_is_imported(client, people):
+    """E15: a row added to "Referencias" adds that P/N to its article (with
+    the origin of the row); one of another article is rejected; importing
+    and exporting again gives the same sheet."""
+    admin = people["admin"]
+    await imported(client, admin)
+    rod = (await client.get("/api/articles", params={"q": "BIELA"}, headers=admin)).json()["items"][0]
+    piston = (await client.get("/api/articles", params={"q": "PISTÓN"}, headers=admin)).json()["items"][0]
+    await client.post(f"/api/articles/{rod['id']}/references", json={"pn": "B-1", "ncage": "DEMO2"}, headers=admin)
+    await client.post(f"/api/articles/{piston['id']}/references", json={"pn": "P-1", "ncage": "DEMO2"}, headers=admin)
+    data = (await client.get("/api/articles/export", params={"template": "maestro"}, headers=admin)).content
+    book = openpyxl.load_workbook(io.BytesIO(data))
+    ws = book["Referencias"]
+    taken = next(row for row in ws.iter_rows(min_row=2, values_only=True) if row[2] == "P-1")
+    ws.append([rod["noc"], rod["nombre"], "B-9", "DEMO2", "N", "manual"])
+    ws.append([rod["noc"], rod["nombre"], taken[2], taken[3], "N", "manual"])
+    out = io.BytesIO()
+    book.save(out)
+
+    res = await client.post("/api/articles/import", params={"template": "maestro"}, files={"file": ("MAESTRO.xlsx", out.getvalue(), XLSX)}, headers=admin)
+    job = (await client.get(f"/api/import-jobs/{res.json()['id']}", headers=admin)).json()
+    counts = job["counts"]
+    assert (counts["modified"], counts["references_new"], counts["references_rejected"]) == (0, 1, 1)
+    assert [i["code"] for i in job["report"]["references"]["rejected"][0]["issues"]] == ["pn_ncage_taken"]
+    applied = await client.post(f"/api/import-jobs/{job['id']}/apply", headers=admin)
+    assert applied.status_code == 200, applied.text
+    after = (await client.get(f"/api/articles/{rod['id']}", headers=admin)).json()
+    assert ("B-9", "DEMO2", False, "manual") in [(r["pn"], r["ncage"], r["principal"], r["origin"]) for r in after["references"]]
+
+    again = openpyxl.load_workbook(io.BytesIO((await client.get("/api/articles/export", params={"template": "maestro"}, headers=admin)).content))
+    rows = sorted(tuple(c.value for c in r) for r in again["Referencias"].iter_rows(min_row=2))
+    expected = sorted([tuple(c.value for c in r) for r in openpyxl.load_workbook(io.BytesIO(data))["Referencias"].iter_rows(min_row=2)] + [(rod["noc"], rod["nombre"], "B-9", "DEMO2", "N", "manual")])
+    assert rows == expected

@@ -82,6 +82,22 @@ class ReadResult:
     # Problems of the file as a whole (headers, sheet).
     errors: list[Issue] = field(default_factory=list)
     warnings: list[Issue] = field(default_factory=list)
+    # The other sheets a target reads (its read_file, E15): sheet -> its rows.
+    sheets: dict[str, "ReadResult"] = field(default_factory=dict)
+    # The sheets of the file no template read (E15: reported, never an error).
+    ignored_sheets: list[str] = field(default_factory=list)
+
+
+def sheet_names(data: bytes) -> list[str]:
+    """The sheets of a workbook, in order."""
+    try:
+        book = openpyxl.load_workbook(io.BytesIO(data), read_only=True)
+    except Exception:
+        raise ExcelFileError("excel_corrupt") from None
+    try:
+        return list(book.sheetnames)
+    finally:
+        book.close()
 
 
 def check_upload(filename: str | None, data: bytes, limits: Limits) -> None:

@@ -30,7 +30,7 @@ async def _value(client, headers, table, code):
 async def test_any_signed_in_user_reads_the_tables(client, tokens):
     _admin, analyst = tokens
     tables = (await client.get("/api/reference-tables", headers=analyst)).json()
-    assert len(tables) == 16
+    assert len(tables) == 17
     by_code = {t["code"]: t for t in tables}
     assert (by_code["D155"]["value_count"], by_code["D155"]["active_count"]) == (161, 161)
     assert by_code["D114"]["attribute_schema"][0]["name"] == "Tipo de control"

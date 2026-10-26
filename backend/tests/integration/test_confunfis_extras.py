@@ -217,6 +217,15 @@ async def test_products_follow_their_tables_and_the_master(client, demo):
             await session.commit()
 
 
+async def test_the_unit_of_measure_of_the_anexo_xi(client, demo):
+    """E15: L and KG (the Anexo XI's) are valid, so is LI (D112); QQ is not."""
+    analyst = demo["people"]["analista"]
+    url = f"{base(demo)}/products"
+    for unit, observed in (("L", False), ("KG", False), ("LI", False), ("QQ", True)):
+        made = (await client.post(url, json={"designation": f"PRUEBA {unit}", "unit": unit}, headers=analyst)).json()
+        assert ("OPF-005" in made["observation_codes"]) is observed, unit
+
+
 async def test_extra_functions(client, demo):
     analyst = demo["people"]["analista"]
     url = f"{base(demo)}/extra-functions"

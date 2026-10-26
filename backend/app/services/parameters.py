@@ -92,6 +92,8 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
     # The interface (E12): the sidebar's width in pixels, dragged by its edge.
     "ui": {
         "sidebar_width": {"min": 200, "max": 480, "default": 256},
+        # The detail panel docked on the right (E15): its width in pixels, dragged by its edge.
+        "detail_panel_width": {"min": 320, "max": 960, "default": 480},
     },
     # Settings -> Auditoría.
     "audit": {

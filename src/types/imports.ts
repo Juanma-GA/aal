@@ -50,6 +50,13 @@ export interface ImportReport {
   rejected?: { row: number; key: string; issues: ImportIssue[] }[] | null;
   ar?: Record<string, { row: number; key: string; name: string; field: string; problem: string; params: Record<string, string | number> }[]> | null;
   corrections?: { row: number; key: string; code: string; field: string; value: string }[] | null;
+  /** The Maestro AAL's "Referencias" sheet (E15). */
+  references?: {
+    new: { row: number; key: string; article: string; origin: string }[];
+    unchanged: number;
+    rejected: { row: number; key: string; issues: ImportIssue[] }[];
+    notices: { row: number; key: string; code: string }[];
+  } | null;
 }
 
 export interface ImportCounts {

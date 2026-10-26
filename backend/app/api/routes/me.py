@@ -72,13 +72,12 @@ async def update_ui_preferences(
     """Deep-merges the keys sent over the stored preferences (HR10); the row
     is locked meanwhile, so two tabs never lose each other's keys."""
     patch = body.model_dump(mode="json", exclude_unset=True)
-    if patch.get("sidebar_width") is not None:
-        limits = (await get_parameter(db, "ui"))["sidebar_width"]
-        if not limits["min"] <= patch["sidebar_width"] <= limits["max"]:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=error_detail("sidebar_width_out_of_range", min=limits["min"], max=limits["max"]),
-            )
+    ui = await get_parameter(db, "ui")
+    for key, code in (("sidebar_width", "sidebar_width_out_of_range"), ("detail_panel_width", "detail_panel_width_out_of_range")):
+        if patch.get(key) is not None:
+            limits = ui[key]
+            if not limits["min"] <= patch[key] <= limits["max"]:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail(code, min=limits["min"], max=limits["max"]))
     if patch.get("active_material_id") is not None:
         if await material_access(db, user, body.active_material_id) is None:
             raise material_not_found()

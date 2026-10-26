@@ -14,6 +14,7 @@
     "test:db:create": "node scripts/create-test-db.mjs",
     "check": "node scripts/run-checks.mjs",
     "check:all": "node scripts/run-checks.mjs --all",
+    "update": "node scripts/update.mjs",
     "verify:health": "node scripts/verify-health.mjs"
   },
   "dependencies": {

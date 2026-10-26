@@ -114,7 +114,9 @@ async def run_analysis(job_id: uuid.UUID) -> None:
         try:
             target = get_target(job.template)
             template = await target.template(db, job.params)
-            read = await asyncio.to_thread(read_rows, template, path.read_bytes(), await limits(db))
+            # A target that reads more than one sheet (E15) reads the file itself.
+            reader = getattr(target, "read_file", None) or read_rows
+            read = await asyncio.to_thread(reader, template, path.read_bytes(), await limits(db))
             own_analysis = getattr(target, "analyze", None)
             if own_analysis is not None:
                 report = await own_analysis(db, job.params, template, read)

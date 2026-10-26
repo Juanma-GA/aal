@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { DetailPanel } from '@/components/layout/DetailPanel';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfunfisRow, useDeleteRow, useDuplicateAlternative, useResetAl } from '@/hooks/useConfunfis';
 import { ARTICLES_PATH } from '@/pages/articles/ArticlePage';
@@ -33,7 +33,7 @@ interface Props {
   onAlternativeCs: (row: PositionRow) => void;
 }
 
-/** A row of the CONFUNFIS (E13), in a side panel: its fields, the article
+/** A row of the CONFUNFIS (E13), in the docked detail panel (E15): its fields, the article
  *  (to its card), the CS and the rows hanging from it (each opens its own
  *  card), the total in the CUF with how it comes out, its observations and
  *  history; and, with confunfis.editar, edit, duplicate as alternative,
@@ -61,12 +61,10 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
   );
 
   return (
-    <Sheet open onOpenChange={(open) => { if (!open) onOpen(null); }}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl" data-testid="row-sheet">
-        <SheetHeader>
-          <SheetTitle>{row ? `${positionOf(row)} · ${row.article_name ?? t('confunfis.noName')}` : t('confunfis.card.title')}</SheetTitle>
-          <SheetDescription>{row?.sns_name ?? ''}</SheetDescription>
-        </SheetHeader>
+    <DetailPanel
+      title={row ? `${positionOf(row)} · ${row.article_name ?? t('confunfis.noName')}` : t('confunfis.card.title')}
+      description={row?.sns_name ?? ''} onClose={() => onOpen(null)} testId="row-sheet"
+    >
         {!row ? (
           <Skeleton className="m-4 h-96" />
         ) : (
@@ -160,7 +158,6 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
             </section>
           </div>
         )}
-      </SheetContent>
       {row ? (
         <ConfirmDialog
           open={removing}
@@ -182,6 +179,6 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
           ) : null}
         </ConfirmDialog>
       ) : null}
-    </Sheet>
+    </DetailPanel>
   );
 }
