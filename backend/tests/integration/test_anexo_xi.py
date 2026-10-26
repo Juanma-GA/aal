@@ -360,3 +360,61 @@ async def test_replace_counts_what_goes_with_a_removed_row(client, demo):
     assert gone and all(g["with_row"] and g["key"].startswith("E12300") for g in gone)
     assert job["counts"]["removed"] == sheet_counts(job, "CON_FUN_FIS")["removed"] + len(gone) + len(job["report"]["sheets"].get("INCOMPATIBILIDADES", {}).get("removed", []))
     assert (await apply(client, demo, admin, job, confirm_name=TRAMONTANA)).status_code == 200
+
+
+async def test_a_book_like_the_real_one_never_fails_the_analysis(client, demo):
+    """E16: a CUF with no subcategories, sheets VTER_* and Hoja1, SNS outside the catalog and a P/N longer than a
+    reference keeps (it was an unhandled 500): the analysis ends, the row is rejected with its reason and the
+    report warns that the CUF has no subcategories."""
+    admin = demo["people"]["admin"]
+    made = (await client.post("/api/materials", json={"name": "[test] CUF sin subcategorías E16", "description": "E16"}, headers=admin)).json()
+    try:
+        book = _book(DEMO_BOOK.read_bytes())
+        ws = book["CON_FUN_FIS"]
+        for i, row in enumerate(ws.iter_rows(min_row=3)):
+            if row[4].value == "000000":
+                row[8].value, row[9].value = None, "P/N-DEL-CUF-MUY-LARGO-" + "X" * 30
+            elif i % 5 == 1:
+                row[4].value = f"Z{i:05d}"
+        book.create_sheet("VTER_1")["A1"] = "x"
+        book.create_sheet("Hoja1")["A1"] = "y"
+        res = await client.post(f"/api/materials/{made['id']}/confunfis/import", params={"mode": "merge"}, files={"file": ("L.xlsx", _bytes(book), XLSX)}, headers=admin)
+        job = (await client.get(f"/api/import-jobs/{res.json()['id']}", headers=admin)).json()
+        assert job["status"] == "analyzed", job
+        assert {"code": "no_subcategories"} in job["report"]["notices"]
+        assert set(job["report"]["ignored_sheets"]) >= {"VTER_1", "Hoja1"}
+        rejected = job["report"]["sheets"]["CON_FUN_FIS"]["rejected"]
+        # The reader stops it with its length (normalize_identity would too, on any other path).
+        assert [(i["code"], i["header"]) for r in rejected for i in r["issues"]] == [("too_long", "P/N")] and rejected[0]["key"].startswith("000000")
+    finally:
+        async with async_session_factory() as session:
+            await session.execute(delete(ImportJob).where(ImportJob.material_id == made["id"]))
+            await session.execute(delete(Material).where(Material.id == made["id"]))
+            await session.commit()
+
+
+async def test_shared_parts_name_only_the_cuf_the_user_may_open(client, demo):
+    """E15/E16: a part of the water pump changed in the Tramontana's book; the pump is also in the Puesto de mando.
+    The analyst (not in the Puesto) gets a count; the admin, its name."""
+    book = _book(DEMO_BOOK.read_bytes())
+    ws = book["TABLA DE PARTES"]
+    col = next(i for i, c in enumerate(ws[2]) if c.value == "CANTIDAD")
+    first = next(r for r in ws.iter_rows(min_row=3) if r[col].value is not None)
+    first[col].value = (first[col].value or 0) + 5
+    data = _bytes(book)
+    seen = {}
+    for who in ("analista", "admin"):
+        job = await analysed(client, demo, demo["people"][who], data)
+        assert sheet_counts(job, "TABLA DE PARTES")["modified"] == 1
+        [shared] = job["report"]["result"]["global_parts"]
+        seen[who] = (shared["materials"], shared["others"])
+    assert seen["analista"] == ([], 1)
+    assert seen["admin"] == ([PUESTO], 0)
+
+
+def test_a_long_pn_is_wrong_on_every_path():
+    """E16: normalize_identity (the CONFUNFIS, a part, the forms) flags a P/N longer than a reference keeps."""
+    from app.services.articles import PN_MAX_LENGTH, normalize_identity
+
+    assert normalize_identity(None, "P" * PN_MAX_LENGTH, None)[3] == []
+    assert normalize_identity(None, "P" * (PN_MAX_LENGTH + 1), None)[3] == ["pn"]

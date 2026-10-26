@@ -60,7 +60,7 @@ export function AppSidebar({ layout }: { layout: SidebarLayout }): React.JSX.Ele
                 <SidebarGroup data-testid={`sidebar-group-${group.code}`}>
                   <SidebarGroupLabel asChild>
                     <CollapsibleTrigger className="w-full justify-between text-left" aria-expanded={open}>
-                      <span className="truncate">{group.name}</span>
+                      <span className="truncate" title={group.name}>{group.name}</span>
                       <ChevronRight aria-hidden="true" className={open ? 'rotate-90 transition-transform' : 'transition-transform'} />
                     </CollapsibleTrigger>
                   </SidebarGroupLabel>
@@ -72,9 +72,10 @@ export function AppSidebar({ layout }: { layout: SidebarLayout }): React.JSX.Ele
                           return (
                             <SidebarMenuItem key={m.code}>
                               <SidebarMenuButton asChild isActive={location.pathname === href} className="h-auto py-1.5" tooltip={m.name}>
-                                <Link to={href} onClick={close} data-testid={`sidebar-module-${m.code}`} data-status={m.status}>
+                                <Link to={href} onClick={close} title={m.name} data-testid={`sidebar-module-${m.code}`} data-status={m.status}>
                                   <ModuleStatusIcon status={m.status} />
-                                  <span className="whitespace-normal">{m.name}</span>
+                                  {/* Up to two lines (E16), the whole name in the tooltip; important: over the button's truncate. */}
+                                  <span className="line-clamp-2 whitespace-normal!">{m.name}</span>
                                 </Link>
                               </SidebarMenuButton>
                             </SidebarMenuItem>

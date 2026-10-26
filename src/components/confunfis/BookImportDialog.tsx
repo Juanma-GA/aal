@@ -6,7 +6,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChangeValue } from '@/components/import/ChangeDetail';
+import { ChangeValue, FullScreenToggle, ImportFailure } from '@/components/import/ChangeDetail';
+import { AFTER_CELL, BEFORE_CELL, useDialogSize } from '@/components/import/dialogSize';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,7 +63,8 @@ function Items({ change, items }: { change: BookChange; items: BookItem[] }): Re
           <TableRow>
             <TableHead>{t('import.row')}</TableHead>
             <TableHead>{t('import.key')}</TableHead>
-            <TableHead>{change === 'modified' ? t('import.field') : t('confunfisBook.detail')}</TableHead>
+            {change === 'rejected' ? null : <TableHead>{t('confunfisBook.name')}</TableHead>}
+            <TableHead>{change === 'modified' ? t('import.field') : change === 'rejected' ? t('confunfisBook.detail') : null}</TableHead>
             {change === 'modified' ? (
               <>
                 <TableHead>{t('import.before')}</TableHead>
@@ -80,9 +82,10 @@ function Items({ change, items }: { change: BookChange; items: BookItem[] }): Re
                 <TableRow key={`${n}-${c.field}`}>
                   <TableCell>{i === 0 ? rowCell : ''}</TableCell>
                   <TableCell className="font-mono">{i === 0 ? item.key : ''}</TableCell>
+                  <TableCell className="whitespace-normal">{i === 0 ? (item.values?.name ?? '') : ''}</TableCell>
                   <TableCell>{c.header}</TableCell>
-                  <TableCell className="whitespace-normal text-muted-foreground line-through"><ChangeValue change={c} side="before" /></TableCell>
-                  <TableCell className="whitespace-normal"><ChangeValue change={c} side="after" /></TableCell>
+                  <TableCell className={BEFORE_CELL}><ChangeValue change={c} side="before" /></TableCell>
+                  <TableCell className={AFTER_CELL}><ChangeValue change={c} side="after" /></TableCell>
                 </TableRow>
               ));
             }
@@ -97,6 +100,7 @@ function Items({ change, items }: { change: BookChange; items: BookItem[] }): Re
                       ))
                     : (item.values?.name ?? '')}
                 </TableCell>
+                {change === 'rejected' ? null : <TableCell />}
               </TableRow>,
             ];
           })}
@@ -115,11 +119,14 @@ function Items({ change, items }: { change: BookChange; items: BookItem[] }): Re
 
 function SheetReport({ name, sheet }: { name: string; sheet: BookSheet }): React.JSX.Element {
   const { t } = useTranslation();
+  // What the key column means on this sheet ("SNS CO AL ← conjunto superior").
+  const legend = t(`confunfisBook.keyLegend.${name}`);
   const [change, setChange] = useState<BookChange>(
     sheet.rejected.length ? 'rejected' : sheet.modified.length ? 'modified' : sheet.new.length ? 'new' : sheet.removed.length ? 'removed' : 'unchanged',
   );
   return (
     <Tabs value={change} onValueChange={(v) => setChange(v as BookChange)}>
+      <p className="text-xs text-muted-foreground" data-testid={`book-key-legend-${name}`}>{legend}</p>
       <TabsList className="flex-wrap">
         {BOOK_CHANGES.map((c) => (
           <TabsTrigger key={c} value={c} data-testid={`book-change-${c}`}>
@@ -181,7 +188,7 @@ function ResultReport({ result }: { result: NonNullable<BookReport['result']> })
   );
 }
 
-function Report({ report }: { report: BookReport }): React.JSX.Element {
+function Report({ report, scroll }: { report: BookReport; scroll: string }): React.JSX.Element {
   const { t } = useTranslation();
   const sheets = BOOK_SHEETS.filter((s) => report.sheets[s]);
   const [tab, setTab] = useState<string>(sheets[0] ?? 'result');
@@ -200,7 +207,7 @@ function Report({ report }: { report: BookReport }): React.JSX.Element {
         })}
         {report.result ? <TabsTrigger value="result" data-testid="book-sheet-result">{t('confunfisBook.result.title')}</TabsTrigger> : null}
       </TabsList>
-      <div className="max-h-80 overflow-auto">
+      <div className={scroll}>
         {sheets.map((s) => (
           <TabsContent key={s} value={s}>
             <SheetReport name={s} sheet={report.sheets[s] as BookSheet} />
@@ -278,10 +285,11 @@ export function BookImportDialog({ materialId, materialName, book, isAdmin, open
     return () => clearInterval(timer);
   }, [analyzing]);
   const counts = current?.counts ?? {};
+  const size = useDialogSize((counts.new ?? 0) + (counts.modified ?? 0) + (counts.removed ?? 0));
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogContent className="sm:max-w-4xl" data-testid="book-import">
+      <DialogContent className={size.content} data-testid="book-import">
         <DialogHeader>
           <DialogTitle>{t(`confunfisBook.importTitle.${book}`, { name: materialName })}</DialogTitle>
           <DialogDescription>{t('confunfisBook.importHint')}</DialogDescription>
@@ -336,12 +344,7 @@ export function BookImportDialog({ materialId, materialName, book, isAdmin, open
         ) : null}
 
         {current?.status === 'failed' ? (
-          <Alert variant="destructive" data-testid="book-failed">
-            <AlertTitle>{t('import.failed')}</AlertTitle>
-            <AlertDescription>
-              {t(`errors.${current.error_code ?? 'import_failed'}`, { ...current.error_params, defaultValue: humanize(current.error_code ?? 'import_failed') })}
-            </AlertDescription>
-          </Alert>
+          <ImportFailure code={current.error_code} params={current.error_params} testId="book-failed" />
         ) : null}
 
         {report && current?.status !== 'failed' ? (
@@ -367,6 +370,11 @@ export function BookImportDialog({ materialId, materialName, book, isAdmin, open
                     ))}
                   </ul>
                 </AlertDescription>
+              </Alert>
+            ) : null}
+            {report.notices.some((n) => n.code === 'no_subcategories') ? (
+              <Alert className="border-warning" data-testid="book-no-subcategories">
+                <AlertDescription>{t('confunfisBook.noSubcategories')}</AlertDescription>
               </Alert>
             ) : null}
             {report.ignored_sheets.length ? (
@@ -402,7 +410,7 @@ export function BookImportDialog({ materialId, materialName, book, isAdmin, open
                 </AlertDescription>
               </Alert>
             ) : null}
-            {errors.length === 0 ? <Report report={report} /> : null}
+            {errors.length === 0 ? <><FullScreenToggle full={size.full} onToggle={size.toggle} /><Report report={report} scroll={size.scroll} /></> : null}
             {replaceRejected && current?.status === 'analyzed' ? (
               <Alert variant="destructive" data-testid="book-replace-rejected">
                 <AlertDescription>{t('confunfisBook.replaceRejected')}</AlertDescription>

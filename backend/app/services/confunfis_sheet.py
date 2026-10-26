@@ -14,6 +14,7 @@ from typing import Any
 
 from app.io_excel.reader import Limits, ReadResult, read_rows
 from app.io_excel.template import Column, ColumnType, Template
+from app.services.articles import PN_MAX_LENGTH
 
 SHEET = "CON_FUN_FIS"
 
@@ -37,7 +38,7 @@ TEMPLATE = Template(
         Column("al", (_COMP, "AL"), zero_pad=2, width=5),
         Column("qty", (_COMP, "QTY"), ColumnType.DECIMAL, decimals=6, width=5),
         Column("noc", (_COMP, "NOC"), upper=True, width=16),
-        Column("pn", (_COMP, "P/N"), width=16),
+        Column("pn", (_COMP, "P/N"), width=16, max_length=PN_MAX_LENGTH),
         Column("ncage", (_COMP, "NCAGE"), upper=True, width=8),
         Column("article_name", (_COMP, "NOMBRE ARTÍCULO"), width=38),
         Column("function_text", (_COMP, "FUNCIÓN ARTÍCULO"), width=60),
@@ -102,12 +103,12 @@ PARTS_TEMPLATE = Template(
     unique_keys=False,
     columns=(
         Column("parent_noc", (_ART, "NOC"), upper=True, key=True, width=18),
-        Column("parent_pn", (_ART, "P/N"), width=18),
+        Column("parent_pn", (_ART, "P/N"), width=18, max_length=PN_MAX_LENGTH),
         Column("parent_ncage", (_ART, "NCAGE"), upper=True, width=18),
         Column("cop", (_ART, "COP"), zero_pad=2, width=18),
         Column("alp", (_ART, "ALP"), zero_pad=2, width=18),
         Column("noc", (_PARTS, "NOC"), upper=True, width=18),
-        Column("pn", (_PARTS, "P/N"), width=18),
+        Column("pn", (_PARTS, "P/N"), width=18, max_length=PN_MAX_LENGTH),
         Column("ncage", (_PARTS, "NCAGE"), upper=True, width=18),
         Column("quantity", (_PARTS, "CANTIDAD"), ColumnType.DECIMAL, decimals=6, width=18),
     ),

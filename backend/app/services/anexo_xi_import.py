@@ -54,7 +54,7 @@ from app.io_excel.reader import Issue, Limits, ReadResult
 from app.io_excel.targets import register
 from app.io_excel.template import Template
 from app.models import Article, ArticlePart, ArticleReference, ExtraFunction, FunctionalProduct, ImportJob, Incompatibility, Material, PhysicalPosition, User
-from app.services import audit, confunfis
+from app.services import audit, confunfis, cuf
 from app.services import confunfis_extras as extras
 from app.services.anexo_xi_sheets import EXTRA_SHEET, INCOMPATIBILITY_SHEET, OFFICIAL, OWN, read_book
 from app.services.articles import can_edit_articles, normalize_identity
@@ -234,7 +234,7 @@ class Runner:
                 incoming = {**{n: fields.get(n) for n in ("qty", "article_name", "function_text", "ct_sigle")}, "noc": noc, "pn": pn, "ncage": ncage}
                 changes = [{"field": f, "header": _header(SHEET, f), "before": _shown(now[f]), "after": _shown(incoming[f])} for f in ROW_COMPARED if not _same(now[f], incoming[f])]
                 if not changes:
-                    section["unchanged"].append({"row": row, "key": _key_text(key)})
+                    section["unchanged"].append({"row": row, "key": _key_text(key), "values": {"name": _shown(match.article_name)}})
                     continue
                 identity_changed = any(c["field"] in IDENTITY_FIELDS for c in changes)
                 merged = {**{n: getattr(match, n) for n in confunfis.FIELDS}, **{k: v for k, v in fields.items() if k in confunfis.FIELDS}}
@@ -242,7 +242,7 @@ class Runner:
                     db, material, merged, self.user_id, source=match.source, strict=False, row=match,
                     identity={"noc": noc, "pn": pn, "ncage": ncage} if identity_changed else None, audit_ip=self.ip,
                 )
-                section["modified"].append({"row": row, "key": _key_text(key), "changes": changes})
+                section["modified"].append({"row": row, "key": _key_text(key), "values": {"name": _shown(values.get("article_name") or match.article_name)}, "changes": changes})
             except confunfis.RowError as exc:
                 _rejected(section, row, _key_text(key), _problem_issues(SHEET, row, exc.problems))
         for r in stored:
@@ -254,7 +254,7 @@ class Runner:
                 section["removed"].append({"row": None, "key": key_text, "values": {"name": _shown(r.article_name)}})
             else:
                 # Fusionar keeps what the file does not have: unchanged.
-                section["unchanged"].append({"row": None, "key": key_text, "not_in_file": True})
+                section["unchanged"].append({"row": None, "key": key_text, "values": {"name": _shown(r.article_name)}, "not_in_file": True})
         await db.flush()
 
     # ── TABLA PRODUCTOS FUNCIONALES ──────────────────────────────────────
@@ -588,6 +588,9 @@ class AnexoXiTarget:
         report["cuf"] = {"file": file_cuf, "material": {"noc": material.noc, "pn": material.part_number, "name": material.name}, "differs": differs}
         if differs:
             report["notices"].append({"code": "cuf_differs"})
+        if not await cuf.subcategory_codes(db, material.id):
+            # Every row would be outside the CUF's configuration (E16).
+            report["notices"].append({"code": "no_subcategories"})
         report["pending"] = pending
         # The dry run: everything written, measured, then rolled back by the engine.
         # now() is the transaction's start: what the dry run creates has it, what was there is older.

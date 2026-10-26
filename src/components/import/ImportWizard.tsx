@@ -6,7 +6,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChangeValue, RowsDiff } from '@/components/import/ChangeDetail';
+import { ChangeValue, FullScreenToggle, ImportFailure, RowsDiff } from '@/components/import/ChangeDetail';
+import { AFTER_CELL, BEFORE_CELL, useDialogSize } from '@/components/import/dialogSize';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -106,7 +107,7 @@ function Issues({ issues, testId }: { issues: ImportIssue[]; testId: string }): 
   );
 }
 
-function Report({ report, counts, fieldNames }: { report: ImportReport; counts: ImportJob['counts']; fieldNames: Record<string, string> }): React.JSX.Element {
+function Report({ report, counts, fieldNames, scroll }: { report: ImportReport; counts: ImportJob['counts']; fieldNames: Record<string, string>; scroll: string }): React.JSX.Element {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>(
     counts.errors ? 'errors' : counts.rejected ? 'rejected' : counts.modified ? 'modified' : counts.new ? 'new' : 'unchanged',
@@ -138,7 +139,7 @@ function Report({ report, counts, fieldNames }: { report: ImportReport; counts: 
           </TabsTrigger>
         ))}
       </TabsList>
-      <div className="max-h-80 overflow-auto">
+      <div className={scroll}>
         <TabsContent value="new">
           {report.new.length === 0 ? empty : (
             <Table data-testid="import-new">
@@ -187,10 +188,10 @@ function Report({ report, counts, fieldNames }: { report: ImportReport; counts: 
                         </TableCell>
                       ) : (
                         <>
-                          <TableCell className="whitespace-normal text-muted-foreground line-through">
+                          <TableCell className={BEFORE_CELL}>
                             <ChangeValue change={change} side="before" />
                           </TableCell>
-                          <TableCell className="whitespace-normal">
+                          <TableCell className={AFTER_CELL}>
                             <ChangeValue change={change} side="after" />
                           </TableCell>
                         </>
@@ -397,6 +398,7 @@ export function ImportWizard({ open, onOpenChange, title, start, onApplied, fiel
   });
 
   const current = job.data;
+  const size = useDialogSize((current?.counts.new ?? 0) + (current?.counts.modified ?? 0) + (current?.counts.removed ?? 0));
   const analyzing = upload.isPending || (jobId !== null && (!current || current.status === 'analyzing'));
   const blocked = Boolean(current?.counts.errors);
   const reset = () => {
@@ -420,7 +422,7 @@ export function ImportWizard({ open, onOpenChange, title, start, onApplied, fiel
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogContent className="sm:max-w-4xl" data-testid="import-wizard">
+      <DialogContent className={size.content} data-testid="import-wizard">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{t('import.chooseHint')}</DialogDescription>
@@ -455,12 +457,7 @@ export function ImportWizard({ open, onOpenChange, title, start, onApplied, fiel
         ) : null}
 
         {current?.status === 'failed' ? (
-          <Alert variant="destructive" data-testid="import-failed">
-            <AlertTitle>{t('import.failed')}</AlertTitle>
-            <AlertDescription>
-              {t(`errors.${current.error_code ?? 'import_failed'}`, { ...current.error_params, defaultValue: humanize(current.error_code ?? 'import_failed') })}
-            </AlertDescription>
-          </Alert>
+          <ImportFailure code={current.error_code} params={current.error_params} testId="import-failed" />
         ) : null}
 
         {current?.report && current.status !== 'failed' ? (
@@ -485,7 +482,8 @@ export function ImportWizard({ open, onOpenChange, title, start, onApplied, fiel
                 <AlertDescription>{t('import.doneSummary', { new: current.counts.new ?? 0, modified: current.counts.modified ?? 0 })}</AlertDescription>
               </Alert>
             ) : null}
-            <Report report={current.report} counts={current.counts} fieldNames={fieldNames} />
+            <FullScreenToggle full={size.full} onToggle={size.toggle} />
+            <Report report={current.report} counts={current.counts} fieldNames={fieldNames} scroll={size.scroll} />
           </div>
         ) : null}
 

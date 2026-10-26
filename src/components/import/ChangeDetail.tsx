@@ -1,8 +1,38 @@
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { subcategoryLabel } from '@/lib/sns';
+import { humanize } from '@/lib/humanize';
 import { cn } from '@/lib/utils';
 import type { ImportChange, RowCells, RowDiff, Varies } from '@/types/imports';
+
+/** The import dialog's full-screen switch (E16; the size itself is useDialogSize). */
+export function FullScreenToggle({ full, onToggle }: { full: boolean; onToggle: () => void }): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <Button type="button" size="sm" variant="ghost" className="self-end" onClick={onToggle} data-testid="import-full-screen">
+      {full ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+      {full ? t('import.normalSize') : t('import.fullScreen')}
+    </Button>
+  );
+}
+
+/** An analysis that failed: its reason and, for an unexpected error, the reference to look up in the log (HR7). */
+export function ImportFailure({ code, params, testId }: { code: string | null; params: Record<string, string | number>; testId: string }): React.JSX.Element {
+  const { t } = useTranslation();
+  const key = code ?? 'import_failed';
+  return (
+    <Alert variant="destructive" data-testid={testId}>
+      <AlertTitle>{t('import.failed')}</AlertTitle>
+      <AlertDescription>
+        <span>{t(`errors.${key}`, { ...params, defaultValue: humanize(key) })}</span>
+        {params.ref ? <span className="block" data-testid={`${testId}-ref`}>{t('import.errorRef', { ref: params.ref })}</span> : null}
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 // The category and subcategory names only show when one of them changed:
 // the subcategory code already says where the row is.

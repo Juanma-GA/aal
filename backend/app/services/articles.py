@@ -55,8 +55,8 @@ PN_MAX_LENGTH = 32
 
 def normalize_identity(noc: Any, pn: Any, ncage: Any) -> tuple[str | None, str | None, str | None, list[str]]:
     """NOC/NPC and NCAGE as E10/E11 check them (upper case, no spaces; the
-    NPC's X in position 7 is a letter like any other), the P/N trimmed;
-    with the names of the wrong ones."""
+    NPC's X in position 7 is a letter like any other), the P/N trimmed (at
+    most PN_MAX_LENGTH); with the names of the wrong ones."""
     noc, ncage = normalize_code(noc), normalize_code(ncage)
     pn = pn.strip() or None if isinstance(pn, str) else pn
     wrong = []
@@ -64,6 +64,9 @@ def normalize_identity(noc: Any, pn: Any, ncage: Any) -> tuple[str | None, str |
         wrong.append("noc")
     if ncage is not None and not re.fullmatch(NCAGE_PATTERN, str(ncage)):
         wrong.append("ncage")
+    # A P/N longer than a reference keeps (E16: a file's long P/N failed the whole analysis).
+    if pn is not None and len(str(pn)) > PN_MAX_LENGTH:
+        wrong.append("pn")
     return noc, pn, ncage, wrong
 
 

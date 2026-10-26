@@ -738,7 +738,8 @@
       "row_not_in_book": "La fila {{value}} no está en la CONFUNFIS del CUF.",
       "same_row": "Una fila no puede ser incompatible consigo misma.",
       "incompatibility_kind_invalid": "El tipo «{{value}}» no es «excluye» ni «requiere».",
-      "parts_need_article_permission": "La hoja de partes cambia la tabla de partes de los artículos, que es común a todos los CUF: hace falta el permiso de editar artículos. Quita la hoja o pide el permiso."
+      "parts_need_article_permission": "La hoja de partes cambia la tabla de partes de los artículos, que es común a todos los CUF: hace falta el permiso de editar artículos. Quita la hoja o pide el permiso.",
+      "pn_invalid": "«{{value}}» es demasiado largo para un P/N."
     },
     "page": "Página {{page}} de {{pages}} · {{total}} filas",
     "rejectedSummary": "{{count}} filas rechazadas (no se aplican; el resto, sí).",
@@ -747,7 +748,10 @@
       "reference": "P/N / NCAGE",
       "article": "Artículo"
     },
-    "empty": "(vacío)"
+    "empty": "(vacío)",
+    "fullScreen": "Pantalla completa",
+    "normalSize": "Tamaño normal",
+    "errorRef": "Si se repite, pasa esta referencia a quien mantiene la aplicación: {{ref}} (está en el registro del servidor)."
   },
   "catalog": {
     "title": "Configuración funcional normalizada",
@@ -1475,7 +1479,8 @@
       "not_in_table": "No es un valor activo de la tabla {{table}}.",
       "row_not_found": "Esa fila ya no está en la CONFUNFIS.",
       "same_row": "Una fila no puede ser incompatible consigo misma.",
-      "part_identity_required": "Indica el artículo de la parte: NOC, P/N o al menos su nombre."
+      "part_identity_required": "Indica el artículo de la parte: NOC, P/N o al menos su nombre.",
+      "pn_invalid": "Demasiado largo para un P/N."
     },
     "observationsCount": "{{count}} observaciones",
     "parts": {
@@ -1623,6 +1628,15 @@
       "others": "{{count}} CUF más que no puedes abrir"
     },
     "replaceRejected": "Hay filas rechazadas: con «Sustituir», lo que describen se daría de baja. Corrígelas en el fichero o importa en «Fusionar».",
-    "withRow": "Se va con su fila"
+    "withRow": "Se va con su fila",
+    "name": "Nombre del artículo",
+    "noSubcategories": "Este CUF no tiene subcategorías: todas las filas quedarían fuera de su configuración. Asígnalas primero en la ficha del CUF.",
+    "keyLegend": {
+      "CON_FUN_FIS": "Clave: SNS CO AL ← conjunto superior (SNS CO AL de la fila de la que cuelga).",
+      "TABLA PRODUCTOS FUNCIONALES": "Clave: código POL · N/A/E · unidad de suministro.",
+      "TABLA DE PARTES": "Clave: artículo padre (NOC o P/N) · COP/ALP de la parte.",
+      "FUNCIONES ADICIONALES": "Clave: fila (SNS CO AL ← conjunto superior) · SNS de la función adicional.",
+      "INCOMPATIBILIDADES": "Clave: fila A · tipo · fila B."
+    }
   }
 }
