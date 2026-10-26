@@ -140,6 +140,10 @@ class ImportReportOut(BaseModel):
     sheets: dict[str, Any] | None = None
     ignored_sheets: list[str] | None = None
     notices: list[dict[str, Any]] | None = None
+    # The Anexo XI (E15): its mode, the CUF of the file against the material's, and what the result would have.
+    mode: str | None = None
+    cuf: dict[str, Any] | None = None
+    result: dict[str, Any] | None = None
 
 
 class ImportJobOut(BaseModel):

@@ -7,14 +7,32 @@ undone with it -- a mutation is never saved without its record.
 
 `before` / `after` hold the entity's data as JSON-able values. Never a
 password, a token or a secret.
+
+origin(...) (E15): within it, every row records where the change came from
+(an import job: {"import_job": …, "file_name": …}) in its `after` (or its
+`before`, for a removal), without each service having to pass it.
 """
 
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AuditLog
+
+_ORIGIN: ContextVar[dict[str, Any] | None] = ContextVar("audit_origin", default=None)
+
+
+@contextmanager
+def origin(source: dict[str, Any]) -> Iterator[None]:
+    token = _ORIGIN.set(source)
+    try:
+        yield
+    finally:
+        _ORIGIN.reset(token)
 
 
 def record(
@@ -52,6 +70,12 @@ def record(
     for name, value in (("action", action), ("entity_type", entity_type), ("entity_id", entity_id)):
         if not value or not value.strip():
             raise ValueError(f"audit.record needs a non-empty {name}")
+    source = _ORIGIN.get()
+    if source is not None:
+        if isinstance(after, dict) or (after is None and before is None):
+            after = {**(after or {}), "origin": source}
+        elif isinstance(before, dict):
+            before = {**before, "origin": source}
     row = AuditLog(
         user_id=user_id,
         action=action,
