@@ -9,17 +9,37 @@ export interface ImportIssue {
   header: string | null;
 }
 
+/** A field's value in each subcategory, when they differ (CONF_FUN, E12). */
+export type Varies = { subcategory: string; value: string }[];
+
 export interface ImportChange {
   field: string;
   header: string;
   before: string;
   after: string;
+  varies_before?: Varies;
+  varies_after?: Varies;
+}
+
+export interface RowCells {
+  where: string;
+  level: string;
+  name: string;
+  description: string;
+}
+
+/** One subcategory's row of an SNS before and after (CONF_FUN, E12). */
+export interface RowDiff {
+  subcategory: string | null;
+  before: RowCells | null;
+  after: RowCells | null;
+  changed: (keyof RowCells)[];
 }
 
 export interface ImportReport {
   columns: { field: string; header: string }[];
   new: { row: number; key: string; values: Record<string, string> }[];
-  modified: { row: number; key: string; changes: ImportChange[] }[];
+  modified: { row: number; key: string; changes: ImportChange[]; rows?: RowDiff[] }[];
   unchanged: { row: number; key: string }[];
   /** Only for a target whose import replaces the whole set (CONF_FUN). */
   removed?: { row: null; key: string; values: Record<string, string> }[] | null;

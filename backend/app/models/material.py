@@ -77,6 +77,9 @@ class SnsRequest(Base):
     __tablename__ = "sns_request"
     __table_args__ = (
         CheckConstraint("state IN ('borrador', 'enviada', 'aceptada', 'rechazada')", name="ck_sns_request_state"),
+        CheckConstraint(
+            "(annulled_at IS NULL) = (annul_reason IS NULL) AND (annulled_at IS NULL OR deleted_at IS NOT NULL)", name="ck_sns_request_annulled"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -97,4 +100,8 @@ class SnsRequest(Base):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Annulled by an admin once sent (E12): deleted too, with its reason.
+    annulled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    annulled_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True)
+    annul_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))

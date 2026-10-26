@@ -31,6 +31,37 @@ npm run check:all                          # lint, typecheck, build, tests JS y 
 
 Siempre `npm ci` (nunca `npm audit fix --force`) y `pip install --require-hashes`.
 
+### Después de un `git pull`
+
+Desde `backend/` (Windows: `.venv\Scripts\python.exe`):
+
+```bash
+.venv/bin/python -m pip install --require-hashes -r requirements-dev.lock.txt
+.venv/bin/python -m alembic upgrade head
+```
+
+Desde la raíz:
+
+```bash
+npm ci
+npm run test:db:create                     # pone al día aal_test con las migraciones nuevas
+npm run check:all
+```
+
+Si `check:all` dice `test:backend NOT RUN` porque `aal_test` va por detrás, el propio mensaje da el
+comando: es `npm run test:db:create`.
+
+## Node
+
+La versión del proyecto está en `.nvmrc` (24) y en `engines.node` de `package.json` (`>=24.22.1`); la CI
+usa la misma (`node-version-file: .nvmrc`). `npm run check` avisa si la instalada es menor.
+
+- Windows: `winget upgrade OpenJS.NodeJS.LTS` o el instalador `.msi` de nodejs.org. Si Defender
+  bloquea una versión, **nunca** se permite en Defender: se instala la versión que IT apruebe.
+- Con npm 11, los scripts de instalación de las dependencias se aprueban en `allowScripts` de
+  `package.json` (hoy solo `esbuild@0.25.12`, que descarga su binario). Uno nuevo sale como aviso en
+  `npm ci`: revisarlo y aprobarlo con `npm install-scripts approve <paquete>` (queda fijado a su versión).
+
 ## Certificado corporativo
 
 Detrás de la inspección SSL corporativa (Zscaler) las herramientas no conocen

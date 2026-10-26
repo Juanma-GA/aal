@@ -43,12 +43,10 @@ Arreglo, uno de estos:
 3. **Windows, usando el almacén de certificados del sistema** (donde IT ya
    instala el certificado corporativo), sin exportar nada:
    - **Node ≥ 22.15** (y ≥ 23.8) tiene la opción `--use-system-ca`. El
-     proyecto usa Node 22 (comprobado con 22.22.0, que la tiene); se activa
-     para todos los procesos con
-     `$env:NODE_OPTIONS = "--use-system-ca"` (o permanente con
-     `SetEnvironmentVariable`, como arriba). La variable
-     `NODE_USE_SYSTEM_CA=1` **no** existe en Node 22.22 (llega en versiones
-     posteriores): con Node 22 hay que usar `NODE_OPTIONS`.
+     proyecto usa Node 24 (`.nvmrc`, `>=24.22.1`); se activa para todos los
+     procesos con `$env:NODE_OPTIONS = "--use-system-ca"` (o permanente con
+     `SetEnvironmentVariable`, como arriba). En Node 24 también vale
+     `NODE_USE_SYSTEM_CA=1`, que en Node 22.22 no existía.
    - Con un Node anterior a 22.15: la librería
      [`win-ca`](https://www.npmjs.com/package/win-ca), que lee el almacén de
      Windows (`npm install -g win-ca` y seguir su README para npm). Mejor

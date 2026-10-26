@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { VariesList } from '@/components/import/ChangeDetail';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,7 +45,13 @@ export function SnsCard({ versionId, sns, onOpen, onSubcategory }: {
       <CardContent className="flex flex-col gap-4 text-sm">
         <section>
           <h4 className="font-medium">{t('catalog.description')}</h4>
-          <p className="whitespace-pre-wrap text-muted-foreground">{d.description}</p>
+          {d.description_varies ? (
+            <div className="text-muted-foreground">
+              <VariesList values={d.description_varies} />
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap text-muted-foreground">{d.description}</p>
+          )}
           {d.description_pending ? (
             <Badge variant="outline" className="mt-1 border-warning text-warning">
               {t('catalog.pending')}

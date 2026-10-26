@@ -65,6 +65,10 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
         "page_size": 50,
         "max_page_size": 200,
     },
+    # The interface (E12): the sidebar's width in pixels, dragged by its edge.
+    "ui": {
+        "sidebar_width": {"min": 200, "max": 480, "default": 256},
+    },
     # Settings -> Auditoría.
     "audit": {
         "page_size": 50,

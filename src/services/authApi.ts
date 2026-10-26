@@ -1,4 +1,4 @@
-import type { Me, TokenResponse, UiPreferences } from '@/types/auth';
+import type { Me, TokenResponse, UiPreferences, UiSettings } from '@/types/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { apiFetchJson, apiSend } from './apiClient';
 
@@ -30,4 +30,8 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
 export function updateUiPreferences(patch: UiPreferences): Promise<Me> {
   return apiSend<Me>('PUT', '/me/ui-preferences', patch);
+}
+
+export function fetchUiSettings(): Promise<UiSettings> {
+  return apiFetchJson<UiSettings>('/me/ui-settings');
 }

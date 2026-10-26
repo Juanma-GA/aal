@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchCatalogWarnings } from '@/services/catalogApi';
 
-const CODES = ['cn_001', 'cn_002', 'cn_003', 'cn_004', 'cn_005', 'cn_006'] as const;
+const CODES = ['cn_001', 'cn_002', 'cn_003', 'cn_004', 'cn_005', 'cn_006', 'cn_007'] as const;
 
 /** "Avisos de la versión": the incoherences of the catalog itself
  *  (CN-001..CN-006) found when it was imported, each with its SNS. */

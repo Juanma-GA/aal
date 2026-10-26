@@ -1,5 +1,5 @@
 // The normalized functional configuration (E10): app/schemas/catalog.py.
-import type { ImportIssue } from '@/types/imports';
+import type { ImportChange, ImportIssue, RowDiff, Varies } from '@/types/imports';
 
 export type SnsLevel = 'SISTEMA' | 'SUBSISTEMA' | 'SUBSUBSISTEMA' | 'CONJUNTO' | 'SUBCONJUNTO';
 
@@ -82,6 +82,8 @@ export interface SnsDetail {
     name: string;
     row_number: number;
   }[];
+  /** Each subcategory's description when they differ (CN-007). */
+  description_varies: Varies | null;
 }
 
 export interface CatalogWarnings {
@@ -96,5 +98,5 @@ export interface DiffPage {
   total: number;
   page: number;
   page_size: number;
-  items: { sns: string; change: DiffChange; name: string; changes: { field: string; header: string; before: string; after: string }[] }[];
+  items: { sns: string; change: DiffChange; name: string; changes: ImportChange[]; rows: RowDiff[] | null }[];
 }

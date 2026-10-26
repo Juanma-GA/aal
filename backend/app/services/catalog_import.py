@@ -43,7 +43,21 @@ from app.models import (
     User,
 )
 from app.services import audit
-from app.services.catalog import SNS_RE, TWO_DIGITS_RE, Catalog, Row, build_catalog, repair_split, row_signature, row_signatures_text
+from app.services.catalog import (
+    ROW_CELLS,
+    ROW_FIELD,
+    SNS_RE,
+    TWO_DIGITS_RE,
+    Catalog,
+    Row,
+    align_rows,
+    build_catalog,
+    repair_split,
+    row_cells,
+    row_signature,
+    row_signatures_text,
+    varies,
+)
 from app.services.reference import codes_by_state
 
 KIND = "conf_fun"
@@ -134,7 +148,7 @@ async def active_version(db: AsyncSession) -> CatalogVersion | None:
     return (await db.execute(select(CatalogVersion).where(CatalogVersion.is_active))).scalar_one_or_none()
 
 
-async def comparable_positions(db: AsyncSession, version_id: uuid.UUID) -> dict[str, dict[str, str]]:
+async def comparable_positions(db: AsyncSession, version_id: uuid.UUID) -> dict[str, dict[str, Any]]:
     """sns -> the fields a diff compares, for a stored version (only the
     columns it needs: a version has thousands of rows)."""
     positions = (
@@ -144,6 +158,7 @@ async def comparable_positions(db: AsyncSession, version_id: uuid.UUID) -> dict[
     ).all()
     subs: dict[str, set[str]] = {}
     signatures: dict[str, list[str]] = {}
+    cells: dict[str, list[dict[str, Any]]] = {}
     for r in await db.execute(
         select(
             SubcategorySns.sns, SubcategorySns.subcategory_code, SubcategorySns.category_name, SubcategorySns.subcategory_name,
@@ -155,6 +170,7 @@ async def comparable_positions(db: AsyncSession, version_id: uuid.UUID) -> dict[
         signatures.setdefault(r.sns, []).append(
             row_signature(r.subcategory_code, r.category_name, r.subcategory_name, r.declared_level, r.name, r.description)
         )
+        cells.setdefault(r.sns, []).append(row_cells(r.subcategory_code, r.category_name, r.subcategory_name, r.declared_level, r.name, r.description))
     extras: dict[str, list[str]] = {}
     for sns, name in await db.execute(select(SnsExtraName.sns, SnsExtraName.name).where(SnsExtraName.version_id == version_id)):
         extras.setdefault(sns, []).append(name)
@@ -166,25 +182,43 @@ async def comparable_positions(db: AsyncSession, version_id: uuid.UUID) -> dict[
             "subcategories": ", ".join(sorted(subs.get(p.sns, ()))),
             "extra_names": ", ".join(sorted(extras.get(p.sns, ()))),
             "rows": row_signatures_text(signatures.get(p.sns, [])),
+            ROW_CELLS: cells.get(p.sns, []),
         }
         for p in positions
     }
 
 
-def compare(old: dict[str, dict[str, str]], new: dict[str, dict[str, str]]) -> dict[str, list[dict[str, Any]]]:
-    """SNS by SNS: new, modified (with the changed fields), unchanged,
-    removed. Each sorted by SNS."""
+def _change(field: str, header: str, before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
+    change: dict[str, Any] = {"field": field, "header": header, "before": before[field], "after": after[field]}
+    if field in ROW_FIELD:
+        # A value that differs per subcategory is shown as such, never one of them.
+        for side, position in (("before", before), ("after", after)):
+            values = varies(position[ROW_CELLS], ROW_FIELD[field])
+            if values:
+                change[f"varies_{side}"] = values
+    return change
+
+
+def compare(old: dict[str, dict[str, Any]], new: dict[str, dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """SNS by SNS: new, modified (with the changed fields and, when its rows
+    changed, the rows side by side by subcategory), unchanged, removed.
+    Each sorted by SNS."""
+
+    def text(position: dict[str, Any]) -> dict[str, str]:
+        return {k: v for k, v in position.items() if k != ROW_CELLS}
+
     out: dict[str, list[dict[str, Any]]] = {"new": [], "modified": [], "unchanged": [], "removed": []}
     for sns in sorted(set(old) | set(new)):
         if sns not in old:
-            out["new"].append({"sns": sns, "after": new[sns]})
+            out["new"].append({"sns": sns, "after": text(new[sns])})
         elif sns not in new:
-            out["removed"].append({"sns": sns, "before": old[sns]})
+            out["removed"].append({"sns": sns, "before": text(old[sns])})
         else:
-            changes = [
-                {"field": f, "header": h, "before": old[sns][f], "after": new[sns][f]} for f, h in _COMPARED if old[sns][f] != new[sns][f]
-            ]
-            out["modified" if changes else "unchanged"].append({"sns": sns, "changes": changes})
+            changes = [_change(f, h, old[sns], new[sns]) for f, h in _COMPARED if old[sns][f] != new[sns][f]]
+            item: dict[str, Any] = {"sns": sns, "changes": changes}
+            if any(c["field"] == "rows" for c in changes):
+                item["rows"] = align_rows(old[sns][ROW_CELLS], new[sns][ROW_CELLS])
+            out["modified" if changes else "unchanged"].append(item)
     return out
 
 
@@ -214,7 +248,10 @@ class ConfFunTarget:
             "columns": [{"field": "sns", "header": "ID_CON_FUN"}, {"field": "name", "header": "NOMBRE"}, {"field": "levels", "header": "NIVEL FUNCIONAL"}, {"field": "subcategories", "header": "SUBCATEGORÍAS"}],
             "template_fields": [c.field for c in template.columns],
             "new": [{"row": first_row[d["sns"]], "key": d["sns"], "values": d["after"]} for d in diff["new"]],
-            "modified": [{"row": first_row[d["sns"]], "key": d["sns"], "changes": d["changes"]} for d in diff["modified"]],
+            "modified": [
+                {"row": first_row[d["sns"]], "key": d["sns"], "changes": d["changes"], **({"rows": d["rows"]} if "rows" in d else {})}
+                for d in diff["modified"]
+            ],
             "unchanged": [{"row": first_row[d["sns"]], "key": d["sns"]} for d in diff["unchanged"]],
             "removed": [{"row": None, "key": d["sns"], "values": d["before"]} for d in diff["removed"]],
             "errors": errors,
@@ -247,6 +284,7 @@ class ConfFunTarget:
         number = ((await db.execute(select(func.max(CatalogVersion.number)))).scalar() or 0) + 1
         if base is not None:
             base.is_active = False
+            base.version += 1  # a change of the row: an older delete/activate sees it
             await db.flush()
         version = CatalogVersion(
             id=uuid.uuid4(),

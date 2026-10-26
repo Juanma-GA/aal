@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -40,3 +40,8 @@ class UiPreferencesPatch(StrictModel):
     active_material_id: uuid.UUID | None = None
     # The sidebar groups the user folded (E02). A list is replaced whole.
     sidebar_collapsed_groups: list[Annotated[str, Field(min_length=1, max_length=50)]] | None = Field(default=None, max_length=50)
+    # The sidebar (E12): folded to its icons, its width in pixels (within
+    # the "ui" parameter's limits) and its side.
+    sidebar_folded: bool | None = None
+    sidebar_width: int | None = None
+    sidebar_side: Literal["left", "right"] | None = None

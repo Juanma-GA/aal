@@ -107,7 +107,9 @@ async def purge_catalog_versions(db, versions: list[uuid.UUID]) -> int:
     deleted = await db.execute(delete(CatalogVersion).where(CatalogVersion.id.in_(versions), marked))
     print(f"Versiones del catálogo eliminadas: {deleted.rowcount}")
     await db.flush()
-    newest = (await db.execute(select(CatalogVersion).order_by(CatalogVersion.number.desc()).limit(1))).scalar_one_or_none()
+    newest = (
+        await db.execute(select(CatalogVersion).where(CatalogVersion.deleted_at.is_(None)).order_by(CatalogVersion.number.desc()).limit(1))
+    ).scalar_one_or_none()
     if newest is not None and (await db.execute(select(CatalogVersion).where(CatalogVersion.is_active))).scalar_one_or_none() is None:
         newest.is_active = True
         print(f"Versión activa de nuevo: {newest.number}")

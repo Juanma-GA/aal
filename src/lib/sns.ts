@@ -25,3 +25,8 @@ export function ancestors(sns: string): string[] {
   for (let p = derivedParent(sns); p; p = derivedParent(p)) out.unshift(p);
   return out;
 }
+
+/** A subcategory code as the CONF_FUN file writes it: 0601 -> 06-01. */
+export function subcategoryLabel(code: string): string {
+  return code.length === 4 ? `${code.slice(0, 2)}-${code.slice(2)}` : code;
+}

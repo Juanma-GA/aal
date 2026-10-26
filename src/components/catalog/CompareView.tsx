@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChangeValue, RowsDiff } from '@/components/import/ChangeDetail';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fetchDiff } from '@/services/catalogApi';
 import type { CatalogVersion, DiffChange } from '@/types/catalog';
@@ -114,8 +115,16 @@ export function CompareView({ versions, onOpen }: { versions: CatalogVersion[]; 
                       </TableCell>
                       <TableCell>{i === 0 ? t(`catalog.changes.${item.change}`) : ''}</TableCell>
                       <TableCell>{c?.header ?? ''}</TableCell>
-                      <TableCell className="whitespace-normal text-muted-foreground">{c?.before ?? ''}</TableCell>
-                      <TableCell className="whitespace-normal">{c?.after ?? ''}</TableCell>
+                      {c?.field === 'rows' && item.rows ? (
+                        <TableCell colSpan={2} className="whitespace-normal">
+                          <RowsDiff rows={item.rows} />
+                        </TableCell>
+                      ) : (
+                        <>
+                          <TableCell className="whitespace-normal text-muted-foreground">{c ? <ChangeValue change={c} side="before" /> : ''}</TableCell>
+                          <TableCell className="whitespace-normal">{c ? <ChangeValue change={c} side="after" /> : ''}</TableCell>
+                        </>
+                      )}
                     </TableRow>
                   )),
                 )}

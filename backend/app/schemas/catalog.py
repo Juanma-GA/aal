@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.schemas.common import StrictModel
+
 
 class CatalogVersionOut(BaseModel):
     id: uuid.UUID
@@ -16,6 +18,12 @@ class CatalogVersionOut(BaseModel):
     counts: dict[str, int]
     notes: str
     version: int
+
+
+class CatalogVersionStep(StrictModel):
+    version: int
+    # The person confirmed it (HR9).
+    confirm: bool
 
 
 class SubcategoryOut(BaseModel):
@@ -95,6 +103,8 @@ class SnsDetail(BaseModel):
     children: list[SnsLink]
     extra_names: list[ExtraName]
     appearances: list[SnsAppearance]
+    # Each subcategory's description when they differ (CN-007), else None.
+    description_varies: list[dict[str, str]] | None = None
 
 
 class WarningsOut(BaseModel):
@@ -105,8 +115,13 @@ class WarningsOut(BaseModel):
 class DiffItem(BaseModel):
     sns: str
     change: str  # new, modified, removed
-    changes: list[dict[str, str]]
+    # field, header, before, after; varies_before / varies_after when the
+    # value differs per subcategory ([{subcategory, value}]).
+    changes: list[dict[str, Any]]
     name: str
+    # When its rows changed: each subcategory's row before and after, with
+    # the columns that changed (catalog.align_rows).
+    rows: list[dict[str, Any]] | None = None
 
 
 class DiffOut(BaseModel):

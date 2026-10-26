@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ban, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
@@ -8,12 +9,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useOptimisticMutation } from '@/hooks/useOptimisticMutation';
+import { useMe } from '@/hooks/useSession';
 import { saveFile } from '@/lib/download';
 import { notifyError } from '@/lib/notify';
 import { describeApiError } from '@/services/apiErrors';
-import { createSnsRequest, discardSnsRequest, exportSnsRequests, fetchSnsRequests, resolveSnsRequest, submitSnsRequest, updateSnsRequest } from '@/services/cufApi';
+import { annulSnsRequest, createSnsRequest, discardSnsRequest, exportSnsRequests, fetchSnsRequests, resolveSnsRequest, submitSnsRequest, updateSnsRequest } from '@/services/cufApi';
 import type { SnsRequest, SnsRequestFields, SnsRequestState } from '@/types/cuf';
 
 const EMPTY: SnsRequestFields = { proposed_sns: null, parent_sns: null, name: '', function: '', justification: '' };
@@ -90,18 +93,24 @@ function RequestForm({ open, initial, onOpenChange, onSave, error, saving }: {
 
 /** Requests for a new SNS (NT §9.1.1): drafted and sent by whoever edits
  *  the material, accepted or rejected by an admin with an answer, and the
- *  sent ones exported to send them to JIMALE. Steps on an existing request
- *  are optimistic (HR20); a new one is not (its id comes from the server). */
+ *  sent ones exported to send them to JIMALE. A draft is discarded by its
+ *  author or whoever edits the material; once sent, only an admin annuls it,
+ *  with a reason ("Mostrar anuladas" brings those back). Steps on an existing
+ *  request are optimistic (HR20); a new one is not (its id comes from the server). */
 export function SnsRequestsTab({ materialId, canEdit, isAdmin }: { materialId: string; canEdit: boolean; isAdmin: boolean }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const key = ['materials', materialId, 'sns-requests'] as const;
-  const list = useQuery({ queryKey: key, queryFn: () => fetchSnsRequests(materialId) });
+  const me = useMe();
+  const [showAnnulled, setShowAnnulled] = useState(false);
+  const key = ['materials', materialId, 'sns-requests', showAnnulled] as const;
+  const list = useQuery({ queryKey: key, queryFn: () => fetchSnsRequests(materialId, showAnnulled) });
+  const [annulling, setAnnulling] = useState<SnsRequest | null>(null);
+  const [reason, setReason] = useState('');
   const [form, setForm] = useState<{ request: SnsRequest | null } | null>(null);
   const [discarding, setDiscarding] = useState<SnsRequest | null>(null);
   const [resolving, setResolving] = useState<{ request: SnsRequest; decision: 'aceptada' | 'rechazada' } | null>(null);
   const [response, setResponse] = useState('');
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['materials', materialId, 'sns-requests'] });
   const save = useMutation({
     mutationFn: (fields: SnsRequestFields) =>
       form?.request ? updateSnsRequest(materialId, form.request.id, form.request.version, fields) : createSnsRequest(materialId, fields),
@@ -124,6 +133,17 @@ export function SnsRequestsTab({ materialId, canEdit, isAdmin }: { materialId: s
     mutationFn: (r) => discardSnsRequest(materialId, r.id, r.version),
     apply: (rows, r) => rows.filter((x) => x.id !== r.id),
   });
+  const annul = useOptimisticMutation<SnsRequest, { request: SnsRequest; reason: string }, void>({
+    queryKey: key,
+    mutationFn: ({ request, reason: why }) => annulSnsRequest(materialId, request.id, request.version, why),
+    // Out of the list, or marked annulled when those are shown.
+    apply: (rows, { request, reason: why }) =>
+      showAnnulled
+        ? rows.map((r) => (r.id === request.id ? { ...r, annulled_at: new Date().toISOString(), annul_reason: why } : r))
+        : rows.filter((r) => r.id !== request.id),
+    invalidate: [['materials', materialId, 'sns-requests']],
+  });
+  const canDiscard = (r: SnsRequest) => r.state === 'borrador' && (canEdit || (me.data !== undefined && r.created_by_id === me.data.id));
   const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short' }).format(new Date(iso)) : t('material.empty'));
   const doExport = () =>
     exportSnsRequests(materialId)
@@ -135,7 +155,13 @@ export function SnsRequestsTab({ materialId, canEdit, isAdmin }: { materialId: s
     <div className="flex flex-col gap-4" data-testid="sns-requests">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm text-muted-foreground">{t('cuf.requests.hint')}</p>
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+          {isAdmin ? (
+            <div className="flex items-center gap-2">
+              <Switch id="show-annulled" checked={showAnnulled} onCheckedChange={setShowAnnulled} data-testid="sns-requests-show-annulled" />
+              <Label htmlFor="show-annulled">{t('cuf.requests.showAnnulled')}</Label>
+            </div>
+          ) : null}
           <Button variant="outline" onClick={() => void doExport()} data-testid="sns-requests-export">
             {t('cuf.requests.export')}
           </Button>
@@ -169,11 +195,16 @@ export function SnsRequestsTab({ materialId, canEdit, isAdmin }: { materialId: s
             </TableRow>
           ) : (
             list.data.map((r) => (
-              <TableRow key={r.id} data-testid={`sns-request-${r.name}`}>
+              <TableRow key={r.id} data-testid={`sns-request-${r.name}`} data-annulled={r.annulled_at ? '' : undefined} className={r.annulled_at ? 'text-muted-foreground' : undefined}>
                 <TableCell>
                   <Badge variant={STATE_VARIANT[r.state]} data-testid="sns-request-state">
                     {t(`cuf.requests.states.${r.state}`)}
                   </Badge>
+                  {r.annulled_at ? (
+                    <Badge variant="outline" className="ml-1 border-destructive text-destructive" data-testid="sns-request-annulled">
+                      {t('cuf.requests.annulled')}
+                    </Badge>
+                  ) : null}
                 </TableCell>
                 <TableCell className="font-mono">{r.proposed_sns ?? t('material.empty')}</TableCell>
                 <TableCell className="font-mono">{r.parent_sns ?? t('material.empty')}</TableCell>
@@ -184,6 +215,11 @@ export function SnsRequestsTab({ materialId, canEdit, isAdmin }: { materialId: s
                 <TableCell className="whitespace-normal">
                   {r.justification}
                   {r.response ? <span className="block text-xs text-muted-foreground">{t('cuf.requests.response')}: {r.response}</span> : null}
+                  {r.annul_reason ? (
+                    <span className="block text-xs text-destructive">
+                      {t('cuf.requests.annulledBecause', { reason: r.annul_reason, by: r.annulled_by ?? t('settings.audit.removedUser') })}
+                    </span>
+                  ) : null}
                 </TableCell>
                 <TableCell className="text-xs whitespace-normal">
                   {t('cuf.requests.created', { date: when(r.created_at), by: r.created_by ?? t('settings.audit.removedUser') })}
@@ -198,12 +234,21 @@ export function SnsRequestsTab({ materialId, canEdit, isAdmin }: { materialId: s
                       <Button size="sm" variant="ghost" onClick={() => step.mutate({ request: r, to: 'enviada' })} data-testid="sns-request-send">
                         {t('cuf.requests.send')}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setDiscarding(r)}>
-                        {t('cuf.requests.discard')}
-                      </Button>
                     </>
                   ) : null}
-                  {isAdmin && r.state === 'enviada' ? (
+                  {canDiscard(r) ? (
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDiscarding(r)} data-testid="sns-request-discard">
+                      <Trash2 aria-hidden="true" />
+                      {t('cuf.requests.discard')}
+                    </Button>
+                  ) : null}
+                  {isAdmin && r.state !== 'borrador' && !r.annulled_at ? (
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { setReason(''); setAnnulling(r); }} data-testid="sns-request-annul">
+                      <Ban aria-hidden="true" />
+                      {t('cuf.requests.annul')}
+                    </Button>
+                  ) : null}
+                  {isAdmin && r.state === 'enviada' && !r.annulled_at ? (
                     <>
                       <Button size="sm" variant="ghost" onClick={() => { setResponse(''); setResolving({ request: r, decision: 'aceptada' }); }} data-testid="sns-request-accept">
                         {t('cuf.requests.accept')}
@@ -241,6 +286,32 @@ export function SnsRequestsTab({ materialId, canEdit, isAdmin }: { materialId: s
           setDiscarding(null);
         }}
       />
+      <Dialog open={annulling !== null} onOpenChange={(open) => !open && setAnnulling(null)}>
+        <DialogContent data-testid="sns-request-annul-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('cuf.requests.annulTitle', { name: annulling?.name ?? '' })}</DialogTitle>
+            <DialogDescription>{t('cuf.requests.annulHint')}</DialogDescription>
+          </DialogHeader>
+          <Label htmlFor="req-annul-reason">{t('cuf.requests.annulReason')}</Label>
+          <Input id="req-annul-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={4000} data-testid="sns-request-annul-reason" />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAnnulling(null)}>
+              {t('actions.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!reason.trim()}
+              onClick={() => {
+                if (annulling) annul.mutate({ request: annulling, reason: reason.trim() });
+                setAnnulling(null);
+              }}
+              data-testid="sns-request-annul-confirm"
+            >
+              {t('cuf.requests.annul')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={resolving !== null} onOpenChange={(open) => !open && setResolving(null)}>
         <DialogContent>
           <DialogHeader>

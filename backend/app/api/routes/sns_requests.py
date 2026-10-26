@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user, require_admin, require_material_permission
@@ -22,7 +22,7 @@ from app.db.base import get_db
 from app.io_excel.template import Column, Template
 from app.io_excel.writer import write_workbook
 from app.models import SnsRequest, User
-from app.schemas.cuf import SnsRequestIn, SnsRequestOut, SnsRequestResolve, SnsRequestStep, SnsRequestUpdate
+from app.schemas.cuf import SnsRequestAnnul, SnsRequestIn, SnsRequestOut, SnsRequestResolve, SnsRequestStep, SnsRequestUpdate
 from app.services import audit
 from app.services.permissions import MaterialAccess
 from app.services.snapshots import client_ip
@@ -51,6 +51,7 @@ def _snapshot(r: SnsRequest) -> dict:
     return {
         "proposed_sns": r.proposed_sns, "parent_sns": r.parent_sns, "name": r.name, "function": r.function,
         "justification": r.justification, "state": r.state, "response": r.response,
+        **({"annulled": True, "annul_reason": r.annul_reason} if r.annulled_at else {}),
     }
 
 
@@ -66,6 +67,7 @@ def _out(r: SnsRequest, names: dict[uuid.UUID, str]) -> SnsRequestOut:
         id=r.id, proposed_sns=r.proposed_sns, parent_sns=r.parent_sns, name=r.name, function=r.function, justification=r.justification,
         state=r.state, response=r.response, created_by=names.get(r.created_by), resolved_by=names.get(r.resolved_by),
         created_at=r.created_at, sent_at=r.sent_at, resolved_at=r.resolved_at, version=r.version,
+        created_by_id=r.created_by, annulled_at=r.annulled_at, annulled_by=names.get(r.annulled_by), annul_reason=r.annul_reason,
     )
 
 
@@ -98,14 +100,23 @@ async def _saved(db: AsyncSession, r: SnsRequest, user: User, action: str, befor
 
 @router.get("", response_model=list[SnsRequestOut])
 async def list_requests(
-    material_id: uuid.UUID, _access: MaterialAccess = Depends(require_material_permission("material.ver")), db: AsyncSession = Depends(get_db)
+    material_id: uuid.UUID,
+    annulled: bool = False,
+    _access: MaterialAccess = Depends(require_material_permission("material.ver")),
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> list[SnsRequestOut]:
+    """The live requests; `annulled=true` (an admin's "Mostrar anuladas")
+    adds the annulled ones. A discarded draft never comes back."""
+    visible = SnsRequest.deleted_at.is_(None)
+    if annulled:
+        if not user.is_admin:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=error_detail("admin_required"))
+        visible = or_(visible, SnsRequest.annulled_at.is_not(None))
     rows = (
-        await db.execute(
-            select(SnsRequest).where(SnsRequest.material_id == material_id, SnsRequest.deleted_at.is_(None)).order_by(SnsRequest.created_at.desc())
-        )
+        await db.execute(select(SnsRequest).where(SnsRequest.material_id == material_id, visible).order_by(SnsRequest.created_at.desc()))
     ).scalars().all()
-    names = await _names(db, {r.created_by for r in rows} | {r.resolved_by for r in rows})
+    names = await _names(db, {r.created_by for r in rows} | {r.resolved_by for r in rows} | {r.annulled_by for r in rows})
     return [_out(r, names) for r in rows]
 
 
@@ -191,14 +202,17 @@ async def discard_request(
     version: int,
     request: Request,
     confirm: bool = False,
-    _access: MaterialAccess = Depends(require_material_permission("material.editar")),
+    access: MaterialAccess = Depends(require_material_permission("material.ver")),
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """A draft only, never sent; it is kept, marked deleted (HR9)."""
+    """A draft only, never sent, by its author or whoever edits the
+    material; it is kept, marked deleted (HR9). A sent one is annulled."""
     if not confirm:
         raise confirmation_required()
     r = await _one(db, material_id, request_id, version)
+    if r.created_by != user.id and not access.can("material.editar"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=error_detail("permission_denied", permission="material.editar"))
     if r.state != "borrador":
         raise _wrong_state(r.state)
     before = _snapshot(r)
@@ -207,6 +221,32 @@ async def discard_request(
     audit.record(
         db, action="sns_request.discarded", entity_type="sns_request", entity_id=str(r.id), user_id=user.id, material_id=material_id,
         before=before, after=None, ip=client_ip(request),
+    )
+    await db.commit()
+
+
+@router.post("/{request_id}/annul", status_code=status.HTTP_204_NO_CONTENT)
+async def annul_request(
+    material_id: uuid.UUID,
+    request_id: uuid.UUID,
+    body: SnsRequestAnnul,
+    request: Request,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """An admin annuls a sent, accepted or rejected request, with a reason:
+    it leaves the list and the export (HR9: kept, and in the audit)."""
+    await _active_material(db, material_id)
+    r = await _one(db, material_id, request_id, body.version)
+    if r.state == "borrador":
+        raise _wrong_state(r.state)
+    before = _snapshot(r)
+    now = datetime.now(UTC)
+    r.deleted_at, r.annulled_at, r.annulled_by, r.annul_reason = now, now, admin.id, body.reason
+    r.version += 1
+    audit.record(
+        db, action="sns_request.annulled", entity_type="sns_request", entity_id=str(r.id), user_id=admin.id, material_id=material_id,
+        before=before, after=_snapshot(r), ip=client_ip(request),
     )
     await db.commit()
 

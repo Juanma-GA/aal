@@ -6,6 +6,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChangeValue, RowsDiff } from '@/components/import/ChangeDetail';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -164,8 +165,20 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
                       <TableCell>{i === 0 ? row.row : ''}</TableCell>
                       <TableCell className="font-mono">{i === 0 ? row.key : ''}</TableCell>
                       <TableCell>{change.header}</TableCell>
-                      <TableCell className="whitespace-normal text-muted-foreground line-through">{change.before}</TableCell>
-                      <TableCell className="whitespace-normal">{change.after}</TableCell>
+                      {change.field === 'rows' && row.rows ? (
+                        <TableCell colSpan={2} className="whitespace-normal">
+                          <RowsDiff rows={row.rows} />
+                        </TableCell>
+                      ) : (
+                        <>
+                          <TableCell className="whitespace-normal text-muted-foreground line-through">
+                            <ChangeValue change={change} side="before" />
+                          </TableCell>
+                          <TableCell className="whitespace-normal">
+                            <ChangeValue change={change} side="after" />
+                          </TableCell>
+                        </>
+                      )}
                     </TableRow>
                   )),
                 )}

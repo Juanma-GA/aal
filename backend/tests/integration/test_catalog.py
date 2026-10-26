@@ -25,7 +25,7 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 # the file.
 EXPECTED = {
     "rows": 101, "sns": 68, "categories": 4, "subcategories": 5, "uncategorized_rows": 1, "elemento_rows": 1,
-    "cn_001": 2, "cn_002": 2, "cn_003": 2, "cn_004": 1, "cn_005": 1, "cn_006": 7,
+    "cn_001": 2, "cn_002": 2, "cn_003": 2, "cn_004": 1, "cn_005": 1, "cn_006": 7, "cn_007": 0,
 }
 
 
@@ -104,7 +104,11 @@ async def test_apply_creates_a_version_and_keeps_the_previous_one(client, admin)
     # (A21010 is also in 0602 with its old name, which stays as an extra one.)
     changed = edited(DEMO.read_bytes(), "G6", "CIGÜEÑAL FORJADO")
     job = await analyse(client, admin, changed)
-    name_change = {"field": "name", "header": "NOMBRE", "before": "CIGÜEÑAL", "after": "CIGÜEÑAL FORJADO"}
+    # The name now differs per subcategory: shown as such, never one of them (E12).
+    name_change = {
+        "field": "name", "header": "NOMBRE", "before": "CIGÜEÑAL", "after": "CIGÜEÑAL FORJADO",
+        "varies_after": [{"subcategory": "0601", "value": "CIGÜEÑAL FORJADO"}, {"subcategory": "0602", "value": "CIGÜEÑAL"}],
+    }
     extra_change = {"field": "extra_names", "header": "NOMBRES ADICIONALES", "before": "", "after": "CIGÜEÑAL"}
     [modified] = job["report"]["modified"]
     assert (modified["row"], modified["key"]) == (6, "A21010")
@@ -187,7 +191,7 @@ async def test_reading_the_catalog(client, factory, admin):
     paged = (await client.get(f"{base}/search", params={"q": "A2", "page_size": 5, "page": 2}, headers=analyst)).json()
     assert paged["total"] > 10 and len(paged["items"]) == 5
     warnings = (await client.get(f"{base}/warnings", headers=analyst)).json()
-    assert warnings["counts"] == {k: EXPECTED[k] for k in ("cn_001", "cn_002", "cn_003", "cn_004", "cn_005", "cn_006")}
+    assert warnings["counts"] == {k: EXPECTED[k] for k in ("cn_001", "cn_002", "cn_003", "cn_004", "cn_005", "cn_006", "cn_007")}
 
 
 async def test_export_round_trip(client, admin):

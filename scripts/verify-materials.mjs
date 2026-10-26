@@ -3,8 +3,11 @@
 //   1. The development analyst opens the card of VTL 4X4 TRAMONTANA.
 //   2. Removes the subcategory 0102 (62 SNS) and adds it back (65).
 //   3. Opens "Configuración normalizada" and searches E12300 (from 0201).
-//   4. Creates a request for a new SNS and sends it.
-//   5. The admin creates a temporary CUF "a partir de otro" from Settings ->
+//   4. Creates a request for a new SNS and sends it; (E12) creates a draft
+//      and discards it ("Descartar borrador").
+//   5. (E12) The admin annuls the sent request with a reason: it leaves the
+//      list and comes back with "Mostrar anuladas", marked annulled.
+//   6. The admin creates a temporary CUF "a partir de otro" from Settings ->
 //      Materiales, opens it from its row, and checks it is independent: a
 //      subcategory removed from it does not leave the original.
 // Leaves the database as it was: the Tramontana gets its three subcategories
@@ -37,6 +40,7 @@ const ANALYST_PASSWORD = process.env.DEV_ANALISTA_PASSWORD;
 const TRAMONTANA = 'VTL 4X4 TRAMONTANA';
 const COPY_NAME = `[verify] CUF temporal ${Date.now()}`;
 const REQUEST_NAME = `[verify] Sistema de vigilancia perimetral ${Date.now()}`;
+const DRAFT_NAME = `[verify] Borrador descartado ${Date.now()}`;
 const es = JSON.parse(readTextFile(path.join(ROOT, 'src', 'i18n', 'locales', 'es.json')));
 const count = (n) => es.cuf.snsCount.replace('{{count}}', n);
 
@@ -143,10 +147,38 @@ try {
   await row.getByTestId('sns-request-state').filter({ hasText: es.cuf.requests.states.enviada }).waitFor();
   assert(true, 'the request is sent');
   await page.screenshot({ path: shot('verify-materials-3-request.png') });
+  // A draft, discarded by its author.
+  await page.getByTestId('sns-request-new').click();
+  await form.getByLabel(es.cuf.requests.name).fill(DRAFT_NAME);
+  await form.getByLabel(es.cuf.requests.justification).fill('Se descarta en la prueba.');
+  const [draft] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/sns-requests') && r.request().method() === 'POST'),
+    page.getByTestId('sns-request-save').click(),
+  ]);
+  snsRequests.push((await draft.json()).id);
+  const draftRow = page.getByTestId(`sns-request-${DRAFT_NAME}`);
+  await draftRow.getByTestId('sns-request-discard').click();
+  await Promise.all([page.waitForResponse((r) => r.request().method() === 'DELETE' && r.status() === 204), page.getByTestId('confirm-action').click()]);
+  await draftRow.waitFor({ state: 'detached' });
+  assert((await row.getByTestId('sns-request-discard').count()) === 0, 'a draft is discarded with its button; a sent one has none');
   await signOut(page);
 
-  // ── 5. The admin copies the Tramontana ─────────────────────────────────
+  // ── 5. The admin annuls the sent request ───────────────────────────────
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}/ficha?tab=solicitudes`);
+  await row.getByTestId('sns-request-annul').click();
+  const annulDialog = page.getByTestId('sns-request-annul-dialog');
+  assert(await annulDialog.getByTestId('sns-request-annul-confirm').isDisabled(), 'annulling needs a reason');
+  await annulDialog.getByTestId('sns-request-annul-reason').fill('Duplicada de otra solicitud.');
+  await Promise.all([page.waitForResponse((r) => r.url().endsWith('/annul') && r.status() === 204), annulDialog.getByTestId('sns-request-annul-confirm').click()]);
+  await row.waitFor({ state: 'detached' });
+  assert(true, 'the annulled request leaves the list');
+  await page.getByTestId('sns-requests-show-annulled').click();
+  await row.getByTestId('sns-request-annulled').waitFor();
+  assert((await row.textContent()).includes('Duplicada de otra solicitud.'), '"Mostrar anuladas" brings it back, with its reason');
+  await page.screenshot({ path: shot('verify-materials-3b-annulled.png') });
+
+  // ── 6. The admin copies the Tramontana ─────────────────────────────────
   await page.goto(`${BASE_URL}/ajustes/materiales`);
   const source = page.getByTestId(`material-row-${TRAMONTANA}`);
   await source.getByRole('button', { name: es.actions.more }).click();

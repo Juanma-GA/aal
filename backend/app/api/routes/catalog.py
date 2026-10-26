@@ -7,20 +7,23 @@ level by level: a request never sends the whole catalog."""
 import asyncio
 import re
 import uuid
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user, require_admin
 from app.api.routes.imports import job_out
+from app.api.routes.users import confirmation_required, version_conflict
 from app.core.errors import error_detail
 from app.db.base import get_db
 from app.io_excel.targets import get_target
 from app.io_excel.writer import write_workbook
-from app.models import CatalogVersion, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, SubcategorySns, User
+from app.models import CatalogVersion, Material, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, SubcategorySns, User
 from app.schemas.catalog import (
     CatalogVersionOut,
+    CatalogVersionStep,
     CategoriesOut,
     CategoryOut,
     DiffItem,
@@ -36,11 +39,12 @@ from app.schemas.catalog import (
     WarningsOut,
 )
 from app.schemas.reference import ImportJobOut
-from app.services import import_jobs
-from app.services.catalog import WARNING_CODES
+from app.services import audit, import_jobs
+from app.services.catalog import WARNING_CODES, row_cells, varies
 from app.services.catalog_import import KIND, TEMPLATE, comparable_positions, compare, export_rows
 from app.services.catalog_tree import tree_level as level_of_tree
 from app.services.parameters import get_parameter
+from app.services.snapshots import client_ip
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -51,8 +55,9 @@ def _not_found(code: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail(code))
 
 
-async def _version(db: AsyncSession, version_id: uuid.UUID) -> CatalogVersion:
-    version = await db.get(CatalogVersion, version_id)
+async def _version(db: AsyncSession, version_id: uuid.UUID, lock: bool = False) -> CatalogVersion:
+    query = select(CatalogVersion).where(CatalogVersion.id == version_id, CatalogVersion.deleted_at.is_(None))
+    version = (await db.execute(query.with_for_update() if lock else query)).scalar_one_or_none()
     if version is None:
         raise _not_found("catalog_version_not_found")
     return version
@@ -82,7 +87,10 @@ def like_text(text: str) -> str:
 @router.get("/versions", response_model=list[CatalogVersionOut])
 async def list_versions(_user: User = Depends(current_user), db: AsyncSession = Depends(get_db)) -> list[CatalogVersionOut]:
     rows = await db.execute(
-        select(CatalogVersion, User.display_name).outerjoin(User, User.id == CatalogVersion.user_id).order_by(CatalogVersion.number.desc())
+        select(CatalogVersion, User.display_name)
+        .outerjoin(User, User.id == CatalogVersion.user_id)
+        .where(CatalogVersion.deleted_at.is_(None))
+        .order_by(CatalogVersion.number.desc())
     )
     return [_version_out(v, name) for v, name in rows]
 
@@ -215,6 +223,9 @@ async def sns_detail(version_id: uuid.UUID, sns: str, _user: User = Depends(curr
         parent=SnsLink(sns=parent.sns, name=parent.name, level=parent.level) if parent else None,
         children=[SnsLink(sns=c.sns, name=c.name, level=c.level) for c in children],
         extra_names=[ExtraName(name=e.name, origin=e.origin) for e in extras],
+        description_varies=varies(
+            [row_cells(r.subcategory_code, r.category_name, r.subcategory_name, r.declared_level, r.name, r.description) for r in rows], "description"
+        ),
         appearances=[
             SnsAppearance(
                 subcategory_code=r.subcategory_code, subcategory_name=r.subcategory_name, category_name=r.category_name,
@@ -227,7 +238,7 @@ async def sns_detail(version_id: uuid.UUID, sns: str, _user: User = Depends(curr
 
 @router.get("/versions/{version_id}/warnings", response_model=WarningsOut)
 async def version_warnings(version_id: uuid.UUID, _user: User = Depends(current_user), db: AsyncSession = Depends(get_db)) -> WarningsOut:
-    """The CN-001..CN-006 warnings the version was imported with."""
+    """The CN-001..CN-007 warnings the version was imported with."""
     version = await _version(db, version_id)
     items = [w for w in version.warnings if w["code"] in WARNING_CODES]
     return WarningsOut(counts={code: sum(1 for w in items if w["code"] == code) for code in WARNING_CODES}, items=items)
@@ -280,7 +291,7 @@ async def diff_versions(
     old, new = await comparable_positions(db, from_version), await comparable_positions(db, to_version)
     diff = compare(old, new)
     items = [
-        DiffItem(sns=d["sns"], change=kind, changes=d.get("changes", []), name=(new.get(d["sns"]) or old[d["sns"]])["name"])
+        DiffItem(sns=d["sns"], change=kind, changes=d.get("changes", []), name=(new.get(d["sns"]) or old[d["sns"]])["name"], rows=d.get("rows"))
         for kind in _CHANGES
         if change in (None, kind)
         for d in diff[kind]
@@ -293,3 +304,72 @@ async def diff_versions(
         page_size=size,
         items=items[(page - 1) * size : page * size],
     )
+
+
+def _version_snapshot(v: CatalogVersion) -> dict:
+    return {"number": v.number, "label": v.label, "file_name": v.file_name, "is_active": v.is_active, "deleted": v.deleted_at is not None}
+
+
+@router.post("/versions/{version_id}/activate", response_model=CatalogVersionOut)
+async def activate_version(
+    version_id: uuid.UUID, body: CatalogVersionStep, request: Request, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)
+) -> CatalogVersionOut:
+    """An older version becomes the active one again (new CUF start from it,
+    the next import is compared with it); the CUF keep their own version."""
+    if not body.confirm:
+        raise confirmation_required()
+    version = await _version(db, version_id, lock=True)
+    if version.version != body.version:
+        raise version_conflict(version.version)
+    if not version.is_active:
+        current = (await db.execute(select(CatalogVersion).where(CatalogVersion.is_active).with_for_update())).scalar_one_or_none()
+        if current is not None:
+            current.is_active = False
+            current.version += 1
+            await db.flush()
+        before = _version_snapshot(version)
+        version.is_active = True
+        version.version += 1
+        audit.record(
+            db, action="catalog_version.activated", entity_type="catalog_version", entity_id=str(version.id), user_id=admin.id,
+            before={**before, "previous_active": current.number if current else None}, after=_version_snapshot(version), ip=client_ip(request),
+        )
+        await db.commit()
+        await db.refresh(version)
+    return _version_out(version, None)
+
+
+@router.delete("/versions/{version_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_version(
+    version_id: uuid.UUID,
+    version: int,
+    request: Request,
+    confirm: bool = False,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Deleted logically (HR9): out of the lists, the selectors and the
+    diff. Never the active one, nor one a CUF works with ("Cambiar versión"
+    of the CUF first)."""
+    if not confirm:
+        raise confirmation_required()
+    found = await _version(db, version_id, lock=True)
+    if found.version != version:
+        raise version_conflict(found.version)
+    if found.is_active:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("catalog_version_active"))
+    users = (
+        await db.execute(
+            select(Material.name).where(Material.catalog_version_id == found.id, Material.deleted_at.is_(None)).order_by(Material.name)
+        )
+    ).scalars().all()
+    if users:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("catalog_version_in_use", materials=", ".join(users)))
+    before = _version_snapshot(found)
+    found.deleted_at = datetime.now(UTC)
+    found.version += 1
+    audit.record(
+        db, action="catalog_version.deleted", entity_type="catalog_version", entity_id=str(found.id), user_id=admin.id,
+        before=before, after=_version_snapshot(found), ip=client_ip(request),
+    )
+    await db.commit()

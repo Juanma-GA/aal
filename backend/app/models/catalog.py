@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,7 +17,10 @@ class CatalogVersion(Base):
     the older ones are kept for good (HR9), with their warnings."""
 
     __tablename__ = "catalog_version"
-    __table_args__ = (Index("uq_catalog_version_active", "is_active", unique=True, postgresql_where=text("is_active")),)
+    __table_args__ = (
+        Index("uq_catalog_version_active", "is_active", unique=True, postgresql_where=text("is_active")),
+        CheckConstraint("NOT (is_active AND deleted_at IS NOT NULL)", name="ck_catalog_version_active_not_deleted"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     number: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
@@ -33,6 +36,8 @@ class CatalogVersion(Base):
     warnings: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     notes: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    # Deleted by an admin (E12): out of every list, selector and diff; kept (HR9).
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class MaterialCategory(Base):

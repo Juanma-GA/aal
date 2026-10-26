@@ -10,9 +10,21 @@ export interface Me {
   ui_preferences: UiPreferences;
 }
 
+export type SidebarSide = 'left' | 'right';
+
 export interface UiPreferences {
   active_material_id?: string | null;
   sidebar_collapsed_groups?: string[];
+  /** The sidebar folded to its icons (E12). */
+  sidebar_folded?: boolean;
+  /** Its width in pixels, within UiSettings.sidebar_width. */
+  sidebar_width?: number;
+  sidebar_side?: SidebarSide;
+}
+
+/** The interface limits (the "ui" parameter, GET /api/me/ui-settings). */
+export interface UiSettings {
+  sidebar_width: { min: number; max: number; default: number };
 }
 
 export interface TokenResponse {

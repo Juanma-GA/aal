@@ -21,6 +21,8 @@ The warnings (none of them drops a row, HR7):
   the source): joined back with ", " (where the source split it) and the
   surrounding quotes removed; one per row.
 - CN-006: a pending description (PTE, or starting with TBD): one per row.
+- CN-007: the same SNS with different descriptions in different subcategories
+  (NT §6: an SNS names one function); the values with their subcategory.
 """
 
 import re
@@ -33,7 +35,7 @@ LEVELS = ("SISTEMA", "SUBSISTEMA", "SUBSUBSISTEMA", "CONJUNTO", "SUBCONJUNTO")
 ELEMENTO = "ELEMENTO"
 # Origin of an extra name seen only in another subcategory (not a CN-001).
 OTHER_SUBCATEGORY = "OTRA_SUBCATEGORIA"
-WARNING_CODES = ("cn_001", "cn_002", "cn_003", "cn_004", "cn_005", "cn_006")
+WARNING_CODES = ("cn_001", "cn_002", "cn_003", "cn_004", "cn_005", "cn_006", "cn_007")
 
 
 def derived_level(sns: str) -> str:
@@ -119,9 +121,11 @@ class Position:
     # Each row of the SNS as "subcategory | level | name | description"
     # (with the category names): a change in any single row shows.
     row_signatures: list[str] = field(default_factory=list)
+    # The same rows as cells (row_cells()), for the diff's table of rows.
+    rows_cells: list[dict[str, Any]] = field(default_factory=list)
 
-    def comparable(self) -> dict[str, str]:
-        """What a diff between versions compares (as text)."""
+    def comparable(self) -> dict[str, Any]:
+        """What a diff between versions compares (as text), and the rows."""
         return {
             "name": self.name,
             "description": self.description,
@@ -129,6 +133,7 @@ class Position:
             "subcategories": ", ".join(self.subcategories),
             "extra_names": ", ".join(sorted(self.extra_names)),
             "rows": row_signatures_text(self.row_signatures),
+            ROW_CELLS: self.rows_cells,
         }
 
 
@@ -149,6 +154,66 @@ def row_signature(subcategory: str | None, category_name: str | None, subcategor
 
 def row_signatures_text(signatures: list[str]) -> str:
     return "\n".join(sorted(signatures))
+
+
+# The key of the rows' cells in a comparable position (not compared itself).
+ROW_CELLS = "row_cells"
+# A field of the SNS and the column of its rows it comes from.
+ROW_FIELD = {"name": "name", "description": "description", "levels": "level"}
+_ROW_COLUMNS = ("where", "level", "name", "description")
+
+
+def row_cells(subcategory: str | None, category_name: str | None, subcategory_name: str | None, level: str, name: str, description: str) -> dict[str, Any]:
+    where = f"{subcategory} {category_name} / {subcategory_name}" if subcategory else "—"
+    return {"subcategory": subcategory, "where": where, "level": level, "name": name, "description": description}
+
+
+def _row_order(c: dict[str, Any]) -> tuple:
+    return (c["subcategory"] or "", c["level"] == ELEMENTO, c["level"], c["name"], c["description"])
+
+
+def per_subcategory(cells: list[dict[str, Any]], column: str) -> list[dict[str, str]]:
+    """The value of one column in each subcategory of an SNS (its main row,
+    not the ELEMENTO one), sorted by subcategory."""
+    out: dict[str, str] = {}
+    for c in sorted(cells, key=_row_order):
+        if c["subcategory"] and c["subcategory"] not in out:
+            out[c["subcategory"]] = c[column]
+    return [{"subcategory": s, "value": v} for s, v in out.items()]
+
+
+def varies(cells: list[dict[str, Any]], column: str) -> list[dict[str, str]] | None:
+    """Every subcategory's value when they are not all the same (the SNS
+    has no single value: it is never picked silently, HR7); else None."""
+    values = per_subcategory(cells, column)
+    return values if len({v["value"] for v in values}) > 1 else None
+
+
+def align_rows(before: list[dict[str, Any]], after: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The rows of an SNS before and after, side by side by subcategory (the
+    n-th row of a subcategory with the n-th), with the columns that changed."""
+
+    def keyed(cells: list[dict[str, Any]]) -> dict[tuple[str, int], dict[str, Any]]:
+        out: dict[tuple[str, int], dict[str, Any]] = {}
+        seen: dict[str, int] = {}
+        for c in sorted(cells, key=_row_order):
+            sub = c["subcategory"] or ""
+            seen[sub] = seen.get(sub, 0) + 1
+            out[(sub, seen[sub])] = c
+        return out
+
+    old, new = keyed(before), keyed(after)
+    rows = []
+    for key in sorted(set(old) | set(new)):
+        b, a = old.get(key), new.get(key)
+        changed = [col for col in _ROW_COLUMNS if (b or {}).get(col) != (a or {}).get(col)] if b and a else list(_ROW_COLUMNS)
+        rows.append({
+            "subcategory": key[0] or None,
+            "before": {col: b[col] for col in _ROW_COLUMNS} if b else None,
+            "after": {col: a[col] for col in _ROW_COLUMNS} if a else None,
+            "changed": changed,
+        })
+    return rows
 
 
 def _issue(code: str, row: int | None, **params: Any) -> dict[str, Any]:
@@ -189,6 +254,7 @@ def build_catalog(rows: list[Row]) -> Catalog:
             row_signatures=[
                 row_signature(r.subcategory, r.category_name, r.subcategory_name, r.declared_level, r.name, r.description) for r in group
             ],
+            rows_cells=[row_cells(r.subcategory, r.category_name, r.subcategory_name, r.declared_level, r.name, r.description) for r in group],
         )
 
     names_in_sub: dict[tuple[str, str], list[Row]] = {}
@@ -225,6 +291,12 @@ def build_catalog(rows: list[Row]) -> Catalog:
         mark = pending_mark(r.description)
         if mark:
             warnings.append(_issue("cn_006", r.row, sns=r.sns, mark=mark))
+    for sns, p in positions.items():
+        # NT §6: an SNS names one function, whatever the subcategory.
+        different = varies(p.rows_cells, "description")
+        if different:
+            values = " · ".join(f"{v['subcategory'][:2]}-{v['subcategory'][2:]}: {v['value']}" for v in different)
+            warnings.append(_issue("cn_007", p.first_row, sns=sns, values=values))
     warnings.sort(key=lambda w: (WARNING_CODES.index(w["code"]), w["row"] or 0))
 
     counts = {

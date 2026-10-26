@@ -91,6 +91,9 @@
     "import_template_changed": "La plantilla de la tabla ha cambiado desde el análisis. Vuelve a analizar el fichero.",
     "catalog_version_changed": "Se ha importado otra versión del catálogo desde este análisis. Vuelve a analizar el fichero.",
     "catalog_version_not_found": "Esa versión del catálogo no existe.",
+    "sidebar_width_out_of_range": "El ancho del panel debe estar entre {{min}} y {{max}} píxeles.",
+    "catalog_version_active": "Es la versión activa: activa otra antes de borrarla.",
+    "catalog_version_in_use": "La usan estos CUF: {{materials}}. Cámbiales la versión («Cambiar versión» en su ficha) antes de borrarla.",
     "sns_not_found": "Ese SNS no está en esta versión del catálogo.",
     "subcategory_not_found": "Esa subcategoría no existe.",
     "material_without_catalog": "El material no tiene versión del catálogo: un administrador debe asignarle una.",
@@ -315,9 +318,13 @@
         "audit": "Auditoría",
         "panel": "Panel del material",
         "import": "Importación de Excel",
-        "catalog": "Configuración funcional normalizada"
+        "catalog": "Configuración funcional normalizada",
+        "ui": "Interfaz"
       },
       "labels": {
+        "sidebar_width.min": "Ancho mínimo del panel lateral (px)",
+        "sidebar_width.max": "Ancho máximo del panel lateral (px)",
+        "sidebar_width.default": "Ancho inicial del panel lateral (px)",
         "access_token_minutes": "Duración del token de acceso (minutos)",
         "refresh_token_days": "Duración de la sesión sin actividad (días)",
         "password.min_length": "Longitud mínima de contraseña",
@@ -381,6 +388,8 @@
       "reference_value.created": "Valor de referencia creado",
       "reference_value.updated": "Valor de referencia editado",
       "catalog_version.imported": "Versión del catálogo importada",
+      "catalog_version.activated": "Versión del catálogo activada",
+      "catalog_version.deleted": "Versión del catálogo borrada",
       "material.subcategories_changed": "Subcategorías del material cambiadas",
       "material.catalog_version_changed": "Versión del catálogo del material cambiada",
       "material.copied": "Material creado a partir de otro",
@@ -389,7 +398,8 @@
       "sns_request.sent": "Solicitud de SNS enviada",
       "sns_request.accepted": "Solicitud de SNS aceptada",
       "sns_request.rejected": "Solicitud de SNS rechazada",
-      "sns_request.discarded": "Solicitud de SNS descartada"
+      "sns_request.discarded": "Solicitud de SNS descartada",
+      "sns_request.annulled": "Solicitud de SNS anulada"
     },
     "entities": {
       "user": "Usuario",
@@ -409,10 +419,15 @@
   "nav": {
     "sidebarTitle": "Menú del PALI",
     "sidebarDescription": "Grupos y módulos del plan de apoyo logístico integrado.",
-    "toggleSidebar": "Mostrar u ocultar el menú",
+    "toggleSidebar": "Mostrar u ocultar el menú (Ctrl+B)",
     "breadcrumb": "Ruta de navegación",
     "pageTitle": "{{page}} · {{app}}",
-    "noMaterial": "Elige un material en la cabecera para ver sus módulos."
+    "noMaterial": "Elige un material en la cabecera para ver sus módulos.",
+    "resizeSidebar": "Arrastra para cambiar el ancho del panel (doble clic: ancho inicial)",
+    "foldSidebar": "Plegar el panel (Ctrl+B)",
+    "unfoldSidebar": "Desplegar el panel (Ctrl+B)",
+    "sidebarToRight": "Panel a la derecha",
+    "sidebarToLeft": "Panel a la izquierda"
   },
   "panel": {
     "title": "Panel del material",
@@ -543,6 +558,14 @@
     "field": "Campo",
     "before": "Antes",
     "after": "Después",
+    "variesBySubcategory": "Varía por subcategoría",
+    "subcategory": "Subcategoría",
+    "rowColumns": {
+      "where": "Categoría / subcategoría",
+      "level": "Nivel",
+      "name": "Nombre",
+      "description": "Descripción"
+    },
     "where": "Dónde",
     "message": "Mensaje",
     "cell": "Fila {{row}}, columna {{column}}",
@@ -585,6 +608,7 @@
       "cn_004": "{{sns}} no tiene categoría ni subcategoría.",
       "cn_005": "La descripción de {{sns}} venía partida en dos columnas: se ha unido.",
       "cn_006": "La descripción de {{sns}} está pendiente ({{mark}}).",
+      "cn_007": "{{sns}} tiene distinta descripción según la subcategoría: {{values}}.",
       "extra_cells_ignored": "Hay datos fuera de la plantilla (columnas {{columns}}): no se importan."
     },
     "page": "Página {{page}} de {{pages}} · {{total}} filas"
@@ -594,6 +618,13 @@
     "hint": "Catálogo de posiciones funcionales SNS por categoría y subcategoría de material (NT 10/17, Anexo II). Es común a todos los materiales y solo cambia importando una versión nueva.",
     "version": "Versión del catálogo",
     "versionLabel": "Versión {{number}} · {{label}}",
+    "activateVersion": "Activar esta versión",
+    "activateVersionTitle": "¿Activar la {{version}}?",
+    "activateVersionHint": "Pasa a ser la versión activa: los CUF nuevos parten de ella y la próxima importación se compara con ella. Los CUF existentes siguen con su versión.",
+    "deleteVersion": "Borrar versión",
+    "deleteVersionTitle": "¿Borrar la {{version}}?",
+    "deleteVersionHint": "Deja de aparecer en las listas, los selectores y «Comparar». Se conserva y queda en la auditoría. No se puede borrar si algún CUF trabaja con ella.",
+    "activeNotDeleted": "La versión activa no se puede borrar: activa otra antes.",
     "active": "activa",
     "import": "Importar nueva versión",
     "importTitle": "Importar una versión del catálogo (CONF_FUN)",
@@ -669,6 +700,10 @@
       "cn_006": {
         "title": "CN-006 · Descripción pendiente",
         "hint": "Filas con la descripción «PTE» o que empieza por «TBD»."
+      },
+      "cn_007": {
+        "title": "CN-007 · Mismo SNS con distinta descripción entre subcategorías",
+        "hint": "Un SNS identifica una única función (NT §6): sus filas de distintas subcategorías deberían describirla igual."
       }
     },
     "compareNeedsTwo": "Para comparar hacen falta al menos dos versiones.",
@@ -739,9 +774,16 @@
       "created": "Creada el {{date}} por {{by}}",
       "sent": "Enviada el {{date}}",
       "send": "Enviar",
-      "discard": "Descartar",
-      "discardTitle": "¿Descartar «{{name}}»?",
+      "discard": "Descartar borrador",
+      "discardTitle": "¿Descartar el borrador «{{name}}»?",
       "discardHint": "El borrador deja de verse; queda en la auditoría.",
+      "annul": "Anular",
+      "annulTitle": "Anular «{{name}}»",
+      "annulHint": "Deja de verse en la lista y en la exportación; queda en la auditoría con el motivo.",
+      "annulReason": "Motivo (obligatorio)",
+      "annulled": "Anulada",
+      "annulledBecause": "Anulada por {{by}}: {{reason}}",
+      "showAnnulled": "Mostrar anuladas",
       "accept": "Aceptar",
       "reject": "Rechazar",
       "acceptTitle": "Aceptar «{{name}}»",

@@ -120,6 +120,12 @@ class SnsRequestResolve(StrictModel):
     response: str = Field(min_length=1, max_length=4000)
 
 
+class SnsRequestAnnul(StrictModel):
+    version: int
+    # Required: why a sent request is annulled (it stays in the audit).
+    reason: str = Field(min_length=1, max_length=4000, pattern=r"\S")
+
+
 class SnsRequestOut(BaseModel):
     id: uuid.UUID
     proposed_sns: str | None
@@ -135,3 +141,8 @@ class SnsRequestOut(BaseModel):
     sent_at: datetime | None
     resolved_at: datetime | None
     version: int
+    # Who created it (the author may discard their draft).
+    created_by_id: uuid.UUID | None = None
+    annulled_at: datetime | None = None
+    annulled_by: str | None = None
+    annul_reason: str | None = None

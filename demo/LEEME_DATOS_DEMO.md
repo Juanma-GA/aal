@@ -80,6 +80,9 @@ Productos funcionales (PF-001): el último aceite usa la unidad de suministro `Z
 | AR-003 peso sin unidad de peso | Acoplamiento viscoso |
 | AR-006 mantenimiento preventivo sin control de vida | Biela DM-6 |
 | AR-001 sin NOC (aviso) | Tapón de llenado |
+| AR-007 control de configuración = S sin grupo estructural 0 o 7 (aviso) | Caja de cambios automática 6V (grupo 3) |
+
+No hay más avisos AR: solo el Tramontana, la Radio RT-500 y el Motor DM-6 (los tres son CUF, grupo 0) tienen control de configuración.
 
 ## 5. Guion corto para la demo
 

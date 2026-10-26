@@ -49,7 +49,8 @@ demo y `demo/` no se modifica.
 
 ## Cómo levantar el entorno
 
-Requisitos: Node 22, Python 3.11+ y PostgreSQL 16.
+Requisitos: Node 24 (`.nvmrc`; `engines.node` `>=24.22.1`; la CI usa `node-version-file: .nvmrc` y
+`run-checks.mjs` avisa si la instalada es menor), Python 3.11+ y PostgreSQL 16.
 
 **Postgres**, una de dos:
 
@@ -99,6 +100,8 @@ y la primera vez añade `TEST_DATABASE_URL` a `backend/.env`).
   --universal --python-version 3.11 --generate-hashes --exclude-newer <hoy − 30 días> -o
   requirements[-dev].lock.txt`. `backend/tests/unit/test_windows_safety.py` comprueba que son
   universales y con hash.
+- npm 11: los scripts de instalación se aprueban en `allowScripts` de `package.json` (`npm
+  install-scripts approve <paquete>`, fijado a su versión; hoy solo `esbuild`).
 - Ventana de 30 días para paquetes nuevos (AACF G3): `--exclude-newer` en uv, `npm install
   --before=<fecha>` en npm; una corrección de seguridad (`npm audit fix`) puede saltársela.
 
@@ -135,7 +138,7 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   (`scripts/test-*.mjs` uno a uno, 180 s máximo por fichero; `-- <texto>` filtra por nombre),
   `npm run test:backend` (pytest; `-- -k audit -x` pasa argumentos a pytest).
 - **`test:js`** son scripts Node sin framework (como en brdp-manager): un `scripts/test-*.mjs` nuevo
-  entra solo. Node 22 ejecuta `.ts` sin compilar (type stripping), así que un test puede importar un
+  entra solo. Node (≥ 22) ejecuta `.ts` sin compilar (type stripping), así que un test puede importar un
   módulo de `src/` que no use alias `@/`. Vigilan, entre otros: HR1 (`test-no-browser-storage`),
   HR15 y tokens (`test-ui-text`: ni texto visible en el JSX ni colores crudos en `src/`), claves i18n
   y códigos de error del backend (`test-i18n-keys`), `humanize` (HR21) y Windows

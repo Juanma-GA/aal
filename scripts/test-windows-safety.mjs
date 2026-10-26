@@ -15,7 +15,8 @@
 //    asks for it or reads it from the environment.
 // 4. The docs keep the corporate-certificate and PowerShell notes (README.md,
 //    docs/instalacion/, CLAUDE.md), CI installs with `npm ci`, and nothing
-//    runs `npm audit fix --force`.
+//    runs `npm audit fix --force`; one Node version in .nvmrc, package.json
+//    "engines" and the CI, documented in README.md.
 //
 // The scanner is checked on its own fixtures first (a real Windows bug of
 // brdp-manager is flagged, the http uses are not), then run over every
@@ -161,6 +162,15 @@ for (const file of files) {
   check('CI installs the backend with hashes', /--require-hashes/.test(ci));
   for (const rel of ['.github/workflows/check.yml', 'package.json']) {
     check(`${rel}: no npm audit fix --force`, !/audit fix --force/.test(read(rel)));
+  }
+  // One Node version: .nvmrc, package.json "engines" and the CI (E12).
+  const nvmrc = read('.nvmrc').trim();
+  const engines = JSON.parse(read('package.json')).engines?.node ?? '';
+  check('CI takes Node from .nvmrc', /node-version-file:\s*\.nvmrc/.test(ci) && !/node-version:\s/.test(ci));
+  check(`.nvmrc (${nvmrc}) and engines.node (${engines}) name the same major`, engines.replace(/^\D+/, '').split('.')[0] === nvmrc.split('.')[0]);
+  const readme = read('README.md');
+  for (const needle of ['.nvmrc', 'winget upgrade OpenJS.NodeJS.LTS', 'Defender', 'allowScripts', 'npm run test:db:create']) {
+    check(`README.md mentions ${needle}`, readme.includes(needle));
   }
 }
 

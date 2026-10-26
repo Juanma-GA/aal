@@ -1,6 +1,6 @@
 import type { Categories, CatalogVersion, CatalogWarnings, DiffChange, DiffPage, SearchPage, SnsDetail, TreeNode } from '@/types/catalog';
 import type { ImportJob } from '@/types/imports';
-import { apiFetchFile, apiFetchJson, apiUpload } from './apiClient';
+import { apiFetchFile, apiFetchJson, apiSend, apiUpload } from './apiClient';
 
 const version = (id: string) => `/catalog/versions/${id}`;
 const query = (params: Record<string, string | number | undefined>) =>
@@ -17,3 +17,8 @@ export const exportCatalog = (id: string, subcategory?: string) => apiFetchFile(
 export const startCatalogImport = (file: File): Promise<ImportJob> => apiUpload<ImportJob>('/catalog/import', file);
 export const fetchDiff = (from: string, to: string, change: DiffChange | undefined, page: number): Promise<DiffPage> =>
   apiFetchJson<DiffPage>(`/catalog/diff?${query({ from_version: from, to_version: to, change, page })}`);
+/** `rowVersion`: the version's optimistic-lock counter. */
+export const activateCatalogVersion = (id: string, rowVersion: number): Promise<CatalogVersion> =>
+  apiSend<CatalogVersion>('POST', `${version(id)}/activate`, { version: rowVersion, confirm: true });
+export const deleteCatalogVersion = (id: string, rowVersion: number): Promise<void> =>
+  apiSend<void>('DELETE', `${version(id)}?${query({ version: rowVersion, confirm: 'true' })}`);

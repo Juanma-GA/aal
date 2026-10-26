@@ -14,7 +14,10 @@
 // environment is missing something: backend Python, test database; with
 // --keep-going, 1 if any step really failed, else 2). The summary also
 // says which Python ran the steps that need one (its full path, and
-// whether it is backend/.venv or a system Python).
+// whether it is backend/.venv or a system Python). An installed Node older
+// than package.json's "engines.node" is warned about at the start and in
+// the summary (the checks still run).
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { duration, rule, runProcess, seconds, tail } from './lib/checkReport.mjs';
@@ -23,6 +26,18 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const all = process.argv.includes('--all');
 const keepGoing = process.argv.includes('--keep-going');
 const node = process.execPath;
+
+// ">=24.22.1" -> is the running Node older?
+const wanted = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).engines?.node ?? '';
+const parts = (v) => (v.match(/\d+(\.\d+){0,2}/)?.[0] ?? '0').split('.').map(Number);
+const older = (a, b) => {
+  for (let i = 0; i < 3; i += 1) if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) < (b[i] ?? 0);
+  return false;
+};
+const nodeWarning =
+  wanted && older(parts(process.versions.node), parts(wanted))
+    ? `WARNING: Node ${process.versions.node} is older than the project's ${wanted} (package.json "engines", .nvmrc). Update it: see README.md.`
+    : null;
 
 const steps = [
   {
@@ -84,6 +99,7 @@ if (all) {
 
 const command = all ? 'check:all' : 'check';
 console.log(`npm run ${command}: ${steps.map((s) => s.name).join(', ')}`);
+if (nodeWarning) console.log(nodeWarning);
 const started = Date.now();
 const results = [];
 const failures = [];
@@ -138,6 +154,8 @@ for (const r of results) {
 }
 console.log(`  total: ${duration(total)}`);
 for (const p of pythons) console.log(`  Python: ${p}`);
+console.log(`  Node: ${process.versions.node}`);
+if (nodeWarning) console.log(nodeWarning);
 if (failures.length) {
   const realFailure = failures.find((f) => f.status === 'FAIL');
   console.log(`RESULT: FAILED at ${failures.map((f) => f.step.name).join(', ')}`);

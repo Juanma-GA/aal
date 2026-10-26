@@ -58,6 +58,11 @@ export interface SnsRequest {
   sent_at: string | null;
   resolved_at: string | null;
   version: number;
+  created_by_id: string | null;
+  /** Annulled by an admin (E12): only listed with "Mostrar anuladas". */
+  annulled_at: string | null;
+  annulled_by: string | null;
+  annul_reason: string | null;
 }
 
 export interface SnsRequestFields {

@@ -6,7 +6,11 @@
 //      A21031, whose card shows its extra name.
 //   3. Search A27010; A21030 appears in both wheeled and tracked vehicles.
 //   4. "Avisos de la versión" shows each CN with its count.
-//   5. The development analyst sees the catalog but not "Importar".
+//   5. (E12) A copy with A22140's 06-01 description changed (PTE -> TBD) is
+//      imported: CN-007 = 1, and the report and "Comparar" show A22140's rows
+//      side by side by subcategory, its description "Varía por subcategoría".
+//      The first version is deleted from "Versiones" (the active one cannot be).
+//   6. The development analyst sees the catalog but not "Importar".
 // Leaves the database as it was: the imported version and its import job
 // are removed and the version that was active before is active again
 // (backend/scripts/purge_verify_data.py); only audit rows stay.
@@ -25,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { shot } from './lib/shots.mjs';
 import { readTextFile } from './lib/textFile.mjs';
-import { backendPythonOrNotRun, notRun, purgeVerifyData } from './lib/verifyData.mjs';
+import { backendPythonOrNotRun, notRun, purgeVerifyData, runBackendScript } from './lib/verifyData.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
@@ -37,7 +41,9 @@ const ANALYST_PASSWORD = process.env.DEV_ANALISTA_PASSWORD;
 const DEMO = path.join(ROOT, 'demo', 'CONF_FUN_DEMO.xlsx');
 const es = JSON.parse(readTextFile(path.join(ROOT, 'src', 'i18n', 'locales', 'es.json')));
 // The NT rules applied to the demo (see backend/tests/integration/test_catalog.py).
-const EXPECTED = { rows: 101, sns: 68, categories: 4, subcategories: 5, cn_001: 2, cn_002: 2, cn_003: 2, cn_004: 1, cn_005: 1, cn_006: 7 };
+const EXPECTED = { rows: 101, sns: 68, categories: 4, subcategories: 5, cn_001: 2, cn_002: 2, cn_003: 2, cn_004: 1, cn_005: 1, cn_006: 7, cn_007: 0 };
+// The row of A22140 in 06-01 (its 06-02 row is row 61).
+const A22140_0601 = 'H14';
 
 function assert(cond, msg) {
   if (!cond) throw new Error('ASSERTION FAILED: ' + msg);
@@ -71,6 +77,32 @@ async function signOut(page) {
   await page.waitForURL('**/login');
 }
 
+/** Imports a CONF_FUN file from "Importar nueva versión" (named verify-…:
+ *  the cleanup only removes versions a check imported); the analysis and
+ *  the response of the list once applied. */
+async function importVersion(page, name, buffer, check) {
+  await page.getByTestId('catalog-import').click();
+  await page.getByTestId('import-file').setInputFiles({ name, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer });
+  const analysed = page.waitForResponse(async (r) => r.url().includes('/api/import-jobs/') && r.request().method() === 'GET' && (await r.json()).status === 'analyzed');
+  const [started] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/catalog/import') && r.request().method() === 'POST'),
+    page.getByTestId('import-analyze').click(),
+  ]);
+  importJobs.push((await started.json()).id);
+  const job = await (await analysed).json();
+  await page.getByTestId('import-report').waitFor();
+  await check(job);
+  // Applying refreshes the list of versions: the new one is the first.
+  const listed = page.waitForResponse((r) => r.url().endsWith('/api/catalog/versions') && r.ok());
+  const [applied] = await Promise.all([page.waitForResponse((r) => r.url().includes('/apply')), page.getByTestId('import-apply').click()]);
+  assert(applied.ok(), `${name} is applied`);
+  const newest = (await (await listed).json())[0];
+  await page.getByTestId('import-done').waitFor();
+  await page.keyboard.press('Escape');
+  catalogVersions.push(newest.id);
+  return newest;
+}
+
 const browser = await chromium.launch(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {});
 let failed = false;
 try {
@@ -83,32 +115,15 @@ try {
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
   await page.goto(`${BASE_URL}/configuracion-funcional`);
   await page.getByTestId('catalog-page').waitFor();
-  await page.getByTestId('catalog-import').click();
-  // Named verify-…: the cleanup only removes versions a check imported.
-  await page.getByTestId('import-file').setInputFiles({ name: 'verify-CONF_FUN_DEMO.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: fs.readFileSync(DEMO) });
-  const analysed = page.waitForResponse(async (r) => r.url().includes('/api/import-jobs/') && r.request().method() === 'GET' && (await r.json()).status === 'analyzed');
-  const [started] = await Promise.all([
-    page.waitForResponse((r) => r.url().endsWith('/api/catalog/import') && r.request().method() === 'POST'),
-    page.getByTestId('import-analyze').click(),
-  ]);
-  importJobs.push((await started.json()).id);
-  const job = await (await analysed).json();
-  for (const [key, value] of Object.entries(EXPECTED)) assert(job.counts[key] === value, `the report counts ${key} = ${value}`);
-  assert(job.counts.new + job.counts.modified + job.counts.unchanged === 68 && job.counts.errors === 0, 'the 68 SNS, no errors');
-  await page.getByTestId('import-report').waitFor();
-  assert((await page.getByTestId('import-count-errors').textContent()) === '0', 'the wizard shows no errors');
-  await page.getByTestId('import-tab-warnings').click();
-  const warningsText = await page.getByTestId('import-warnings').textContent();
-  assert(warningsText.includes('A21031') && warningsText.includes('E11000'), 'the warnings tab lists the CN warnings');
-  await page.screenshot({ path: shot('verify-conf-fun-1-report.png') });
-  // Applying refreshes the list of versions: the new one is the first.
-  const listed = page.waitForResponse((r) => r.url().endsWith('/api/catalog/versions') && r.ok());
-  const [applied] = await Promise.all([page.waitForResponse((r) => r.url().includes('/apply')), page.getByTestId('import-apply').click()]);
-  assert(applied.ok(), 'the import is applied');
-  const newest = (await (await listed).json())[0];
-  await page.getByTestId('import-done').waitFor();
-  await page.keyboard.press('Escape');
-  catalogVersions.push(newest.id);
+  const newest = await importVersion(page, 'verify-CONF_FUN_DEMO.xlsx', fs.readFileSync(DEMO), async (job) => {
+    for (const [key, value] of Object.entries(EXPECTED)) assert(job.counts[key] === value, `the report counts ${key} = ${value}`);
+    assert(job.counts.new + job.counts.modified + job.counts.unchanged === 68 && job.counts.errors === 0, 'the 68 SNS, no errors');
+    assert((await page.getByTestId('import-count-errors').textContent()) === '0', 'the wizard shows no errors');
+    await page.getByTestId('import-tab-warnings').click();
+    const warningsText = await page.getByTestId('import-warnings').textContent();
+    assert(warningsText.includes('A21031') && warningsText.includes('E11000'), 'the warnings tab lists the CN warnings');
+    await page.screenshot({ path: shot('verify-conf-fun-1-report.png') });
+  });
   assert(newest.is_active && newest.counts.sns === 68, `version ${newest.number} is the active one`);
 
   // ── 2. Wheeled vehicles -> A21031 ──────────────────────────────────────
@@ -142,13 +157,44 @@ try {
   // ── 4. Warnings of the version ─────────────────────────────────────────
   await page.getByTestId('catalog-tab-avisos').click();
   await page.getByTestId('catalog-warnings').waitFor();
-  for (const code of ['cn_001', 'cn_002', 'cn_003', 'cn_004', 'cn_005', 'cn_006']) {
+  for (const code of ['cn_001', 'cn_002', 'cn_003', 'cn_004', 'cn_005', 'cn_006', 'cn_007']) {
     assert((await page.getByTestId(`warnings-count-${code}`).textContent()) === String(EXPECTED[code]), `"Avisos de la versión": ${code} = ${EXPECTED[code]}`);
   }
   await page.screenshot({ path: shot('verify-conf-fun-3-warnings.png'), fullPage: true });
+
+  // ── 5. One subcategory's row changed; a version deleted (E12) ──────────
+  const edited = shot('verify-conf-fun-A22140.xlsx');
+  assert(runBackendScript(python, 'edit', [path.join('scripts', 'verify_edit_xlsx.py'), DEMO, edited, 'CONF_FUN', `${A22140_0601}=TBD`]) === 0, 'A22140 06-01 edited with openpyxl');
+  const second = await importVersion(page, 'verify-CONF_FUN_A22140.xlsx', fs.readFileSync(edited), async (job) => {
+    assert(job.counts.cn_007 === 1 && job.counts.modified === 1, 'the copy: CN-007 = 1 and 1 modified');
+    await page.getByTestId('import-tab-modified').click();
+    const rows = page.getByTestId('import-modified').getByTestId('rows-diff');
+    assert((await rows.locator('[data-subcategory="0601"] [data-changed]').count()) === 2, 'the report: the 06-01 row, its description changed (before and after)');
+    assert((await rows.locator('[data-subcategory="0602"] [data-changed]').count()) === 0, 'and the 06-02 row unchanged');
+    assert((await page.getByTestId('import-modified').getByTestId('varies').textContent()).includes(es.import.variesBySubcategory), 'the description "varía por subcategoría"');
+  });
+  await page.getByTestId('catalog-tab-comparar').click();
+  await page.getByTestId('compare-summary').waitFor();
+  const compared = page.getByTestId('catalog-compare');
+  await compared.getByTestId('rows-diff').waitFor();
+  const variesText = await compared.getByTestId('varies').textContent();
+  assert(variesText.includes('06-01') && variesText.includes('TBD') && variesText.includes('06-02') && variesText.includes('PTE'), '"Comparar": both values with their subcategory');
+  await page.screenshot({ path: shot('verify-conf-fun-5-compare.png'), fullPage: true });
+  await page.getByTestId('catalog-tab-versiones').click();
+  await page.getByTestId(`version-menu-${second.number}`).click();
+  assert(await page.getByTestId(`delete-version-${second.number}`).isDisabled(), 'the active version cannot be deleted');
+  await page.keyboard.press('Escape');
+  await page.getByTestId(`version-menu-${newest.number}`).click();
+  await page.getByTestId(`delete-version-${newest.number}`).click();
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes(`/api/catalog/versions/${newest.id}`) && r.request().method() === 'DELETE' && r.status() === 204),
+    page.getByTestId('confirm-action').click(),
+  ]);
+  await page.getByTestId(`version-row-${newest.number}`).waitFor({ state: 'detached' });
+  assert(true, `version ${newest.number} deleted from "Versiones"`);
   await signOut(page);
 
-  // ── 5. The analyst reads, without importing ────────────────────────────
+  // ── 6. The analyst reads, without importing ────────────────────────────
   await signIn(page, ANALYST_EMAIL, ANALYST_PASSWORD);
   await page.goto(BASE_URL);
   // From the sidebar of their material: the module is available and opens

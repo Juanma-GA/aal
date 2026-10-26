@@ -26,7 +26,8 @@ import { useMe } from '@/hooks/useSession';
 import { saveFile } from '@/lib/download';
 import { catalogTree } from '@/lib/treeSources';
 import { notifyError } from '@/lib/notify';
-import { exportCatalog, fetchCatalogVersions, fetchCategories, startCatalogImport } from '@/services/catalogApi';
+import { useCatalogVersions } from '@/hooks/useCatalogVersions';
+import { exportCatalog, fetchCategories, startCatalogImport } from '@/services/catalogApi';
 
 export const CATALOG_PATH = '/configuracion-funcional';
 const TABS = ['catalogo', 'avisos', 'versiones', 'comparar'] as const;
@@ -38,7 +39,7 @@ export function CatalogPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const [importing, setImporting] = useState(false);
-  const versions = useQuery({ queryKey: ['catalog', 'versions'], queryFn: fetchCatalogVersions });
+  const versions = useCatalogVersions();
   const list = versions.data ?? [];
   const version = list.find((v) => v.id === params.get('v')) ?? list.find((v) => v.is_active) ?? list[0];
   const categories = useQuery({ queryKey: ['catalog', version?.id, 'categories'], queryFn: () => fetchCategories(version?.id ?? ''), enabled: Boolean(version) });
@@ -156,7 +157,7 @@ export function CatalogPage(): React.JSX.Element {
             <WarningsView versionId={version.id} onOpen={openSns} />
           </TabsContent>
           <TabsContent value="versiones">
-            <VersionsTable versions={list} current={version.id} onOpen={(v) => update({ v, sub: null, sns: null, tab: null })} />
+            <VersionsTable versions={list} current={version.id} isAdmin={isAdmin} onOpen={(v) => update({ v, sub: null, sns: null, tab: null })} />
           </TabsContent>
           <TabsContent value="comparar">
             <CompareView versions={list} onOpen={(s) => update({ sns: s, tab: null })} />

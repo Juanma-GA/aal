@@ -21,7 +21,8 @@ export const copyMaterial = (
 ): Promise<Material> => apiSend<Material>('POST', `${base(id)}/copy`, body);
 
 const requests = (id: string) => `${base(id)}/sns-requests`;
-export const fetchSnsRequests = (id: string): Promise<SnsRequest[]> => apiFetchJson<SnsRequest[]>(requests(id));
+export const fetchSnsRequests = (id: string, annulled = false): Promise<SnsRequest[]> =>
+  apiFetchJson<SnsRequest[]>(`${requests(id)}${annulled ? '?annulled=true' : ''}`);
 export const createSnsRequest = (id: string, body: SnsRequestFields): Promise<SnsRequest> => apiSend<SnsRequest>('POST', requests(id), body);
 export const updateSnsRequest = (id: string, rid: string, version: number, body: SnsRequestFields): Promise<SnsRequest> =>
   apiSend<SnsRequest>('PATCH', `${requests(id)}/${rid}`, { ...body, version });
@@ -31,4 +32,6 @@ export const resolveSnsRequest = (id: string, rid: string, version: number, deci
   apiSend<SnsRequest>('POST', `${requests(id)}/${rid}/resolve`, { version, decision, response });
 export const discardSnsRequest = (id: string, rid: string, version: number): Promise<void> =>
   apiSend<void>('DELETE', `${requests(id)}/${rid}?version=${version}&confirm=true`);
+export const annulSnsRequest = (id: string, rid: string, version: number, reason: string): Promise<void> =>
+  apiSend<void>('POST', `${requests(id)}/${rid}/annul`, { version, reason });
 export const exportSnsRequests = (id: string) => apiFetchFile(`${requests(id)}/export`);

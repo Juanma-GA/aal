@@ -13,6 +13,9 @@
 //      Módulos.
 //   6. The analyst sees the new state in the sidebar.
 //   7. Phone width: the sidebar is a side panel opened from the header.
+//   (E12) The sidebar's edge is dragged wider, Ctrl+B folds it to its icons
+//   (with tooltips) and its button at the foot unfolds it, it moves to the
+//   right and back; width and folding survive a reload.
 // Leaves the database as it was: the foreign material
 // ("[verify] Material ajeno") is removed (backend/scripts/purge_verify_data.py)
 // FTA is set back to "planificado" and the analyst's interface preferences
@@ -72,7 +75,14 @@ const analyst = await apiSession(BASE_URL, ANALYST_EMAIL, ANALYST_PASSWORD);
 const analystPreferences = (await analyst('GET', '/auth/me')).ui_preferences;
 // The analyst has several materials since E11: the check starts on the
 // development one (their preferences are given back at the end).
-await analyst('PUT', '/me/ui-preferences', { sidebar_collapsed_groups: [], active_material_id: devMaterial.id });
+const sidebarLimits = (await analyst('GET', '/me/ui-settings')).sidebar_width;
+await analyst('PUT', '/me/ui-preferences', {
+  sidebar_collapsed_groups: [],
+  active_material_id: devMaterial.id,
+  sidebar_folded: false,
+  sidebar_width: sidebarLimits.default,
+  sidebar_side: 'left',
+});
 
 async function signIn(page, email, password) {
   await page.goto(`${BASE_URL}/login`);
@@ -158,6 +168,38 @@ try {
     page.getByTestId('sidebar-group-pman').getByRole('button').first().click(),
   ]);
 
+  // The sidebar (E12): dragged wider, folded with Ctrl+B, on the right.
+  const saved = () => page.waitForResponse((r) => r.url().endsWith('/api/me/ui-preferences') && r.request().method() === 'PUT' && r.ok());
+  const sidebarWidth = () => page.locator('[data-slot="sidebar-container"]').evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  assert((await sidebarWidth()) === sidebarLimits.default, `the sidebar starts at ${sidebarLimits.default}px`);
+  const edge = await page.getByTestId('sidebar-resizer').boundingBox();
+  const startX = edge.x + edge.width / 2;
+  await page.mouse.move(startX, edge.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(startX + 60, edge.y + 200, { steps: 5 });
+  await Promise.all([saved(), page.mouse.up()]);
+  await page.waitForTimeout(300); // its width transition
+  const wider = await sidebarWidth();
+  assert(Math.abs(wider - (sidebarLimits.default + 60)) <= 2, `dragging the edge widens it (${wider}px)`);
+  await Promise.all([saved(), page.keyboard.press('Control+b')]);
+  await page.waitForTimeout(300);
+  assert((await page.getByTestId('app-sidebar').getAttribute('data-folded')) === '', 'Ctrl+B folds the sidebar');
+  assert((await sidebarWidth()) < 80, 'folded, only its icons are left');
+  await page.getByTestId(`sidebar-module-${MODULE}`).hover();
+  await page.getByRole('tooltip').waitFor();
+  await page.reload();
+  await page.getByTestId('module-card').waitFor();
+  await page.waitForTimeout(300);
+  assert((await page.getByTestId('app-sidebar').getAttribute('data-folded')) === '', 'folded after a reload');
+  await Promise.all([saved(), page.getByTestId('sidebar-fold').click()]);
+  await page.waitForTimeout(300);
+  assert((await sidebarWidth()) === wider, 'the button at the foot unfolds it, with the width kept');
+  await Promise.all([saved(), page.getByTestId('sidebar-side').click()]);
+  const box = await page.locator('[data-slot="sidebar-container"]').boundingBox();
+  assert(box.x + box.width >= (page.viewportSize()?.width ?? 0) - 2, 'the sidebar moves to the right');
+  await page.screenshot({ path: shot('verify-navigation-2b-sidebar-right.png') });
+  await Promise.all([saved(), page.getByTestId('sidebar-side').click()]);
+
   // ── 4. A material they are not in ──────────────────────────────────────
   await page.goto(`${BASE_URL}/materiales/${foreign.id}`);
   await page.getByTestId('not-found').waitFor();
@@ -233,6 +275,9 @@ try {
     await analyst('PUT', '/me/ui-preferences', {
       active_material_id: analystPreferences.active_material_id ?? null,
       sidebar_collapsed_groups: analystPreferences.sidebar_collapsed_groups ?? [],
+      sidebar_folded: analystPreferences.sidebar_folded ?? false,
+      sidebar_width: analystPreferences.sidebar_width ?? sidebarLimits.default,
+      sidebar_side: analystPreferences.sidebar_side ?? 'left',
     });
     console.log("cleanup: the analyst's preferences given back");
   } catch (err) {
