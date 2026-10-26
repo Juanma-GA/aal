@@ -14,6 +14,7 @@ from app.models.article import (
     ArticleRevalidation,
 )
 from app.models.audit_log import AuditLog
+from app.models.confunfis import POSITION_SOURCES, PhysicalPosition
 from app.models.catalog import CatalogVersion, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, SubcategorySns
 from app.models.import_job import IMPORT_JOB_STATUSES, ImportJob
 from app.models.login_failure import LoginFailure
@@ -55,6 +56,8 @@ __all__ = [
     "MaterialCategory",
     "MaterialSubcategory",
     "MaterialSubcategoryLink",
+    "POSITION_SOURCES",
+    "PhysicalPosition",
     "ModuleCatalog",
     "ModuleGroup",
     "ModuleRequirement",

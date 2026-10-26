@@ -76,6 +76,7 @@ class Article(Base):
     __table_args__ = (
         CheckConstraint("noc IS NULL OR noc ~ '^[0-9A-Z]{13}$'", name="ck_article_noc"),
         CheckConstraint("origen_nombre IN ('coloquial', 'aprobado', 'comercial')", name="ck_article_origen_nombre"),
+        CheckConstraint("origin IN ('maestro', 'confunfis')", name="ck_article_origin"),
         # Unique among the live articles: the NOC (P/N + NCAGE: article_reference).
         Index("uq_article_noc", "noc", unique=True, postgresql_where=text("deleted_at IS NULL AND noc IS NOT NULL")),
         Index("ix_article_finding_codes", "finding_codes", postgresql_using="gin"),
@@ -85,6 +86,9 @@ class Article(Base):
     noc: Mapped[str | None] = mapped_column(String(13), nullable=True)
     nombre: Mapped[str] = mapped_column(String, nullable=False)
     origen_nombre: Mapped[str] = mapped_column(String(20), nullable=False, server_default="coloquial")
+    # Where it was born (E13): the master (the screen, an import), or a
+    # CONFUNFIS row that found no article -- a provisional one to complete.
+    origin: Mapped[str] = mapped_column(String(20), nullable=False, server_default="maestro")
     grupo_estructural: Mapped[str | None] = mapped_column(String, nullable=True)
     codigo_seguridad: Mapped[str | None] = mapped_column(String, nullable=True)
     reparable: Mapped[str | None] = mapped_column(String, nullable=True)

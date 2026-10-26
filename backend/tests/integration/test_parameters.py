@@ -37,4 +37,4 @@ async def test_the_auth_parameters_are_declared(db):
     assert value["access_token_minutes"] > 0 and value["refresh_token_days"] > 0
     assert value["password"]["min_length"] >= 8
     assert set(value["login_limit"]) == {"window_minutes", "max_failures_per_email", "max_failures_per_ip"}
-    assert set(PARAMETER_DEFAULTS) == {"auth", "panel", "import", "catalog", "articles", "ui", "audit"}
+    assert set(PARAMETER_DEFAULTS) == {"auth", "panel", "import", "catalog", "articles", "confunfis", "ui", "audit"}

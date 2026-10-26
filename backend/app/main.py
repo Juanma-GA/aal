@@ -9,6 +9,7 @@ from app.api.routes.article_revalidations import router as article_revalidations
 from app.api.routes.articles import router as articles_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.catalog import router as catalog_router
+from app.api.routes.confunfis import router as confunfis_router
 from app.api.routes.cuf import router as cuf_router
 from app.api.routes.imports import router as imports_router
 from app.api.routes.materials import router as materials_router
@@ -47,6 +48,7 @@ app.include_router(me_router)
 app.include_router(users_router)
 app.include_router(materials_router)
 app.include_router(cuf_router)
+app.include_router(confunfis_router)
 app.include_router(sns_requests_router)
 app.include_router(modules_router)
 app.include_router(reference_tables_router)

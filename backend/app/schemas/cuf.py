@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -62,6 +62,8 @@ class ImpactOut(BaseModel):
     subcategories_missing: list[str]
     sns_before: int
     sns_after: int
+    # E13: the CONFUNFIS rows whose SNS goes ({sns, co, al, name}).
+    confunfis_rows: list[dict[str, Any]] = []
 
 
 class NormalizedNode(BaseModel):

@@ -29,7 +29,9 @@ def test_states_of_the_seed(seed):
     assert states["catalogo-normalizado"] == ("disponible", "/configuracion-funcional")
     # E12: the article master is global too.
     assert states["articulos"] == ("disponible", "/articulos")
-    on = ("panel", "materiales", "catalogo-normalizado", "articulos")
+    # E13: the CONFUNFIS of each material.
+    assert states["confunfis"] == ("disponible", "/materiales/:materialId/confunfis")
+    on = ("panel", "materiales", "catalogo-normalizado", "articulos", "confunfis")
     assert {s for code, (s, _) in states.items() if code not in on} == {"planificado"}
 
 

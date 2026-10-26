@@ -76,6 +76,14 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
         # long was killed (a restart) and is marked failed (E13).
         "revalidation_stale_minutes": 30,
     },
+    # The CONFUNFIS (E13): the ranges of CO (component) and AL (alternative,
+    # 00 = none) a row is checked against, and a page of its table.
+    "confunfis": {
+        "co": {"min": 1, "max": 99},
+        "al": {"min": 0, "max": 99},
+        "page_size": 200,
+        "max_page_size": 1000,
+    },
     # The interface (E12): the sidebar's width in pixels, dragged by its edge.
     "ui": {
         "sidebar_width": {"min": 200, "max": 480, "default": 256},

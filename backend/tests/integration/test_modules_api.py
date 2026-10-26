@@ -28,7 +28,8 @@ async def test_menu_for_any_signed_in_user(client, factory):
 async def test_card_with_requirements_dependencies_and_users(client, factory):
     token, _ = await login(client, await factory.user())
     card = (await client.get("/api/modules/confunfis", headers=bearer(token))).json()
-    assert card["group_name"] == "Base común" and card["status"] == "planificado"
+    # E13 turned it on.
+    assert card["group_name"] == "Base común" and (card["status"], card["route"]) == ("disponible", "/materiales/:materialId/confunfis")
     assert [r["rf_id"] for r in card["requirements"]] == ["RF-02"]
     assert [d["code"] for d in card["depends_on"]] == ["materiales", "articulos"]
     used_by = {u["code"] for u in card["used_by"]}

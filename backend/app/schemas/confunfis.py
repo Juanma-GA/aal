@@ -1,0 +1,167 @@
+"""The CONFUNFIS of a material (E13): what the API reads and writes."""
+
+import uuid
+from datetime import datetime
+from decimal import Decimal
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from app.schemas.common import StrictModel
+
+_Short = Field(default=None, max_length=40)
+
+
+class RowIn(StrictModel):
+    sns: str = Field(min_length=1, max_length=40)
+    co: str = Field(min_length=1, max_length=40)
+    al: str | None = _Short
+    qty: str | int | float | Decimal | None = None
+    # The article: chosen (article_id) or found by NOC, P/N + NCAGE, name.
+    article_id: uuid.UUID | None = None
+    noc: str | None = _Short
+    pn: str | None = Field(default=None, max_length=32)
+    ncage: str | None = Field(default=None, max_length=20)
+    article_name: str | None = Field(default=None, max_length=200)
+    function_text: str | None = Field(default=None, max_length=1000)
+    ct_sigle: str | None = Field(default=None, max_length=1)
+    cs_sns: str | None = _Short
+    cs_co: str | None = _Short
+    cs_al: str | None = _Short
+
+
+class RowUpdate(StrictModel):
+    """Only what is sent changes; the article is linked again when its NOC,
+    P/N, NCAGE or article_id is sent."""
+
+    version: int
+    sns: str | None = Field(default=None, min_length=1, max_length=40)
+    co: str | None = Field(default=None, min_length=1, max_length=40)
+    al: str | None = _Short
+    qty: str | int | float | Decimal | None = None
+    article_id: uuid.UUID | None = None
+    noc: str | None = _Short
+    pn: str | None = Field(default=None, max_length=32)
+    ncage: str | None = Field(default=None, max_length=20)
+    article_name: str | None = Field(default=None, max_length=200)
+    function_text: str | None = Field(default=None, max_length=1000)
+    ct_sigle: str | None = Field(default=None, max_length=1)
+    cs_sns: str | None = _Short
+    cs_co: str | None = _Short
+    cs_al: str | None = _Short
+
+
+class VersionIn(StrictModel):
+    version: int
+
+
+class AlternativeCsIn(StrictModel):
+    version: int
+    cs_sns: str = Field(min_length=1, max_length=40)
+    cs_co: str = Field(min_length=1, max_length=40)
+    cs_al: str = Field(min_length=1, max_length=40)
+
+
+class ArticleBrief(BaseModel):
+    id: uuid.UUID
+    noc: str | None
+    pn: str | None
+    ncage: str | None
+    nombre: str
+    origin: str
+
+
+class MaterialBrief(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
+class RowOut(BaseModel):
+    id: uuid.UUID
+    sns: str
+    co: str
+    al: str
+    qty: str | None
+    sns_name: str | None
+    article: ArticleBrief | None
+    article_name: str | None
+    function_text: str | None
+    ct_sigle: str | None
+    cs_sns: str | None
+    cs_co: str | None
+    cs_al: str | None
+    source: str
+    observations: list[dict[str, Any]]
+    observation_codes: list[str]
+    # Computed: the hueco's total in the CUF (None: orphan, cycle, no QTY).
+    total: str | None
+    orphan: str | None
+    alternative: bool
+    cs_alternative: bool
+    child_count: int
+    # The CUF of another material (§9.1.12); which one, when the user may open it.
+    is_mounted: bool
+    mounted: MaterialBrief | None
+    version: int
+    updated_at: datetime
+
+
+class RowPage(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[RowOut]
+
+
+class TreeLevel(BaseModel):
+    """The rows hanging from `parent` (a position "SNS CO AL"); at the
+    root, also the CUF's own row, the orphans and the huecos on a cycle."""
+
+    parent: str
+    items: list[RowOut]
+    root: RowOut | None = None
+    orphans: list[RowOut] = []
+    cycles: list[str] = []
+
+
+class ChainStep(BaseModel):
+    qty: str | None
+    sns: str | None
+
+
+class RowDetail(RowOut):
+    parents: list[RowOut]
+    children: list[RowOut]
+    chains: list[list[ChainStep]]
+    history: list[dict[str, Any]]
+
+
+class FunctionalNode(BaseModel):
+    sns: str
+    name: str
+    level: str
+    child_count: int
+    row_count: int
+    # Rows in this SNS and every SNS below it in the configuration.
+    rows_below: int
+
+
+class FunctionalLevel(BaseModel):
+    items: list[FunctionalNode]
+    # At the top only: the rows whose SNS is not in the configuration.
+    outside: list[RowOut] = []
+
+
+class Summary(BaseModel):
+    rows: int
+    positions: int
+    huecos: int
+    sns_covered: int
+    sns_in_config: int
+    with_observations: int
+    by_observation: dict[str, int]
+
+
+class NextSlot(BaseModel):
+    co: str
+    al: str

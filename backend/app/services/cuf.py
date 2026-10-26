@@ -115,19 +115,28 @@ async def _copy_members(db: AsyncSession, source: Material, target: Material, op
     await db.flush()
 
 
+# What else changing the catalog version touches (E13: the CONFUNFIS rows
+# whose SNS goes): each adds its keys to the impact report.
+ImpactExtension = Callable[[AsyncSession, Material, dict[str, Any]], Awaitable[dict[str, Any]]]
+IMPACT_EXTENSIONS: list[ImpactExtension] = []
+
+
 async def impact(db: AsyncSession, material: Material, to_version_id: uuid.UUID) -> dict[str, Any]:
     """What changing the CUF to another catalog version does to its
     normalized configuration: SNS that appear and disappear, and the CUF's
     subcategories that the other version does not have (they would leave
-    the CUF). From E13, the CONFUNFIS positions affected are added here."""
+    the CUF), and what IMPACT_EXTENSIONS add (E13: the CONFUNFIS rows)."""
     codes = await subcategory_codes(db, material.id)
     before = set(await normalized_config(db, material))
     target = await sns_by_subcategory(db, to_version_id, codes)
     after = set(union(target))
-    return {
+    report: dict[str, Any] = {
         "added": sorted(after - before),
         "removed": sorted(before - after),
         "subcategories_missing": sorted(set(codes) - set(target)),
         "sns_before": len(before),
         "sns_after": len(after),
     }
+    for extension in IMPACT_EXTENSIONS:
+        report.update(await extension(db, material, report))
+    return report

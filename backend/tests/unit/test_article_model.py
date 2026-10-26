@@ -39,15 +39,17 @@ def test_numeric_lengths_follow_the_guide():
 
 def test_where_used_is_a_registry():
     """E12 has one provider (the article is a material's CUF); E13 adds the
-    CONFUNFIS positions, E14 the parts and functional products, E17 the
+    CONFUNFIS positions (registered), E14 the parts and functional products, E17 the
     baseline warning: each registers its own, the endpoint stays."""
-    assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf"]
+    import app.services.confunfis  # noqa: F401  (E13 registers its provider)
+
+    assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf", "confunfis"]
 
     @articles.register_usage("prueba")
     async def provider(db, article, user):
         return [{"kind": "prueba"}]
 
     try:
-        assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf", "prueba"]
+        assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf", "confunfis", "prueba"]
     finally:
         articles.USAGE_PROVIDERS.pop()

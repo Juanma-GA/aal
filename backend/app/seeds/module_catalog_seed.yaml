@@ -107,7 +107,8 @@ modulos:
   nombre: Configuración funcional física
   orden: 4
   fase: '1'
-  estado: planificado
+  estado: disponible
+  ruta: /materiales/:materialId/confunfis
   encargo: E13/E15
   objetivo: Ubicar los artículos del CUF en sus posiciones funcionales (SNS) con código de componente, alternativos, cantidad
     y conjunto superior (NT 10/17 §9).
