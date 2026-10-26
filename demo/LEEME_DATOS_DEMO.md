@@ -14,7 +14,7 @@ Todos los datos de esta carpeta son **inventados**: el material, los NOC, los P/
 | 1 | VTL 4X4 TRAMONTANA | 232033X900001 | TRM-4X4-A | DEMO1 | Vehículo táctico ligero 4x4 para transporte de personal y carga en cualquier terreno. Motor diésel de 6 cilindros y 280 CV, transmisión automática y tracción total. Subcategorías: 0601 vehículos de ruedas, 0201 telecomunicaciones y mando y control, 0102 armamento secundario. | Material principal: tiene catálogo, artículos y CONFUNFIS completos en esta carpeta. |
 | 2 | VTL 4X4 TRAMONTANA PUESTO DE MANDO | 232033X900002 | TRM-4X4-PC | DEMO1 | Variante puesto de mando del VTL 4X4 Tramontana, con ordenador de misión y radios de mando adicionales. Tiene CONFUNFIS propia. Subcategorías: 0601, 0201 y 0102. | Variante: cada variante es un CUF con su propia CONFUNFIS. En E11 se creará "a partir de otro". |
 | 3 | RADIO VHF RT-500 | 582033X901001 | RT-500-V2 | DEMO3 | Radioteléfono VHF vehicular de voz y datos. CUF montado en la posición E12300 del VTL 4X4 Tramontana. Subcategoría: 0201. | CUF montado (NT §9.1.12): es material propio y a la vez una fila de la CONFUNFIS del Tramontana. |
-| 4 | MOTOR DIESEL 6 CIL DM-6 280 CV | 281533X900101 | DM6-280-00 | DEMO2 | Motor diésel de 6 cilindros y 280 CV del VTL 4X4 Tramontana, gestionado como material reparable independiente, con control de vida por horas. Subcategoría: 0601. | Componente reparable de alto valor que se gestiona aparte. También es CUF montado (NT §9.1.12): su NOC es el de la fila `A20000` de la CONFUNFIS del Tramontana. |
+| 4 | MOTOR DIESEL 6 CIL DM-6 280 CV | 281533X900101 | DM6-280-00 | DEMO2 | Motor diésel de 6 cilindros y 280 CV del VTL 4X4 Tramontana, gestionado como material reparable independiente, con control de vida por horas. Subcategoría: 0601. | Componente reparable de alto valor que se gestiona aparte. |
 | 5 | VTO GREGAL | 235033X900003 | GRG-VTO-A | DEMO1 | Vehículo de transporte sobre orugas. Comparte el grupo motor DM-6 con el Tramontana y monta cadenas. Subcategoría: 0602 vehículos de cadenas. | Otra plataforma que comparte el grupo motor (SNS A2…) pero usa cadenas (B35…): muestra que un SNS es común a varias subcategorías. |
 
 Asigna a cada uno los usuarios de desarrollo: `analista.dev` como Analista, `revisor.dev` como Revisor y `observador.dev` como Observador.
@@ -41,7 +41,7 @@ La hoja `TABLA DE PARTES` sigue la estructura de la NT §9.1.10 (ARTÍCULO NOC/P
 | Mismo NOC en dos huecos con distinto CS (§9.1.8, caso 1) | Switch Ethernet `E19200` CO 01 en la unidad de control y CO 02 en el ordenador de misión |
 | Mismo componente en CS alternativos (§9.1.8, caso 2) | Ordenador de misión `L41100` repetido con CS armario 10U (`L48000 01 01`) y 12U (`L48000 01 02`) |
 | Software y firmware (Anexo III §5.6) | `L41120` software de misión (FLS) y `L41130` firmware, con CS el ordenador |
-| CUF montado (§9.1.12) | 2: Radio VHF RT-500 en `E12300` y Motor DM-6 en `A20000` |
+| CUF montado (§9.1.12) | 2: Radio VHF RT-500 en `E12300` y Motor DM-6 en `A20000` (los dos son materiales propios con su CONFUNFIS) |
 | Interfaz de armamento en la plataforma (§9.1.12) | Afuste para arma ligera en `C66100` |
 | Tabla de partes (§9.1.10) | Bomba de agua: junta (COP 01) y racor con dos alternativos (COP 02, ALP 01/02) |
 | Productos funcionales (§9.1.11) | Aceite motor O-1236 (N) y O-1178 (A), ATF H-548, líquido de frenos H-542, anticongelante S-750, gasóleo TF-03, grasa G-403 |
