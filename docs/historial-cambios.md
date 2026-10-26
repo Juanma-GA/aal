@@ -606,24 +606,25 @@ mantiene bloqueos mientras dura (ver informe).
 `verify-reference-tables` en verde. `verify-confunfis-real`: NOT RUN sin `private/CON_FUN_FIS2_ejemplo.xlsx`
 (probado con un fichero simulado de 714 filas).
 
-## E15b — Tema "azul marino em&e" y fleco del round trip del Maestro AAL
+## E15b — Tema con los estados en azul y fleco del round trip del Maestro AAL
 
-- **Tema (D8):** de "grafito" a "azul marino em&e", variante **C** por defecto (la que eligió Juanma tras dos ajustes:
-  sobrio, el azul marino nunca como fondo de una superficie grande). Cabecera blanca con línea inferior de 3 px en
-  `--primary` y el logo directo sobre blanco; sidebar azul grisáceo muy claro con el ítem activo en azul pálido, texto
-  `--primary` en seminegrita y barra de 3 px; fondo casi blanco y contenido en blanco. Azul marino solo en botones
-  principales, línea de la cabecera, ítem activo, pestaña activa y chip principal (`Badge variant="strong"`). Badges
-  `info` (azul pálido) y `warning` (ámbar suave), fila seleccionada `row-selected`, iconos de módulo por estado. La
-  variante A (cabecera y sidebar en azul marino) queda como alternativa: `data-theme-variant="a"` en `<html>`.
-  `test-contrast.mjs` comprueba ahora todos los pares texto/fondo (AA) e iconos (3:1) en claro y oscuro, con las dos
-  variantes.
+- **Tema (D8):** tras tres rondas con Juanma (azul marino A, C sobria), el **término medio**: el aspecto de siempre
+  (neutros grafito, cabecera blanca con su borde gris fino, sidebar y fondo blancos, botones grafito) con los
+  **estados en azul**. Badges CT SIGLE, Alternativo y CUF montado en azul pálido (`info`) y observaciones en ámbar
+  (`warning`); fila seleccionada `row-selected` (azul muy pálido y barra fina en `--brand`); ítem activo del sidebar en
+  azul muy pálido y seminegrita, sin barra; módulos disponibles en azul, planificados en gris. C (azul marino) y A (C
+  con cabecera y sidebar en azul marino) quedan como alternativas: `data-theme-variant="c"` o `"a"` en `<html>`; lo que
+  las distingue va por tokens. `test-contrast.mjs` comprueba todos los pares texto/fondo (AA) e iconos (3:1) en claro y
+  oscuro con las tres.
 - **Fleco de E15:** AR-008 se aplica en toda alta de artículo (`autocorrect_article`: también los provisionales desde
   la CONFUNFIS y las tablas de partes); migración 0015 para los ya guardados (versión +1, auditada como
-  `article.autocorrected` con el valor que había). Maestro AAL exportado y reimportado = 0 cambios, también con
-  provisionales. En el informe, un valor vacío se ve "(vacío)"; las pestañas que pasan a dos filas ya no se salen.
+  `article.autocorrected` con el valor que había y el origen en `import_origin`). Maestro AAL exportado y reimportado
+  = 0 cambios, también con provisionales. En el informe, un valor vacío se ve "(vacío)"; las pestañas que pasan a dos
+  filas ya no se salen.
 
-**Decisiones.** La variante B (sidebar azul claro bajo cabecera azul marino) se descartó por la C. El ítem activo del
-sidebar y la fila seleccionada pintan su barra como fondo, no como `box-shadow`, para no tapar el anillo de foco.
+**Decisiones.** La B (sidebar azul claro bajo cabecera azul marino) se descartó en la primera ronda. Las barras del
+ítem activo y de la fila seleccionada se pintan como fondo, no como `box-shadow`, para no tapar el anillo de foco. El
+borde de la cabecera es decorativo: el test de contraste no lo mide.
 
 **Por qué.** Encargo E15b (`docs/encargos/E15b.md`), antes de enseñar la app al cliente.
 
@@ -631,8 +632,9 @@ sidebar y la fila seleccionada pintan su barra como fondo, no como `box-shadow`,
 búsqueda; pestañas inactivas por debajo de AA (`foreground/60`); "Sin materiales" ilegible en la variante A; la
 migración auditaba el origen en `origin` y un `before` fijo. Todo arreglado.
 
-**Commits.** `e971a2b`, `f162f14` (revisión). **Commit de cierre: `f162f14`** (CI en verde).
+**Commits.** `e971a2b` (variante C), `f162f14` (revisión), `5aaba0c` (término medio). **Commit de cierre:
+`5aaba0c`** (CI en verde).
 
-**Tests.** `npm run check:all` verde (383 tests de backend); `test-contrast` AA en todos los pares; los nueve `verify-*`
-de la CI en verde sobre `e971a2b` y `verify-navigation`, `verify-confunfis` y `verify-articles` otra vez tras la
-revisión.
+**Tests.** `npm run check:all` verde (383 tests de backend); `test-contrast` AA en todos los pares con las tres
+variantes; los nueve `verify-*` de la CI en verde sobre `e971a2b`, y `verify-navigation`, `verify-confunfis` y
+`verify-articles` otra vez sobre `5aaba0c`.
