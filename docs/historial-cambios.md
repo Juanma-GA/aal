@@ -551,3 +551,57 @@ del parámetro `confunfis.qty` (HR8), productos que siguen a sus tablas y al mae
 
 **Tests.** `npm run check:all` verde (360 tests de backend). `verify-confunfis`, `verify-navigation`,
 `verify-articles` y `verify-reference-tables` en verde, y todos los `verify-*` de la CI.
+
+## E15 — Libro CONFUNFIS (Anexo XI): importación, exportación y plantilla para subcontratistas
+
+- **Flecos:** `npm run update` (`scripts/update.mjs`: tras un `git pull`, solo lo necesario, con resumen);
+  ficha lateral acoplada (`DetailPanel`: desde 1024 px a la derecha, la lista sigue pulsable, ancho guardado
+  en `ui_preferences`); tabla de referencia `UNIDAD_MEDIDA_PF` (migración 0013, 88 valores con su equivalencia
+  D112); importación de la hoja `Referencias` del Maestro AAL.
+- **Backend:** libro por material sobre el motor de E03 (`anexo_xi_sheets.py`, `anexo_xi_import.py`,
+  `anexo_xi_export.py`, `routes/confunfis_book.py`). Importar en dos fases, "Fusionar" (`confunfis.editar`)
+  o "Sustituir" (admin, nombre del CUF tecleado), con informe por hoja y tipo de cambio, observaciones,
+  provisionales, P/N nuevos y partes compartidas; CUF del fichero distinto con confirmación; una transacción
+  auditada con la importación como origen (`audit.origin`); `IMPORT_GUARDS`. Exportar Anexo XI, Libro AAL
+  (más funciones adicionales e incompatibilidades) y plantilla vacía (SNS PERMITIDOS, TABLAS, listas
+  desplegables). Migración 0014 (`clock_timestamp()` en `created_at` de la CONFUNFIS y sus tablas).
+- **Frontend:** menús Importar (Anexo XI / Libro AAL) y Exportar (Anexo XI, Libro AAL, Plantilla vacía) en la
+  CONFUNFIS; `BookImportDialog` con los dos modos explicados, confirmaciones, pestañas por hoja y por tipo de
+  cambio y pestaña "Resultado".
+- **verify:** `verify-confunfis` comprueba la ficha acoplada, exporta el Anexo XI, lo reimporta en Fusionar
+  con 0 cambios, lo aplica y descarga la plantilla; `verify-confunfis-real.mjs` nuevo (NOT RUN sin
+  `private/CON_FUN_FIS2_ejemplo.xlsx`; probado con un fichero simulado de 714 filas).
+
+**Cifras del §2.3** (en `test_anexo_xi.py`): demo en el Tramontana con Fusionar, 46 / 8 / 3 sin cambios; QTY
+cambiada y fila borrada, Fusionar 1 modificada, 45 sin cambios, 0 bajas y Sustituir 1 / 44 / 1; demo en un CUF
+vacío (0601+0201+0102), 46 nuevas, 8 nuevos, partes 3 sin cambios y "CUF del fichero distinto"; exportación del
+Tramontana = el fichero de demo, celda a celda salvo el orden de filas (comparado como multiconjunto).
+
+**Decisiones.** El orden de las filas exportadas es el del árbol; el de la demo no lo es, así que el round trip
+se compara como multiconjunto. La TABLA DE PARTES se exporta como la demo (PARTES desde la columna F), no con el
+reparto A–C / D–I del encargo. En "Sustituir", las partes solo se dan de baja para los padres que trae el
+fichero (la tabla de partes es del artículo y global). Las hojas propias del Libro AAL nombran la fila por
+SNS+CO+AL+CS; con duplicados, la primera. "Sustituir" no se aplica si hay filas rechazadas (borraría lo que
+esas filas describen). Las filas ya cargadas antes de la migración 0014 conservan su `created_at` empatado: el
+orden de sus duplicados se fija en cuanto se vuelvan a crear (una importación o una copia).
+
+**Por qué.** Encargo E15 (`docs/encargos/E15.md`).
+
+**Revisión (AACF).** Seguridad: celdas de texto exportadas siempre como texto (inyección de fórmulas);
+aplicar vuelve a comprobar `confunfis.editar` y exige `articulos.editar` con hoja de partes; huella ampliada
+(artículos y referencias de las filas, identidad del CUF), padres de las partes bloqueados y 409
+`import_book_stale` si lo escrito no es lo del informe; origen de auditoría en `import_origin`; las partes
+compartidas solo nombran CUF accesibles; `verify-confunfis-real` y `compare_books.py` sin datos del cliente
+en la consola. Código: "Sustituir" con filas rechazadas rechazado; hoja `Referencias` con artículos
+rechazados; orden estable de duplicados (0014); comparación de textos como texto; cabeceras del libro y
+textos en español en el informe; "antes" correcto en incompatibilidades; bajas en cascada contadas; límites
+de la plantilla en `confunfis.template` (HR8); `update.mjs` hace todo si `git diff` falla y distingue el 2
+de `check:all`; mismo artículo por nombre al analizar y al aplicar. No arreglado: el análisis en seco
+mantiene bloqueos mientras dura (ver informe).
+
+**Commits.** `324c993` (parte 1), `ad6b5e4` (parte 2), `c6325a2` (parte 3), `62fb386` (revisión).
+**Commit de cierre: `62fb386`** (CI en verde).
+
+**Tests.** `npm run check:all` verde (381 tests de backend). `verify-confunfis`, `verify-articles` y
+`verify-reference-tables` en verde. `verify-confunfis-real`: NOT RUN sin `private/CON_FUN_FIS2_ejemplo.xlsx`
+(probado con un fichero simulado de 714 filas).
