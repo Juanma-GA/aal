@@ -49,7 +49,10 @@ const token = (await (await fetch(`${BASE_URL}/api/auth/login`, {
 })).json()).access_token;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-confunfis-real-'));
 const ARTICLES = path.join(tmp, 'articles.json');
-if (runBackendScript(python, 'save the articles', [path.join('scripts', 'purge_verify_data.py'), '--save-articles', '--snapshot', ARTICLES]) !== 0) notRun('could not save the articles.');
+if (runBackendScript(python, 'save the articles', [path.join('scripts', 'purge_verify_data.py'), '--save-articles', '--snapshot', ARTICLES]) !== 0) {
+  fs.rmSync(tmp, { recursive: true, force: true });
+  notRun('could not save the articles.');
+}
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -95,7 +98,7 @@ try {
   console.log(`analysis: ${seconds.toFixed(1)} s`);
   console.log(`sheets ignored: ${job.report.ignored_sheets.join(', ') || 'none'}; read: ${Object.keys(job.report.sheets).join(', ')}`);
   console.log(`CON_FUN_FIS: ${fun.new.length} new, ${fun.rejected.length} rejected`);
-  for (const r of fun.rejected.slice(0, 10)) console.log(`  rejected row ${r.row} (${r.key}): ${r.issues.map((i) => i.code).join(', ')}`);
+  for (const r of fun.rejected.slice(0, 10)) console.log(`  rejected row ${r.row}: ${r.issues.map((i) => i.code).join(', ')}`);
   console.log(`observations: ${JSON.stringify(job.report.result.observations)}`);
   console.log(`provisional articles: ${job.report.result.provisional_articles.length}; new P/N: ${job.report.result.new_references.length}`);
   check(`${EXPECTED_ROWS} rows read`, fun.new.length + fun.rejected.length === EXPECTED_ROWS, `${fun.new.length + fun.rejected.length}`);
@@ -120,7 +123,7 @@ try {
       console.log(`${name}: not in the example`);
       continue;
     }
-    check(`${name}: the export has the file's rows (the CUF's columns and the headers aside)`, s.equal, s.equal ? '' : `only in the file ${JSON.stringify(s.only_first)} · only in the export ${JSON.stringify(s.only_second)}`);
+    check(`${name}: the export has the file's rows (the CUF's columns and the headers aside)`, s.equal, s.equal ? '' : `${s.only_first} rows only in the file · ${s.only_second} only in the export`);
   }
   const again = await analysed(material.id, exported, 'export.xlsx');
   const c = again.job.counts;

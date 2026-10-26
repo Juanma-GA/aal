@@ -39,13 +39,15 @@ function git(args) {
   return { ok: res.status === 0, out: (res.stdout || '').trim() };
 }
 
-function run(label, command, args, cwd) {
+function run(label, command, args, cwd, { missingIs2 = false } = {}) {
   console.log(`\n▶ ${label}`);
   const started = Date.now();
   const res = spawnSync(command, args, { cwd, stdio: 'inherit', env: pythonEnv(), windowsHide: true });
   const ok = !res.error && res.status === 0;
-  done.push({ label, result: ok ? 'OK' : 'FALLO', detail: res.error ? res.error.message : seconds(Date.now() - started) });
-  if (!ok) failed = true;
+  // check:all exits 2 when something of the environment is missing: not a failure, not "all checked".
+  const missing = missingIs2 && !res.error && res.status === 2;
+  done.push({ label, result: ok ? 'OK' : missing ? 'NO EJECUTADO' : 'FALLO', detail: res.error ? res.error.message : seconds(Date.now() - started) });
+  if (!ok && !missing) failed = true;
   return ok;
 }
 
@@ -74,11 +76,15 @@ if (!base) {
   const orig = git(['rev-parse', '--verify', '--quiet', 'ORIG_HEAD']);
   if (orig.ok && orig.out) [base, baseFrom] = [orig.out, 'ORIG_HEAD (el último git pull)'];
 }
-const changed = base ? git(['diff', '--name-only', base, head.out]).out.split(/\r?\n/).filter(Boolean) : null;
+const diff = base ? git(['diff', '--name-only', base, head.out]) : null;
+// Without a list of what changed (no reference, or git diff failed), everything is done: never skipped by guess (HR7).
+const changed = diff && diff.ok ? diff.out.split(/\r?\n/).filter(Boolean) : null;
 const touched = (test) => changed === null || changed.some(test);
-console.log(base
-  ? `update: ${changed.length} ficheros cambiados desde ${baseFrom} (${base.slice(0, 7)} → ${head.out.slice(0, 7)}).`
-  : 'update: sin referencia anterior (primera vez): se hace todo.');
+console.log(!base
+  ? 'update: sin referencia anterior (primera vez): se hace todo.'
+  : changed === null
+    ? `update: git diff falló (${diff.out || 'sin detalle'}): se hace todo.`
+    : `update: ${changed.length} ficheros cambiados desde ${baseFrom} (${base.slice(0, 7)} → ${head.out.slice(0, 7)}).`);
 
 // 1. Frontend dependencies.
 if (touched((f) => f === 'package-lock.json')) {
@@ -110,7 +116,7 @@ if (!python.python) {
 }
 
 // 3. Optionally, the whole check.
-if (withCheck && !failed) run('npm run check:all', process.execPath, [path.join('scripts', 'run-checks.mjs'), '--all'], ROOT);
+if (withCheck && !failed) run('npm run check:all', process.execPath, [path.join('scripts', 'run-checks.mjs'), '--all'], ROOT, { missingIs2: true });
 else if (!withCheck) skip('npm run check:all', 'sin --check');
 
 console.log(`\n${rule()}\nnpm run update -- resumen`);

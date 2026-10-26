@@ -55,7 +55,8 @@ def main() -> int:
         ra, rb = _rows(a[name], skip.get(name, 0), args.min_row), _rows(b[name], skip.get(name, 0), args.min_row)
         report[name] = {
             "rows_first": sum(ra.values()), "rows_second": sum(rb.values()), "equal": ra == rb,
-            "only_first": [list(r) for r in list((ra - rb).elements())[:5]], "only_second": [list(r) for r in list((rb - ra).elements())[:5]],
+            # How many, never which: the first book may be a client's file (D13).
+            "only_first": sum((ra - rb).values()), "only_second": sum((rb - ra).values()),
         }
     print(json.dumps(report, ensure_ascii=False, default=str))
     return 0

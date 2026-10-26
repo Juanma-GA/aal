@@ -283,12 +283,19 @@ class ArticleTarget:
         if sheet.errors:
             return
         by_noc = {a.noc: a for a in articles if a.noc}
-        by_name = {_name_key(a.nombre): a for a in articles if not a.noc}
+        # Two articles without NOC and the same name: the oldest, as _apply_references takes it.
+        by_name: dict[str, Article] = {}
+        for a in sorted((a for a in articles if not a.noc), key=lambda a: (a.created_at, str(a.id))):
+            by_name.setdefault(_name_key(a.nombre), a)
         owner = {(r.pn, r.ncage): a for a in articles for r in a.live_references}
         # The articles the "Artículo" sheet creates, and the principal each will have.
+        # Only the rows the "Artículo" sheet accepts: a rejected one creates nothing and changes no principal.
         principal: dict[str, tuple[str | None, str | None]] = {}
         coming: set[str] = set()
+        refused = {r["row"] for r in report.get("rejected") or []}
         for row in read.rows:
+            if row.errors or row.row in refused:
+                continue
             noc, pn, ncage, _wrong = normalize_identity(row.values.get(NOC_FIELD), row.values.get(_PN), row.values.get(_NCAGE))
             who = f"noc:{noc}" if noc else f"name:{_name_key(row.values.get(NAME_FIELD))}"
             principal[who] = (pn, ncage)
@@ -426,7 +433,7 @@ class ArticleTarget:
             if item["noc"]:
                 article = (await db.execute(select(Article).where(Article.noc == item["noc"], Article.deleted_at.is_(None)).with_for_update())).scalar_one_or_none()
             else:
-                candidates = (await db.execute(select(Article).where(Article.noc.is_(None), Article.deleted_at.is_(None)))).scalars()
+                candidates = (await db.execute(select(Article).where(Article.noc.is_(None), Article.deleted_at.is_(None)).order_by(Article.created_at, Article.id))).scalars()
                 article = next((a for a in candidates if _name_key(a.nombre) == _name_key(item["name"])), None)
             if article is None or await reference_owner(db, item["pn"], item["ncage"], exclude=article.id):
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_stale", row=item["row"]))

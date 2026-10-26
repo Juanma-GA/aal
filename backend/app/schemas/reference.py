@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_serializer
 
 from app.models import REFERENCE_CODE_MAX_LENGTH, REFERENCE_DEFINITION_MAX_LENGTH, REFERENCE_DESCRIPTION_MAX_LENGTH
 from app.schemas.common import StrictModel
@@ -116,6 +116,15 @@ class ImportIssueOut(BaseModel):
     row: int | None
     column: str | None
     header: str | None
+    # A book of several sheets (E15): the sheet the issue is in (left out when there is none).
+    sheet: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _without_empty_sheet(self, handler: Any) -> dict[str, Any]:
+        out = handler(self)
+        if out.get("sheet") is None:
+            out.pop("sheet", None)
+        return out
 
 
 class ImportReportOut(BaseModel):

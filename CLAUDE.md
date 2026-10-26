@@ -424,12 +424,19 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   deshace (de ahí salen observaciones, provisionales, P/N nuevos y partes compartidas); "Fusionar" (`confunfis.editar`)
   nunca da de baja, "Sustituir" (admin, nombre del CUF tecleado) da de baja lo que no está (las partes, solo de los padres
   del fichero); claves fila SNS+CO+AL+CS (duplicados por orden), producto POL+N/A/E+unidad, parte padre+COP+ALP; CUF del
-  fichero distinto → `confirm_cuf`; huella de lo guardado tomada al analizar (409 `import_stale` si cambió); una
+  fichero distinto → `confirm_cuf`; huella de lo guardado tomada al analizar (409 `import_book_stale` si cambió, y otra vez tras escribir si el resultado no es el del informe); una
   transacción, auditoría con `audit.origin(...)` y la importación como origen; punto de extensión `IMPORT_GUARDS`. Las
   partes compartidas solo nombran los CUF que el usuario puede abrir. Exportación `app/services/anexo_xi_export.py`
   (`anexo`, `aal`, `plantilla`: SNS PERMITIDOS, TABLAS y listas desplegables). API `app/api/routes/confunfis_book.py`;
   pantalla: menús Importar/Exportar de la CONFUNFIS y `BookImportDialog.tsx`. Round trip: exportar → importar en
   Fusionar = 0 cambios (lo vigilan `test_anexo_xi.py` y `verify-confunfis`).
+  Reglas tras la revisión: aplicar vuelve a comprobar `confunfis.editar` (y `articulos.editar` si hay hoja de partes, que
+  son globales; sin él el análisis la bloquea con `parts_need_article_permission`); "Sustituir" no se aplica con filas
+  rechazadas (409 `import_replace_has_rejected`) y cuenta como bajas las funciones adicionales e incompatibilidades que se
+  van con su fila; los textos se comparan como texto (P/N "00123" ≠ "123") y los números por valor; la auditoría lleva el
+  origen en `import_origin` (no pisa el `origin` de la entidad); toda celda de texto exportada es texto (`data_type = "s"`,
+  nunca una fórmula). Los registros de la CONFUNFIS toman `clock_timestamp()` como `created_at` (migración 0014): el orden
+  de los duplicados es el de creación. Límites de la plantilla en el parámetro `confunfis.template`.
 - **Ficha lateral acoplada (E15)**: toda ficha de detalle es un `DetailPanel` (`src/components/layout/DetailPanel.tsx`):
   desde 1024 px se acopla a la derecha del contenido (un hueco de `AppLayout` al lado de `<main>`, vía `uiStore.detailSlot`),
   sin fondo oscurecido, y la lista sigue pulsable; por debajo, el `sheet` de shadcn. Ancho arrastrando el borde, el mismo para

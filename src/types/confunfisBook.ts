@@ -14,6 +14,8 @@ export interface BookItem {
   changes?: { field: string; header: string; before: string; after: string }[];
   issues?: ImportIssue[];
   not_in_file?: boolean;
+  /** Sustituir: removed with its row (an extra function, an incompatibility). */
+  with_row?: boolean;
 }
 
 export type BookSheet = Record<BookChange, BookItem[]>;

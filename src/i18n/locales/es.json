@@ -141,7 +141,9 @@
     "detail_panel_width_out_of_range": "El ancho de la ficha debe estar entre {{min}} y {{max}} píxeles.",
     "import_replace_admin_only": "Solo un administrador puede sustituir la CONFUNFIS entera.",
     "import_cuf_not_confirmed": "El fichero es de otro CUF: confirma que quieres importarlo en este.",
-    "import_replace_not_confirmed": "Para sustituir, escribe exactamente el nombre del CUF."
+    "import_replace_not_confirmed": "Para sustituir, escribe exactamente el nombre del CUF.",
+    "import_book_stale": "El CUF o el maestro de artículos han cambiado desde el análisis, así que el resultado ya no sería el del informe. Vuelve a analizar el fichero.",
+    "import_replace_has_rejected": "Para sustituir, el fichero no puede tener filas rechazadas: lo que esas filas describen se daría de baja. Corrígelas en el fichero, o importa en «Fusionar»."
   },
   "actions": {
     "retry": "Reintentar",
@@ -396,7 +398,9 @@
         "alp.max": "Alternativo de parte (ALP) máximo",
         "detail_panel_width.min": "Ancho mínimo de la ficha acoplada (px)",
         "detail_panel_width.max": "Ancho máximo de la ficha acoplada (px)",
-        "detail_panel_width.default": "Ancho inicial de la ficha acoplada (px)"
+        "detail_panel_width.default": "Ancho inicial de la ficha acoplada (px)",
+        "template.list_rows": "Plantilla vacía: filas con listas desplegables",
+        "template.max_sns_list": "Plantilla vacía: máximo de SNS con lista desplegable"
       }
     },
     "modules": {
@@ -732,7 +736,8 @@
       "part_parent_not_found": "Ningún artículo del maestro es el artículo padre {{value}} (ni lo crea la hoja CON_FUN_FIS).",
       "row_not_in_book": "La fila {{value}} no está en la CONFUNFIS del CUF.",
       "same_row": "Una fila no puede ser incompatible consigo misma.",
-      "incompatibility_kind_invalid": "El tipo «{{value}}» no es «excluye» ni «requiere»."
+      "incompatibility_kind_invalid": "El tipo «{{value}}» no es «excluye» ni «requiere».",
+      "parts_need_article_permission": "La hoja de partes cambia la tabla de partes de los artículos, que es común a todos los CUF: hace falta el permiso de editar artículos. Quita la hoja o pide el permiso."
     },
     "page": "Página {{page}} de {{pages}} · {{total}} filas",
     "rejectedSummary": "{{count}} filas rechazadas (no se aplican; el resto, sí).",
@@ -1614,6 +1619,8 @@
       "others_other": "{{count}} CUF más que no puedes abrir",
       "times": "{{count}} veces",
       "others": "{{count}} CUF más que no puedes abrir"
-    }
+    },
+    "replaceRejected": "Hay filas rechazadas: con «Sustituir», lo que describen se daría de baja. Corrígelas en el fichero o importa en «Fusionar».",
+    "withRow": "Se va con su fila"
   }
 }

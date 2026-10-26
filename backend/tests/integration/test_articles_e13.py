@@ -243,3 +243,26 @@ async def test_the_referencias_sheet_is_imported(client, people):
     rows = sorted(tuple(c.value for c in r) for r in again["Referencias"].iter_rows(min_row=2))
     expected = sorted([tuple(c.value for c in r) for r in openpyxl.load_workbook(io.BytesIO(data))["Referencias"].iter_rows(min_row=2)] + [(rod["noc"], rod["nombre"], "B-9", "DEMO2", "N", "manual")])
     assert rows == expected
+
+
+async def test_a_rejected_article_adds_no_references(client, people):
+    """E15: a new article rejected in "Artículo" (its NCAGE) creates nothing: its "Referencias" rows
+    are rejected too, and the rest still applies."""
+    admin = people["admin"]
+    await imported(client, admin)
+    data = (await client.get("/api/articles/export", params={"template": "maestro"}, headers=admin)).content
+    book = openpyxl.load_workbook(io.BytesIO(data))
+    articles = book["Artículo"]
+    row = [c.value for c in articles[3]]
+    name = "ARTÍCULO NUEVO RECHAZADO"
+    row[0], row[1], row[31] = None, name, "NCAGE-MAL"
+    articles.append(row)
+    book["Referencias"].append([None, name, "R-1", "DEMO2", "N", "manual"])
+    out = io.BytesIO()
+    book.save(out)
+    res = await client.post("/api/articles/import", params={"template": "maestro"}, files={"file": ("MAESTRO.xlsx", out.getvalue(), XLSX)}, headers=admin)
+    job = (await client.get(f"/api/import-jobs/{res.json()['id']}", headers=admin)).json()
+    assert job["counts"]["rejected"] == 1 and job["counts"]["references_new"] == 0
+    assert [i["code"] for i in job["report"]["references"]["rejected"][0]["issues"]] == ["reference_article_not_found"]
+    applied = await client.post(f"/api/import-jobs/{job['id']}/apply", headers=admin)
+    assert applied.status_code == 200, applied.text

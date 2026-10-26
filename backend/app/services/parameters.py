@@ -88,6 +88,9 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
         "qty": {"max": 1000000, "decimals": 6},
         "page_size": 200,
         "max_page_size": 1000,
+        # The empty template for a subcontractor (E15): rows with dropdown lists, and the largest
+        # configuration whose SNS still get one (Excel slows down with a longer list).
+        "template": {"list_rows": 2000, "max_sns_list": 5000},
     },
     # The interface (E12): the sidebar's width in pixels, dragged by its edge.
     "ui": {

@@ -39,6 +39,7 @@ from app.services import confunfis, cuf
 from app.services import confunfis_extras as extras
 from app.services.anexo_xi_sheets import EXTRA_SHEET, INCOMPATIBILITY_SHEET, SHEETS, SheetSpec
 from app.services.confunfis_graph import ROOT
+from app.services.parameters import get_parameter
 
 ANEXO, AAL, PLANTILLA = "anexo", "aal", "plantilla"
 SNS_SHEET, TABLES_SHEET = "SNS PERMITIDOS", "TABLAS"
@@ -46,7 +47,6 @@ HELP_SHEETS = (SNS_SHEET, TABLES_SHEET)
 HELP_TABLES = ("D155", "POL", "NAE", extras.UNIT_TABLE)
 # Excel's list validation takes a range; a configuration of more SNS than
 # this is left without it (the help sheet still lists them).
-MAX_SNS_LIST = 5000
 
 _FONT = Font(bold=True)
 _FILL = PatternFill("solid", fgColor="DDE3F0")
@@ -64,7 +64,14 @@ def _cell(ws, row: int, col: int, value: Any, text: bool) -> None:
     cell = ws.cell(row=row, column=col)
     if text:
         cell.number_format = "@"
-        cell.value = excel_text(str(value)) if value is not None else None
+    if value is None:
+        return
+    if text or isinstance(value, str):
+        # Always text, as io_excel/writer.py: openpyxl would take a string
+        # starting with "=" (a name typed in the app or a subcontractor's
+        # cell) as a live formula.
+        cell.value = excel_text(str(value))
+        cell.data_type = "s"
     else:
         cell.value = value
 
@@ -180,9 +187,9 @@ async def _help_sheets(db: AsyncSession, book, material: Material) -> list[str]:
         ws.column_dimensions[get_column_letter(i)].width = width
     for r, p in enumerate(positions, start=2):
         _cell(ws, r, 1, p.sns, True)
-        ws.cell(row=r, column=2, value=p.level)
-        ws.cell(row=r, column=3, value=excel_text(p.name))
-        ws.cell(row=r, column=4, value=excel_text(p.description or ""))
+        _cell(ws, r, 2, p.level, False)
+        _cell(ws, r, 3, p.name, False)
+        _cell(ws, r, 4, p.description or "", False)
     ws.freeze_panes = "A2"
     tables = book.create_sheet(TABLES_SHEET)
     for t, code in enumerate(HELP_TABLES):
@@ -197,11 +204,11 @@ async def _help_sheets(db: AsyncSession, book, material: Material) -> list[str]:
         tables.column_dimensions[get_column_letter(col + 1)].width = 36
         for r, (value, description) in enumerate(values, start=2):
             _cell(tables, r, col, value, True)
-            tables.cell(row=r, column=col + 1, value=excel_text(description))
+            _cell(tables, r, col + 1, description, False)
     return [p.sns for p in positions]
 
 
-def _list(ws, column: int, source: str, rows: int = 2000) -> None:
+def _list(ws, column: int, source: str, rows: int) -> None:
     letter = get_column_letter(column)
     validation = DataValidation(type="list", formula1=source, allow_blank=True, showErrorMessage=False)
     validation.add(f"{letter}3:{letter}{rows + 2}")
@@ -226,12 +233,14 @@ async def build_book(db: AsyncSession, material: Material, kind: str) -> bytes:
         _sheet(book, specs["TABLA DE PARTES"], [])
         sns = await _help_sheets(db, book, material)
         sizes = {code: len((await db.execute(select(ReferenceValue.id).where(ReferenceValue.table_code == code, ReferenceValue.is_active))).all()) for code in HELP_TABLES}
-        _list(fun, 14, '"S,N"')
-        if 0 < len(sns) <= MAX_SNS_LIST:
-            _list(fun, 5, f"'{SNS_SHEET}'!$A$2:$A${len(sns) + 1}")
-        _list(products, 6, _table_range("NAE", sizes["NAE"]))
-        _list(products, 8, _table_range("D155", sizes["D155"]))
-        _list(products, 10, _table_range(extras.UNIT_TABLE, sizes[extras.UNIT_TABLE]))
+        limits = (await get_parameter(db, "confunfis"))["template"]
+        n = limits["list_rows"]
+        _list(fun, 14, '"S,N"', n)
+        if 0 < len(sns) <= limits["max_sns_list"]:
+            _list(fun, 5, f"'{SNS_SHEET}'!$A$2:$A${len(sns) + 1}", n)
+        _list(products, 6, _table_range("NAE", sizes["NAE"]), n)
+        _list(products, 8, _table_range("D155", sizes["D155"]), n)
+        _list(products, 10, _table_range(extras.UNIT_TABLE, sizes[extras.UNIT_TABLE]), n)
     else:
         _sheet(book, specs["CON_FUN_FIS"], await confunfis_rows(db, material, rows))
         _sheet(book, specs["TABLA PRODUCTOS FUNCIONALES"], await product_rows(db, material))

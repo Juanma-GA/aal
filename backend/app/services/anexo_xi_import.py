@@ -28,7 +28,7 @@ so it reports what the result would be -- the observations, the provisional
 articles and the new P/N + NCAGE, the parts that change articles other
 CUF use -- with the same code that applies it. Applying runs it again,
 for good, in one transaction (all or nothing), after checking that nothing
-changed since the analysis (409 import_stale) and the confirmations: a
+changed since the analysis (409 import_book_stale) and the confirmations: a
 file whose CUF (NOC / P/N) is not the material's, and Sustituir. The audit
 rows say the import job they came from.
 
@@ -41,11 +41,12 @@ import hashlib
 import uuid
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import error_detail
@@ -55,15 +56,16 @@ from app.io_excel.template import Template
 from app.models import Article, ArticlePart, ArticleReference, ExtraFunction, FunctionalProduct, ImportJob, Incompatibility, Material, PhysicalPosition, User
 from app.services import audit, confunfis
 from app.services import confunfis_extras as extras
-from app.services.anexo_xi_sheets import EXTRA_SHEET, INCOMPATIBILITY_SHEET, read_book
-from app.services.articles import normalize_identity
+from app.services.anexo_xi_sheets import EXTRA_SHEET, INCOMPATIBILITY_SHEET, OFFICIAL, OWN, read_book
+from app.services.articles import can_edit_articles, normalize_identity
 from app.services.confunfis_graph import ROOT
 from app.services.confunfis_sheet import IDENTITY_FIELDS, PARTS_SHEET, PRODUCTS_SHEET, ROW_FIELDS, SHEET, TEMPLATE
 from app.services.parameters import get_parameter
-from app.services.permissions import accessible_materials
+from app.services.permissions import accessible_materials, material_access
 
 ANEXO_XI = "confunfis_anexo_xi"
 MERGE, REPLACE = "merge", "replace"
+EDIT_PERMISSION = "confunfis.editar"
 MODES = (MERGE, REPLACE)
 ROW_COMPARED = ("qty", "noc", "pn", "ncage", "article_name", "function_text", "ct_sigle")
 PRODUCT_COMPARED = ("designation", "noc", "quantity", "unit")
@@ -91,11 +93,14 @@ def _text(value: Any) -> str | None:
 
 
 def _same(a: Any, b: Any) -> bool:
-    if isinstance(a, (Decimal, int, float, str)) and isinstance(b, (Decimal, int, float, str)):
+    # A stored number (QTY, a product's quantity; the job keeps the file's as text) by value: 2 == "2.000000".
+    # Two texts as text: the P/N "00123" is not "123".
+    numbers = (Decimal, int, float)
+    if (isinstance(a, numbers) or isinstance(b, numbers)) and not isinstance(a, bool) and not isinstance(b, bool) and a is not None and b is not None:
         try:
             return Decimal(str(a)) == Decimal(str(b))
-        except Exception:
-            pass
+        except ArithmeticError:
+            return False
     return (_text(a) if isinstance(a, str) or a is None else a) == (_text(b) if isinstance(b, str) or b is None else b)
 
 
@@ -144,8 +149,18 @@ def _rejected(section: dict[str, Any], row: int, key: str, issues: list[dict[str
     section["rejected"].append({"row": row, "key": key, "issues": issues})
 
 
-def _problem_issues(row: int, problems: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [Issue(p["code"], p.get("params", {}), row=row, header=p.get("field")).as_json() for p in problems]
+_HEADERS = {t.sheet: {c.field: c.headers[-1] for c in t.columns} for t in (*OFFICIAL, *OWN)}
+
+
+def _header(sheet: str, field: str | None) -> str | None:
+    """A field as the book's column calls it (QTY, NOMBRE…): what the user sees in the report."""
+    if field is None:
+        return None
+    return _HEADERS.get(sheet, {}).get(field, field)
+
+
+def _problem_issues(sheet: str, row: int, problems: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [Issue(p["code"], p.get("params", {}), row=row, header=_header(sheet, p.get("field"))).as_json() for p in problems]
 
 
 async def _articles(db: AsyncSession, ids: set[Any]) -> dict[uuid.UUID, Article]:
@@ -181,6 +196,8 @@ class Runner:
         self.job_id = job_id
         self.sheets: dict[str, dict[str, Any]] = {}
         self.part_parents: set[uuid.UUID] = set()
+        # Each row's SNS CO AL ← CS, as it was before the run: how the report names what hangs from it.
+        self.position_keys: dict[uuid.UUID, str] = {}
 
     # ── CON_FUN_FIS ──────────────────────────────────────────────────────
 
@@ -215,7 +232,7 @@ class Runner:
                 now = {**{n: getattr(match, n) for n in ("qty", "article_name", "function_text", "ct_sigle")},
                        **dict(zip(IDENTITY_FIELDS, _identity_of(articles.get(match.article_id), match.article_reference_id), strict=True))}
                 incoming = {**{n: fields.get(n) for n in ("qty", "article_name", "function_text", "ct_sigle")}, "noc": noc, "pn": pn, "ncage": ncage}
-                changes = [{"field": f, "header": f, "before": _shown(now[f]), "after": _shown(incoming[f])} for f in ROW_COMPARED if not _same(now[f], incoming[f])]
+                changes = [{"field": f, "header": _header(SHEET, f), "before": _shown(now[f]), "after": _shown(incoming[f])} for f in ROW_COMPARED if not _same(now[f], incoming[f])]
                 if not changes:
                     section["unchanged"].append({"row": row, "key": _key_text(key)})
                     continue
@@ -227,7 +244,7 @@ class Runner:
                 )
                 section["modified"].append({"row": row, "key": _key_text(key), "changes": changes})
             except confunfis.RowError as exc:
-                _rejected(section, row, _key_text(key), _problem_issues(row, exc.problems))
+                _rejected(section, row, _key_text(key), _problem_issues(SHEET, row, exc.problems))
         for r in stored:
             if r.id in matched:
                 continue
@@ -255,7 +272,7 @@ class Runner:
             key = (clean["pol_code"], clean["nae"], clean["supply_unit"])
             key_text = " · ".join(x or "—" for x in key)
             if item["issues"] or problems:
-                _rejected(section, row, key_text, item["issues"] + _problem_issues(row, problems))
+                _rejected(section, row, key_text, item["issues"] + _problem_issues(PRODUCTS_SHEET, row, problems))
                 continue
             candidates = [p for p in by_key.get(key, []) if p.id not in matched]
             match = candidates[0] if candidates else None
@@ -265,7 +282,7 @@ class Runner:
                 continue
             matched.add(match.id)
             changes = [
-                {"field": f, "header": f, "before": _shown(getattr(match, f)), "after": _shown(clean[f])}
+                {"field": f, "header": _header(PRODUCTS_SHEET, f), "before": _shown(getattr(match, f)), "after": _shown(clean[f])}
                 for f in PRODUCT_COMPARED if not _same(getattr(match, f), clean[f])
             ]
             if not changes:
@@ -320,7 +337,7 @@ class Runner:
                 matched.add(match.id)
                 part_article = (await _articles(db, {match.part_article_id})).get(match.part_article_id) if match.part_article_id else None
                 now = dict(zip(IDENTITY_FIELDS, _identity_of(part_article, match.article_reference_id), strict=True))
-                changes = [{"field": f, "header": f, "before": _shown(now[f]), "after": _shown(v)} for f, v in (("noc", noc), ("pn", pn), ("ncage", ncage)) if not _same(now[f], v)]
+                changes = [{"field": f, "header": _header(PARTS_SHEET, f), "before": _shown(now[f]), "after": _shown(v)} for f, v in (("noc", noc), ("pn", pn), ("ncage", ncage)) if not _same(now[f], v)]
                 if not _same(match.quantity, values.get("quantity")):
                     changes.append({"field": "quantity", "header": "quantity", "before": _shown(match.quantity), "after": _shown(values.get("quantity"))})
                 if not changes:
@@ -333,7 +350,7 @@ class Runner:
                 )
                 section["modified"].append({"row": row, "key": key_text, "changes": changes, "parent": str(parent.id)})
             except extras.ExtraError as exc:
-                _rejected(section, row, key_text, _problem_issues(row, exc.problems))
+                _rejected(section, row, key_text, _problem_issues(PARTS_SHEET, row, exc.problems))
         # Only the breakdowns the file brings: the parts are the article's.
         for parent_id, parts in stored_by_parent.items():
             for p in parts:
@@ -374,19 +391,19 @@ class Runner:
             if match is None:
                 problems = await extras.check_extra(db, material, position, sns, criterion)
                 if problems:
-                    _rejected(section, row, key_text, _problem_issues(row, problems))
+                    _rejected(section, row, key_text, _problem_issues(EXTRA_SHEET, row, problems))
                     continue
                 await extras.add_extra(db, material, position, sns, criterion, comment, self.user_id, source="import", ip=self.ip)
                 section["new"].append({"row": row, "key": key_text, "values": {"name": criterion}})
                 continue
             matched.add(match.id)
-            changes = [{"field": f, "header": f, "before": _shown(getattr(match, f)), "after": _shown(v)} for f, v in (("criterion", criterion), ("comment", comment)) if not _same(getattr(match, f), v)]
+            changes = [{"field": f, "header": _header(EXTRA_SHEET, f), "before": _shown(getattr(match, f)), "after": _shown(v)} for f, v in (("criterion", criterion), ("comment", comment)) if not _same(getattr(match, f), v)]
             if not changes:
                 section["unchanged"].append({"row": row, "key": key_text})
                 continue
             problems = await extras.check_extra(db, material, position, sns, criterion, current=match)
             if problems:
-                _rejected(section, row, key_text, _problem_issues(row, problems))
+                _rejected(section, row, key_text, _problem_issues(EXTRA_SHEET, row, problems))
                 continue
             before = extras.extra_snapshot(match)
             match.criterion, match.comment, match.version, match.updated_by = criterion, comment, match.version + 1, self.user_id
@@ -397,9 +414,9 @@ class Runner:
                 continue
             if self.mode == REPLACE:
                 await extras.remove_extra(db, material, e, self.user_id, self.ip)
-                section["removed"].append({"row": None, "key": e.sns, "values": {"name": e.criterion}})
+                section["removed"].append({"row": None, "key": self._extra_key(e), "values": {"name": e.criterion}})
             else:
-                section["unchanged"].append({"row": None, "key": e.sns, "not_in_file": True})
+                section["unchanged"].append({"row": None, "key": self._extra_key(e), "not_in_file": True})
 
     async def incompatibilities(self, pending: list[dict[str, Any]]) -> None:
         section = self.sheets[INCOMPATIBILITY_SHEET] = _section()
@@ -436,21 +453,40 @@ class Runner:
             if _same(match.reason, reason):
                 section["unchanged"].append({"row": row, "key": key_text})
                 continue
-            before = extras.incompatibility_snapshot(match)
+            before, old_reason = extras.incompatibility_snapshot(match), match.reason
             match.reason, match.version, match.updated_by = reason, match.version + 1, self.user_id
             audit.record(db, action="confunfis.incompatibility_updated", entity_type="incompatibility", entity_id=str(match.id), user_id=self.user_id, material_id=material.id, before=before, after=extras.incompatibility_snapshot(match), ip=self.ip)
-            section["modified"].append({"row": row, "key": key_text, "changes": [{"field": "reason", "header": "reason", "before": match.reason, "after": reason}]})
+            section["modified"].append({"row": row, "key": key_text, "changes": [{"field": "reason", "header": _header(INCOMPATIBILITY_SHEET, "reason"), "before": old_reason, "after": reason}]})
         for i in stored:
             if i.id in matched:
                 continue
             if self.mode == REPLACE:
                 await extras.remove_incompatibility(db, material, i, self.user_id, self.ip)
-                section["removed"].append({"row": None, "key": i.kind, "values": {"name": i.reason}})
+                section["removed"].append({"row": None, "key": self._incompatibility_key(i), "values": {"name": i.reason}})
             else:
-                section["unchanged"].append({"row": None, "key": i.kind, "not_in_file": True})
+                section["unchanged"].append({"row": None, "key": self._incompatibility_key(i), "not_in_file": True})
+
+    def _extra_key(self, e: ExtraFunction) -> str:
+        return f"{self.position_keys.get(e.position_id, '?')} · {e.sns}"
+
+    def _incompatibility_key(self, i: Incompatibility) -> str:
+        return f"{self.position_keys.get(i.row_a_id, '?')} {i.kind} {self.position_keys.get(i.row_b_id, '?')}"
 
     async def run(self, pending: dict[str, list[dict[str, Any]]]) -> None:
+        db, mid = self.db, self.material.id
+        self.position_keys = {
+            r.id: _key_text(_row_key({n: getattr(r, n) for n in ("sns", "co", "al", "cs_sns", "cs_co", "cs_al")})) for r in await confunfis.live_rows(db, mid)
+        }
+        extras_before, incompatibilities_before = await extras.live_extras(db, mid), await extras.live_incompatibilities(db, mid)
         await self.rows(pending[SHEET])
+        # Sustituir: a row removed takes its extra functions and incompatibilities with it
+        # (ROW_REMOVAL_EXTENSIONS); they are removed too, and the report must say so.
+        alive_e = {e.id for e in await extras.live_extras(db, mid)}
+        alive_i = {i.id for i in await extras.live_incompatibilities(db, mid)}
+        cascaded = {
+            EXTRA_SHEET: [{"row": None, "key": self._extra_key(e), "values": {"name": e.criterion}, "with_row": True} for e in extras_before if e.id not in alive_e],
+            INCOMPATIBILITY_SHEET: [{"row": None, "key": self._incompatibility_key(i), "values": {"name": i.reason}, "with_row": True} for i in incompatibilities_before if i.id not in alive_i],
+        }
         if PRODUCTS_SHEET in pending:
             await self.products(pending[PRODUCTS_SHEET])
         if PARTS_SHEET in pending:
@@ -459,7 +495,14 @@ class Runner:
             await self.extra_functions(pending[EXTRA_SHEET])
         if INCOMPATIBILITY_SHEET in pending:
             await self.incompatibilities(pending[INCOMPATIBILITY_SHEET])
+        for sheet, items in cascaded.items():
+            if items:
+                self.sheets.setdefault(sheet, _section())["removed"].extend(items)
         await confunfis.refresh_observations(self.db, self.material)
+
+
+def _sheet_counts(sheets: dict[str, Any]) -> dict[str, dict[str, int]]:
+    return {name: {k: len(v) for k, v in section.items()} for name, section in sheets.items()}
 
 
 async def fingerprint(db: AsyncSession, material: Material, parents: set[uuid.UUID]) -> str:
@@ -469,6 +512,12 @@ async def fingerprint(db: AsyncSession, material: Material, parents: set[uuid.UU
         parts += sorted((str(i), v) for i, v in (await db.execute(select(model.id, model.version).where(model.material_id == material.id, model.deleted_at.is_(None)))).all())
     if parents:
         parts += sorted((str(i), v) for i, v in (await db.execute(select(ArticlePart.id, ArticlePart.version).where(ArticlePart.parent_article_id.in_(parents), ArticlePart.deleted_at.is_(None)))).all())
+    # What the comparison reads too: the articles the rows point to (their NOC, P/N and NCAGE)
+    # and the CUF's identity (whether the file's CUF is another).
+    used = select(PhysicalPosition.article_id).where(PhysicalPosition.material_id == material.id, PhysicalPosition.deleted_at.is_(None))
+    parts += sorted((str(i), v) for i, v in (await db.execute(select(Article.id, Article.version).where(Article.id.in_(used)))).all())
+    parts += sorted((str(i), v) for i, v in (await db.execute(select(ArticleReference.id, ArticleReference.version).where(ArticleReference.article_id.in_(used), ArticleReference.deleted_at.is_(None)))).all())
+    parts.append(("material", material.noc, material.part_number))
     return hashlib.sha256(repr(parts).encode()).hexdigest()
 
 
@@ -512,6 +561,12 @@ class AnexoXiTarget:
         errors = [i.as_json() for i in read.errors]
         for name, sheet in read.sheets.items():
             errors += [{**i.as_json(), "sheet": name} for i in sheet.errors]
+        # The CUF named in "global parts" are only those the importer may open.
+        viewer = await db.get(User, uuid.UUID(params["user_id"])) if params.get("user_id") else None
+        parts_sheet = read.sheets.get(PARTS_SHEET)
+        if parts_sheet is not None and parts_sheet.rows and not (viewer and await can_edit_articles(db, viewer)):
+            # The parts are the article's (global, E14): the route's articulos.editar, not only confunfis.editar.
+            errors.append({**Issue("parts_need_article_permission", {}).as_json(), "sheet": PARTS_SHEET})
         pending = {SHEET: _pending(read)}
         for name, sheet in read.sheets.items():
             if not sheet.errors:
@@ -535,17 +590,15 @@ class AnexoXiTarget:
             report["notices"].append({"code": "cuf_differs"})
         report["pending"] = pending
         # The dry run: everything written, measured, then rolled back by the engine.
-        articles_before = set((await db.execute(select(Article.id))).scalars())
-        references_before = set((await db.execute(select(ArticleReference.id))).scalars())
+        # now() is the transaction's start: what the dry run creates has it, what was there is older.
+        started = (await db.execute(select(func.now()))).scalar_one()
         runner = Runner(db, material, params.get("mode", MERGE), None, None, None)
         parents = await self._parents(db, pending)
         report["fingerprint"] = await fingerprint(db, material, parents)
         await runner.run(pending)
         await db.flush()
         report["sheets"] = runner.sheets
-        # The CUF named in "global parts" are only those the importer may open.
-        viewer = await db.get(User, uuid.UUID(params["user_id"])) if params.get("user_id") else None
-        report["result"] = await self._result(db, material, articles_before, references_before, runner, viewer)
+        report["result"] = await self._result(db, material, started, runner, viewer)
         top = runner.sheets[SHEET]
         report["new"], report["modified"], report["unchanged"], report["removed"], report["rejected"] = (
             top["new"], top["modified"], top["unchanged"], top["removed"], top["rejected"],
@@ -569,7 +622,7 @@ class AnexoXiTarget:
         return out
 
     async def _result(
-        self, db: AsyncSession, material: Material, articles_before: set, references_before: set, runner: Runner, viewer: User | None,
+        self, db: AsyncSession, material: Material, started: datetime, runner: Runner, viewer: User | None,
     ) -> dict[str, Any]:
         """What the result would have: observations, provisional articles,
         new P/N + NCAGE, and the parts that change articles other CUF use."""
@@ -588,8 +641,8 @@ class AnexoXiTarget:
             if p.parent_article_id in runner.part_parents:
                 for code in p.observation_codes:
                     observations[code] += 1
-        new_articles = (await db.execute(select(Article).where(Article.id.not_in(articles_before)))).scalars().all() if articles_before else []
-        new_refs = (await db.execute(select(ArticleReference).where(ArticleReference.id.not_in(references_before)))).scalars().all() if references_before else []
+        new_articles = (await db.execute(select(Article).where(Article.created_at >= started))).scalars().all()
+        new_refs = (await db.execute(select(ArticleReference).where(ArticleReference.created_at >= started))).scalars().all()
         names = {a.id: a for a in await _articles(db, {r.article_id for r in new_refs})}
         changed_parents = {uuid.UUID(x["parent"]) for k in ("new", "modified", "removed") for x in runner.sheets.get(PARTS_SHEET, {}).get(k, [])}
         global_parts = []
@@ -627,20 +680,37 @@ class AnexoXiTarget:
         mode = job.params.get("mode", MERGE)
         if report.get("cuf", {}).get("differs") and not job.params.get("confirm_cuf"):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_cuf_not_confirmed"))
+        if mode == REPLACE and job.counts.get("rejected"):
+            # A rejected line still names a record: replacing would remove the record it was meant to keep.
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_replace_has_rejected"))
         if mode == REPLACE and job.params.get("confirm_name") != material.name:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_replace_not_confirmed"))
+        # The permissions again: they may have changed since the upload.
+        access = await material_access(db, user, material.id)
+        if access is None or not access.can(EDIT_PERMISSION):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=error_detail("permission_denied", permission=EDIT_PERMISSION))
+        pending = report["pending"]
+        if pending.get(PARTS_SHEET) and not await can_edit_articles(db, user):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=error_detail("permission_denied", permission="articulos.editar"))
         for guard in IMPORT_GUARDS:
             await guard(db, material, job)
         await db.execute(select(Material.id).where(Material.id == material.id).with_for_update())
-        pending = report["pending"]
-        if await fingerprint(db, material, await self._parents(db, pending)) != report.get("fingerprint"):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_stale", row=0))
+        parents = await self._parents(db, pending)
+        if parents:
+            # The parts are global: another CUF's import may touch the same parents.
+            await db.execute(select(Article.id).where(Article.id.in_(parents)).order_by(Article.id).with_for_update())
+        if await fingerprint(db, material, parents) != report.get("fingerprint"):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_book_stale"))
         runner = Runner(db, material, mode, user, str(job.id), ip)
         source = {"import_job": str(job.id), "file_name": job.file_name}
         # Every audit row of this import says where it came from.
         with audit.origin(source):
             await runner.run(pending)
             await db.flush()
+        # What was written must be what the user saw (HR7): the master may have changed since
+        # (a P/N now taken, an article with that NOC), which the fingerprint does not cover.
+        if _sheet_counts(runner.sheets) != _sheet_counts(report.get("sheets", {})):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_book_stale"))
         audit.record(db, action="confunfis.book_imported", entity_type="material", entity_id=str(material.id), user_id=user.id, material_id=material.id, after={**source, "mode": mode, "counts": job.counts}, ip=ip)
 
 

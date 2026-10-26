@@ -132,7 +132,8 @@ try {
   const cardBox = await card.boundingBox();
   assert(treeBox && cardBox && treeBox.x + treeBox.width <= cardBox.x + 1, 'the tree narrows and stays visible, left of the card');
   await page.getByTestId('tree-row-A21030-01-00').locator('button').last().click();
-  await card.filter({ hasText: 'A21030 01 00' }).waitFor();
+  // By its label: the segments' card has "A21030 01 00" in it too (its CS).
+  await page.locator('[data-testid="row-sheet"][aria-label^="A21030 01 00"]').waitFor();
   assert(true, 'another row of the tree opens its card without closing the panel');
   const widthBefore = cardBox.width;
   const [saved] = await Promise.all([

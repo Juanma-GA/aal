@@ -73,9 +73,9 @@ def record(
     source = _ORIGIN.get()
     if source is not None:
         if isinstance(after, dict) or (after is None and before is None):
-            after = {**(after or {}), "origin": source}
+            after = {**(after or {}), "import_origin": source}
         elif isinstance(before, dict):
-            before = {**before, "origin": source}
+            before = {**before, "import_origin": source}
     row = AuditLog(
         user_id=user_id,
         action=action,

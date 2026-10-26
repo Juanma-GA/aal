@@ -42,7 +42,9 @@ interface Props {
 
 function useIssueText() {
   const { t } = useTranslation();
-  return (issue: ImportIssue) => t(`import.issues.${issue.code}`, { ...issue.params, defaultValue: '' }) || humanize(issue.code);
+  // The book's rows go through the CONFUNFIS services: their problems have their texts there (E13/E14).
+  return (issue: ImportIssue) =>
+    t([`import.issues.${issue.code}`, `confunfis.problems.${issue.code}`], { ...issue.params, defaultValue: '' }) || humanize(issue.code);
 }
 
 function Items({ change, items }: { change: BookChange; items: BookItem[] }): React.JSX.Element {
@@ -70,7 +72,8 @@ function Items({ change, items }: { change: BookChange; items: BookItem[] }): Re
         </TableHeader>
         <TableBody>
           {shown.flatMap((item, n) => {
-            const rowCell = item.row ?? (item.not_in_file || change === 'removed' ? t('confunfisBook.notInFile') : '');
+            const rowCell =
+              item.row ?? (item.with_row ? t('confunfisBook.withRow') : item.not_in_file || change === 'removed' ? t('confunfisBook.notInFile') : '');
             if (change === 'modified') {
               return (item.changes ?? []).map((c, i) => (
                 <TableRow key={`${n}-${c.field}`}>
@@ -250,7 +253,8 @@ export function BookImportDialog({ materialId, materialName, book, isAdmin, open
   const errors = report?.errors ?? [];
   const cufDiffers = Boolean(report?.cuf?.differs);
   const nameOk = mode !== 'replace' || typedName.trim() === materialName;
-  const canApply = current?.status === 'analyzed' && errors.length === 0 && (!cufDiffers || confirmCuf) && nameOk && !apply.isPending;
+  const replaceRejected = mode === 'replace' && Boolean(current?.counts.rejected);
+  const canApply = current?.status === 'analyzed' && errors.length === 0 && !replaceRejected && (!cufDiffers || confirmCuf) && nameOk && !apply.isPending;
   const reset = () => {
     setFile(null);
     setJobId(null);
@@ -398,7 +402,12 @@ export function BookImportDialog({ materialId, materialName, book, isAdmin, open
               </Alert>
             ) : null}
             {errors.length === 0 ? <Report report={report} /> : null}
-            {report.mode === 'replace' && current?.status === 'analyzed' && errors.length === 0 ? (
+            {replaceRejected && current?.status === 'analyzed' ? (
+              <Alert variant="destructive" data-testid="book-replace-rejected">
+                <AlertDescription>{t('confunfisBook.replaceRejected')}</AlertDescription>
+              </Alert>
+            ) : null}
+            {report.mode === 'replace' && current?.status === 'analyzed' && errors.length === 0 && !replaceRejected ? (
               <div className="flex flex-col gap-1">
                 <Label htmlFor="book-confirm-name">{t('confunfisBook.replaceConfirm', { name: materialName, count: counts.removed ?? 0 })}</Label>
                 <Input id="book-confirm-name" value={typedName} onChange={(e) => setTypedName(e.target.value)} autoComplete="off" data-testid="book-confirm-name" />
