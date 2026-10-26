@@ -470,8 +470,8 @@ Anotado sin cambiar:
 - Los filtros usan los hallazgos guardados; la ficha los recalcula.
 - `check-latest` en la CI coge el último 24.x.
 
-**Commits.** `c388e7a` (parte 1), `5d3c3da` (parte 2), `a28829f` (parte 3), la revisión y el de
-cierre (se anota).
+**Commits.** `c388e7a` (parte 1), `5d3c3da` (parte 2), `a28829f` (parte 3) y `d505d42` (revisión).
+**Commit de cierre: `d505d42`** (CI verde, run 40310023457).
 
 **Tests.** `npm run check:all` verde (ver el informe). `verify-articles`, `verify-materials`,
 `verify-conf-fun`, `verify-navigation`, `verify-reference-tables`, `verify-auth-settings` y `verify-health`
