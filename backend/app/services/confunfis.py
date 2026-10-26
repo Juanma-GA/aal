@@ -61,6 +61,7 @@ OBSERVATION_CODES = (
     "OF-009",  # name different from the master's
     "OF-010",  # on a cycle of CS
     "OF-011",  # its P/N + NCAGE belongs to another article
+    "OF-012",  # alternative alone in its hueco (it should be AL 00), E14
 )
 FIELDS = ("sns", "co", "al", "qty", "article_name", "function_text", "ct_sigle", "cs_sns", "cs_co", "cs_al")
 
@@ -353,6 +354,8 @@ def observations_of(
             add("OF-009", master=article.nombre)
         if graph.in_cycle(graph.rows[str(r.id)]):
             add("OF-010")
+        if graph.is_single_alternative(graph.rows[str(r.id)]):
+            add("OF-012", al=r.al)
         found += [n for n in r.link_notes or [] if n.get("code") == "OF-011"]
         out[r.id] = found
     return out
@@ -513,6 +516,29 @@ async def _positions_of(db: AsyncSession, article: Article, user: User) -> list[
         for r in sorted(rows, key=lambda r: (names.get(r.material_id, ""), r.sns, r.co, r.al))
         if r.material_id in names
     ]
+
+
+def move_al(
+    db: AsyncSession, material: Material, rows: list[PhysicalPosition], sns: str, co: str, old: str, new: str, user_id: uuid.UUID | None, ip: str | None
+) -> list[PhysicalPosition]:
+    """The rows of position SNS CO `old` become `new`, and the rows hanging
+    from it follow (their CS), each audited. Returns the rows moved."""
+    moved = [r for r in rows if (r.sns, r.co, r.al) == (sns, co, old)]
+    for r in moved:
+        before = snapshot(r)
+        r.al, r.version, r.updated_by = new, r.version + 1, user_id
+        audit.record(db, action="confunfis.row_updated", entity_type="physical_position", entity_id=str(r.id), user_id=user_id, material_id=material.id, before=before, after=snapshot(r), ip=ip)
+    for child in [r for r in rows if (r.cs_sns, r.cs_co, r.cs_al) == (sns, co, old)]:
+        before = snapshot(child)
+        child.cs_al, child.version, child.updated_by = new, child.version + 1, user_id
+        audit.record(db, action="confunfis.row_updated", entity_type="physical_position", entity_id=str(child.id), user_id=user_id, material_id=material.id, before=before, after=snapshot(child), ip=ip)
+    return moved
+
+
+def single_al_left(rows: list[PhysicalPosition], sns: str, co: str) -> str | None:
+    """The AL left alone (other than 00) in hueco SNS CO, or None."""
+    left = {r.al for r in rows if (r.sns, r.co) == (sns, co) and r.deleted_at is None}
+    return next(iter(left)) if len(left) == 1 and "00" not in left else None
 
 
 async def delete_row(db: AsyncSession, material: Material, row: PhysicalPosition, user_id: uuid.UUID | None, ip: str | None = None) -> None:

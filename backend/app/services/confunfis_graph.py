@@ -209,8 +209,13 @@ class Graph:
     # ── row flags ────────────────────────────────────────────────────────
 
     def is_alternative(self, r: Row) -> bool:
-        """An AL of a hueco with alternatives."""
-        return r.al != "00" or len({x.al for x in self.by_hueco[r.hueco]}) > 1
+        """An AL of a hueco with alternatives: two AL or more (E14)."""
+        return len({x.al for x in self.by_hueco[r.hueco]}) > 1
+
+    def is_single_alternative(self, r: Row) -> bool:
+        """An AL other than 00 alone in its hueco: a piece without
+        alternatives goes with AL 00 (NT §9.1.6)."""
+        return r.al != "00" and r.key != ROOT and len({x.al for x in self.by_hueco[r.hueco]}) == 1
 
     def is_cs_alternative(self, r: Row) -> bool:
         """The same position under several CS (§9.1.8 case 2)."""

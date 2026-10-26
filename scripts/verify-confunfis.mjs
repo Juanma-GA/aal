@@ -4,11 +4,13 @@
 //   1. The development analyst opens the CONFUNFIS of VTL 4X4 TRAMONTANA
 //      from the sidebar.
 //   2. Opens the motor and the pistón: the segments, QTY 3, total 18; their
-//      card says "3 × 6 (A21030) × 1 (A20000) = 18".
+//      card says "3 × 6 (A21030) × 1 (A20000) = 18". (E14) The search
+//      "segmentos" opens the path and marks the row; "silentblock" walks 4.
 //   3. Opens the radio (E12300, CUF montado) and jumps to its CONFUNFIS.
 //   4. In the functional view, B35010 is outside the configuration.
 //   5. Creates a row in A27010 (CO 04, suggested) with a provisional article
-//      and duplicates it as an alternative: AL 01 and 02.
+//      and duplicates it as an alternative: AL 01 and 02; (E14) removing the
+//      copy takes the one left back to AL 00.
 //   6. Tries to remove the subcategory 0102 from the Tramontana: refused,
 //      the afuste C66100 uses it.
 // Leaves the database as it was: every CONFUNFIS row and every article are
@@ -108,6 +110,18 @@ try {
   assert((await calculation.textContent()).includes('3 × 6 (A21030) × 1 (A20000) = 18'), 'their card: 3 × 6 (A21030) × 1 (A20000) = 18');
   await page.screenshot({ path: shot('verify-confunfis-1-tree.png') });
   await page.keyboard.press('Escape');
+  // (E14) The search opens the path to "segmentos" on a closed tree and marks it.
+  await page.getByTestId('tree-collapse-all').click();
+  await page.getByTestId('tree-search').fill('segmentos');
+  await page.getByTestId('tree-search-count').filter({ hasText: '1 de 1' }).waitFor();
+  await page.locator('[data-testid="tree-row-A21031-01-00"][data-hit="true"]').waitFor();
+  assert(true, 'searching "segmentos" opens Motor -> Pistón and marks the row (1 de 1)');
+  await page.getByTestId('tree-search').fill('silentblock');
+  await page.getByTestId('tree-search-count').filter({ hasText: '1 de 4' }).waitFor();
+  await page.getByTestId('tree-search-next').click();
+  await page.getByTestId('tree-search-count').filter({ hasText: '2 de 4' }).waitFor();
+  assert(true, '"silentblock": 4 hits, walked with "n de m"');
+  await page.getByTestId('tree-search').fill('');
 
   // ── 3. The radio, CUF montado, to its own CONFUNFIS ────────────────────
   await page.getByTestId('confunfis-tab-tabla').click();
@@ -158,6 +172,18 @@ try {
   const co04 = rows.items.filter((r) => r.co === '04').map((r) => r.al).sort();
   assert(JSON.stringify(co04) === '["01","02"]', 'A27010 CO 04 now has AL 01 and 02');
   await page.screenshot({ path: shot('verify-confunfis-4-alternative.png') });
+  // (E14) Removing the copy offers to take the one left back to AL 00 (on by default).
+  await page.getByTestId('row-delete').click();
+  const offer = page.getByTestId('row-delete-reset-al');
+  await offer.waitFor();
+  assert((await offer.getAttribute('data-state')) === 'checked', 'removing the copy offers "Volver a AL 00", checked');
+  const [removedCopy] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/confunfis/rows/') && r.request().method() === 'DELETE'),
+    page.getByTestId('confirm-action').click(),
+  ]);
+  assert(removedCopy.status() === 204 && removedCopy.url().includes('reset_al=true'), 'the copy is removed');
+  const after = await admin('GET', `/materials/${tramontana.id}/confunfis/rows?sns=A27010&page_size=50`);
+  assert(JSON.stringify(after.items.filter((r) => r.co === '04').map((r) => r.al)) === '["00"]', 'the row left is A27010 04 00 again');
   await page.keyboard.press('Escape');
 
   // ── 6. 0102 cannot leave the Tramontana ────────────────────────────────

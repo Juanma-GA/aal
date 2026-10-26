@@ -4,10 +4,12 @@ import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useConfunfisRow, useDeleteRow, useDuplicateAlternative } from '@/hooks/useConfunfis';
+import { useConfunfisRow, useDeleteRow, useDuplicateAlternative, useResetAl } from '@/hooks/useConfunfis';
 import { ARTICLES_PATH } from '@/pages/articles/ArticlePage';
 import { chainText, observationText } from '@/lib/confunfisText';
 import { csOf, positionOf, type PositionRow } from '@/types/confunfis';
@@ -41,7 +43,11 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
   const remove = useDeleteRow(materialId);
   const duplicate = useDuplicateAlternative(materialId);
   const [removing, setRemoving] = useState(false);
+  // NT §9.1.6: the last AL of a hueco goes back to 00 (offered, on by default).
+  const [resetAfter, setResetAfter] = useState(true);
+  const reset = useResetAl(materialId);
   const row = detail.data;
+  const leavesSingle = Boolean(row && row.hueco_als.length === 2 && row.hueco_als.includes(row.al) && !row.hueco_als.includes('00'));
   const when = (iso: string) => new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
   const field = (label: string, value: React.ReactNode) => (
     <div className="grid grid-cols-[9rem_1fr] gap-2 text-sm">
@@ -78,6 +84,9 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
                   {t('confunfis.card.duplicateAlternative')}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => onAlternativeCs(row)} data-testid="row-alternative-cs">{t('confunfis.card.alternativeCs')}</Button>
+                {row.observation_codes.includes('OF-012') ? (
+                  <Button size="sm" variant="outline" disabled={reset.isPending} onClick={() => reset.mutate(row)} data-testid="row-reset-al">{t('confunfis.card.resetAl')}</Button>
+                ) : null}
                 <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setRemoving(true)} data-testid="row-delete">{t('confunfis.card.remove')}</Button>
               </div>
             ) : null}
@@ -149,8 +158,15 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
           title={t('confunfis.card.removeTitle', { position: positionOf(row) })}
           description={t('confunfis.card.removeHint')}
           confirmLabel={t('confunfis.card.remove')}
-          onConfirm={() => { remove.mutate(row); onOpen(null); }}
-        />
+          onConfirm={() => { onOpen(null); remove.mutate({ row, resetAl: leavesSingle && resetAfter }); }}
+        >
+          {leavesSingle ? (
+            <div className="flex items-center gap-2 text-sm">
+              <Checkbox id="reset-al" checked={resetAfter} onCheckedChange={(c) => setResetAfter(c === true)} data-testid="row-delete-reset-al" />
+              <Label htmlFor="reset-al">{t('confunfis.card.resetAfterRemove')}</Label>
+            </div>
+          ) : null}
+        </ConfirmDialog>
       ) : null}
     </Sheet>
   );

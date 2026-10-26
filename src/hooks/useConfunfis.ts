@@ -9,6 +9,7 @@ import {
   fetchRow,
   fetchRows,
   fetchSummary,
+  resetAl,
   updateRow,
 } from '@/services/confunfisApi';
 import type { PositionRow, RowDetail, RowFilters, RowPage, RowValues, TreeLevel } from '@/types/confunfis';
@@ -54,8 +55,10 @@ function restore(queryClient: QueryClient, previous: Snapshot | undefined): void
   for (const [key, data] of previous ?? []) queryClient.setQueryData(key, data);
 }
 
-/** Whatever the change touches (totals, observations, other rows): read again. */
-function refresh(queryClient: QueryClient, materialId: string): void {
+/** Whatever the change touches (totals, observations, other rows): read
+ *  again -- but the card of a row just removed (`gone`: a 404). */
+function refresh(queryClient: QueryClient, materialId: string, gone?: string): void {
+  if (gone) queryClient.removeQueries({ queryKey: rowKey(materialId, gone) });
   void queryClient.invalidateQueries({ queryKey: confunfisKey(materialId) });
   void queryClient.invalidateQueries({ queryKey: ['articles'] });
 }
@@ -86,8 +89,8 @@ export function useDeleteRow(materialId: string) {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   return useMutation({
-    mutationFn: (row: PositionRow) => deleteRow(materialId, row.id, row.version),
-    onMutate: async (row) => {
+    mutationFn: ({ row, resetAl }: { row: PositionRow; resetAl?: boolean }) => deleteRow(materialId, row.id, row.version, resetAl),
+    onMutate: async ({ row }) => {
       await queryClient.cancelQueries({ queryKey: confunfisKey(materialId) });
       return { previous: mapRows(queryClient, materialId, (r) => (r.id === row.id ? null : r)) };
     },
@@ -95,7 +98,7 @@ export function useDeleteRow(materialId: string) {
       restore(queryClient, context?.previous);
       notifyError(error, t, () => refresh(queryClient, materialId));
     },
-    onSettled: () => refresh(queryClient, materialId),
+    onSettled: (_void, error, { row }) => refresh(queryClient, materialId, error ? undefined : row.id),
   });
 }
 
@@ -113,6 +116,25 @@ export function useDuplicateAlternative(materialId: string) {
     mutationFn: (row: PositionRow) => duplicateAlternative(materialId, row.id, row.version),
     onSuccess: () => refresh(queryClient, materialId),
     onError: (error) => notifyError(error, t, () => refresh(queryClient, materialId)),
+  });
+}
+
+/** "Volver a AL 00" (E14): its id stays, the server's row replaces it. */
+export function useResetAl(materialId: string) {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: (row: PositionRow) => resetAl(materialId, row.id, row.version),
+    onMutate: async (row) => {
+      await queryClient.cancelQueries({ queryKey: confunfisKey(materialId) });
+      return { previous: mapRows(queryClient, materialId, (r) => (r.sns === row.sns && r.co === row.co && r.al === row.al ? { ...r, al: '00' } : r)) };
+    },
+    onError: (error, _row, context) => {
+      restore(queryClient, context?.previous);
+      notifyError(error, t, () => refresh(queryClient, materialId));
+    },
+    onSuccess: (saved: RowDetail) => queryClient.setQueryData(rowKey(materialId, saved.id), saved),
+    onSettled: () => refresh(queryClient, materialId),
   });
 }
 

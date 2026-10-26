@@ -279,3 +279,51 @@ async def test_what_other_screens_change_keeps_the_rows_right(client, demo):
     [root] = find(rows, "000000")
     res = await client.post(f"{base(demo)}/rows/{root['id']}/duplicate-alternative", json={"version": root["version"]}, headers=analyst)
     assert (res.status_code, res.json()["detail"]["code"]) == (409, "confunfis_root_has_no_alternative")
+
+
+async def test_an_alternative_left_alone_goes_back_to_al_00(client, demo):
+    """E14 fleco 1 (NT §9.1.6): duplicated and its copy removed, the row
+    goes back to AL 00 (with the rows hanging from it) when asked; one
+    already alone is observed (OF-012) and "Volver a AL 00" fixes it."""
+    analyst = demo["people"]["analista"]
+    url = f"{base(demo)}/rows"
+    [radiator] = find((await all_rows(client, demo, analyst))["items"], "A22120")
+    child = (await client.post(url, json={"sns": "A22120", "co": "02", "qty": 1, "cs_sns": "A22120", "cs_co": "01", "cs_al": "00", "article_name": "TAPA"}, headers=analyst)).json()
+    copy = (await client.post(f"{url}/{radiator['id']}/duplicate-alternative", json={"version": radiator["version"]}, headers=analyst)).json()
+    assert copy["al"] == "02" and copy["alternative"] and copy["hueco_als"] == ["01", "02"]
+    moved = (await client.get(f"{url}/{child['id']}", headers=analyst)).json()
+    assert moved["cs_al"] == "01"
+
+    # Removed without asking: AL 01 stays, alone, observed, no "Alternativo" badge.
+    assert (await client.delete(f"{url}/{copy['id']}", params={"version": copy["version"], "confirm": "true"}, headers=analyst)).status_code == 204
+    [left] = find((await all_rows(client, demo, analyst))["items"], "A22120", "01", "01")
+    assert "OF-012" in left["observation_codes"] and not left["alternative"]
+    res = await client.post(f"{url}/{left['id']}/reset-al", json={"version": left["version"]}, headers=analyst)
+    assert res.status_code == 200 and res.json()["al"] == "00" and "OF-012" not in res.json()["observation_codes"]
+    assert (await client.get(f"{url}/{child['id']}", headers=analyst)).json()["cs_al"] == "00"
+    again = await client.post(f"{url}/{left['id']}/reset-al", json={"version": res.json()["version"]}, headers=analyst)
+    assert (again.status_code, again.json()["detail"]["code"]) == (409, "confunfis_not_single_alternative")
+
+    # Duplicated again, the copy removed with reset_al: straight back to AL 00.
+    row = res.json()
+    copy = (await client.post(f"{url}/{row['id']}/duplicate-alternative", json={"version": row["version"]}, headers=analyst)).json()
+    res = await client.delete(f"{url}/{copy['id']}", params={"version": copy["version"], "confirm": "true", "reset_al": "true"}, headers=analyst)
+    assert res.status_code == 204
+    [back] = find((await all_rows(client, demo, analyst))["items"], "A22120")
+    assert back["observation_codes"] == [] or "OF-012" not in back["observation_codes"]
+    assert (await client.get(f"{url}/{child['id']}", headers=analyst)).json()["cs_al"] == "00"
+
+
+async def test_the_tree_search_gives_the_path(client, demo):
+    """E14 fleco 2: by SNS, name, NOC or P/N, each hit with the rows from
+    the CUF down to its CS."""
+    observer = demo["people"]["observador"]
+    found = (await client.get(f"{base(demo)}/search", params={"q": "segmentos"}, headers=observer)).json()
+    assert found["total"] == 1
+    [hit] = found["hits"]
+    assert hit["row"]["sns"] == "A21031" and [s["position"] for s in hit["path"]] == ["000000 01 00", "A20000 01 00", "A21030 01 00"]
+    assert (await client.get(f"{base(demo)}/search", params={"q": "silentblock"}, headers=observer)).json()["total"] == 4
+    assert (await client.get(f"{base(demo)}/search", params={"q": "281533X900105"}, headers=observer)).json()["total"] == 1
+    assert (await client.get(f"{base(demo)}/search", params={"q": "DM6-1031-01"}, headers=observer)).json()["total"] == 1
+    orphan = (await client.get(f"{base(demo)}/search", params={"q": "A24110"}, headers=observer)).json()["hits"][0]
+    assert orphan["row"]["orphan"] == "not_found" and orphan["path"] == []

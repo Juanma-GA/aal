@@ -135,6 +135,24 @@ class RowDetail(RowOut):
     children: list[RowOut]
     chains: list[list[ChainStep]]
     history: list[dict[str, Any]]
+    # The distinct AL of its hueco (E14: removing one may leave a single AL).
+    hueco_als: list[str] = []
+
+
+class PathStep(BaseModel):
+    id: uuid.UUID
+    position: str
+
+
+class SearchHit(BaseModel):
+    row: RowOut
+    # The rows from the CUF down to the hit's CS, to open the tree there.
+    path: list[PathStep]
+
+
+class SearchResult(BaseModel):
+    total: int
+    hits: list[SearchHit]
 
 
 class FunctionalNode(BaseModel):

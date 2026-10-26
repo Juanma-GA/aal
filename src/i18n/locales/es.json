@@ -124,7 +124,8 @@
     "subcategory_used_by_confunfis": "No se puede quitar: {{count}} filas de la CONFUNFIS usan SNS que solo aporta esa subcategoría ({{rows}}).",
     "article_in_confunfis": "No se puede dar de baja: {{count}} filas de la CONFUNFIS son este artículo ({{rows}}). Cámbialas antes.",
     "article_reference_in_confunfis": "Esa referencia la usan {{count}} filas de la CONFUNFIS ({{rows}}): cámbialas antes.",
-    "confunfis_root_has_no_alternative": "La fila del propio CUF (000000 01 00) no tiene alternativos."
+    "confunfis_root_has_no_alternative": "La fila del propio CUF (000000 01 00) no tiene alternativos.",
+    "confunfis_not_single_alternative": "Esa fila no es un alternativo único: su hueco tiene otros AL o ya va con AL 00."
   },
   "actions": {
     "retry": "Reintentar",
@@ -1179,6 +1180,10 @@
       "OF-011": {
         "short": "P/N de otro artículo",
         "text": "El P/N {{pn}} / {{ncage}} ya es de otro artículo: no se ha añadido a este."
+      },
+      "OF-012": {
+        "short": "Alternativo único",
+        "text": "Es el único alternativo de su hueco (AL {{al}}): sin alternativos, la NT §9.1.6 pide AL 00."
       }
     },
     "tree": {
@@ -1192,7 +1197,15 @@
       "orphans_other": "Sin conjunto superior válido ({{count}} filas)",
       "cycles": "Hay ciclos de conjuntos superiores en: {{huecos}}.",
       "alternatives": "{{count}} alternativos",
-      "orphans": "Sin conjunto superior válido ({{count}} filas)"
+      "orphans": "Sin conjunto superior válido ({{count}} filas)",
+      "search": "Buscar en el árbol",
+      "searchHint": "SNS, nombre, NOC o P/N",
+      "hitOf": "{{n}} de {{m}}",
+      "noHits": "Sin resultados",
+      "previousHit": "Resultado anterior",
+      "nextHit": "Resultado siguiente",
+      "expandAll": "Expandir todo",
+      "collapseAll": "Contraer todo"
     },
     "functional": {
       "covered": "{{covered}} de {{total}} SNS cubiertos",
@@ -1203,7 +1216,8 @@
       "pick": "Elige un SNS para ver sus filas.",
       "empty": "Ese SNS no tiene filas: hueco sin cubrir.",
       "outside": "Fuera de la configuración normalizada ({{count}} filas)",
-      "rows": "{{count}} filas"
+      "rows": "{{count}} filas",
+      "searchHint": "SNS o nombre de la configuración"
     },
     "table": {
       "search": "Buscar",
@@ -1244,7 +1258,9 @@
         "malformed": "{{cs}} (mal formado)",
         "not_found": "{{cs}} (no encontrado)"
       },
-      "children": "Cuelgan {{count}} filas"
+      "children": "Cuelgan {{count}} filas",
+      "resetAl": "Volver a AL 00",
+      "resetAfterRemove": "Volver a AL 00 la fila que queda (ya no tendrá alternativos)"
     },
     "form": {
       "newTitle": "Nueva fila de la CONFUNFIS",

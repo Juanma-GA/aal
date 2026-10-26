@@ -1,4 +1,4 @@
-import type { ConfunfisSummary, FunctionalLevel, RowDetail, RowFilters, RowPage, RowValues, TreeLevel } from '@/types/confunfis';
+import type { ConfunfisSummary, FunctionalLevel, RowDetail, RowFilters, RowPage, RowValues, TreeLevel, TreeSearch } from '@/types/confunfis';
 import { apiFetchJson, apiSend } from './apiClient';
 
 const base = (materialId: string) => `/materials/${materialId}/confunfis`;
@@ -24,8 +24,11 @@ export const fetchNextSlot = (materialId: string, sns: string, co?: string): Pro
 export const createRow = (materialId: string, values: RowValues): Promise<RowDetail> => apiSend('POST', `${base(materialId)}/rows`, values);
 export const updateRow = (materialId: string, rowId: string, version: number, values: RowValues): Promise<RowDetail> =>
   apiSend('PATCH', `${base(materialId)}/rows/${rowId}`, { ...values, version });
-export const deleteRow = (materialId: string, rowId: string, version: number): Promise<void> =>
-  apiSend('DELETE', `${base(materialId)}/rows/${rowId}?version=${version}&confirm=true`);
+export const deleteRow = (materialId: string, rowId: string, version: number, resetAl = false): Promise<void> =>
+  apiSend('DELETE', `${base(materialId)}/rows/${rowId}?version=${version}&confirm=true${resetAl ? '&reset_al=true' : ''}`);
+export const resetAl = (materialId: string, rowId: string, version: number): Promise<RowDetail> =>
+  apiSend('POST', `${base(materialId)}/rows/${rowId}/reset-al`, { version });
+export const searchTree = (materialId: string, q: string): Promise<TreeSearch> => apiFetchJson(`${base(materialId)}/search${query({ q })}`);
 export const duplicateAlternative = (materialId: string, rowId: string, version: number): Promise<RowDetail> =>
   apiSend('POST', `${base(materialId)}/rows/${rowId}/duplicate-alternative`, { version });
 export const addAlternativeCs = (materialId: string, rowId: string, version: number, cs: { cs_sns: string; cs_co: string; cs_al: string }): Promise<RowDetail> =>

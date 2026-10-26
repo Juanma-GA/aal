@@ -34,11 +34,14 @@ from app.schemas.confunfis import (
     FunctionalNode,
     MaterialBrief,
     NextSlot,
+    PathStep,
     RowDetail,
     RowIn,
     RowOut,
     RowPage,
     RowUpdate,
+    SearchHit,
+    SearchResult,
     Summary,
     TreeLevel,
     VersionIn,
@@ -265,7 +268,55 @@ async def _detail(db: AsyncSession, ctx: Context, row: PhysicalPosition) -> RowD
         children=[_row_out(ctx, r) for r in _ordered(children)],
         chains=[[ChainStep(qty=_plain(q), sns=s) for q, s in chain] for chain in ctx.graph.chains(g.hueco)],
         history=[{"id": str(a.id), "at": a.created_at.isoformat(), "action": a.action, "user": name} for a, name in history],
+        hueco_als=sorted({r.al for r in ctx.rows if (r.sns, r.co) == (row.sns, row.co)}),
     )
+
+
+def _path(ctx: Context, row: PhysicalPosition) -> list[PathStep] | None:
+    """The rows from the CUF's (if any) down to `row`'s CS, taking the first
+    row of each CS position; None for an orphan or a cycle."""
+    by_key: dict[tuple[str, str, str], PhysicalPosition] = {}
+    for r in _ordered(ctx.rows):
+        by_key.setdefault((r.sns, r.co, r.al), r)
+    steps: list[PathStep] = []
+    seen: set[tuple[str, str, str]] = set()
+    key = ctx.graph.parent.get(str(row.id))
+    if str(row.id) in ctx.graph.orphan:
+        return None
+    while key is not None:
+        if key in seen:
+            return None
+        seen.add(key)
+        parent = by_key.get(key)
+        if parent is None:  # the CUF without its own row
+            break
+        steps.append(PathStep(id=parent.id, position=key_text(key)))
+        key = ctx.graph.parent.get(str(parent.id))
+    return list(reversed(steps))
+
+
+@router.get("/search", response_model=SearchResult)
+async def search(
+    q: str = Query(min_length=1, max_length=100),
+    access: MaterialAccess = Depends(require_material_permission(READ)),
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SearchResult:
+    """The physical tree's search (E14): by SNS, name, NOC or P/N; each hit
+    with the path that opens the tree down to it, by position."""
+    ctx = await _context(db, access.material, user)
+    text = q.strip().casefold()
+
+    def hit(r: PhysicalPosition) -> bool:
+        a = ctx.articles.get(r.article_id) if r.article_id else None
+        haystack = [r.sns, r.article_name, a.noc if a else None, a.nombre if a else None] + ([x.pn for x in a.live_references] if a else [])
+        return any(text in (h or "").casefold() for h in haystack)
+
+    hits = []
+    for r in _ordered([r for r in ctx.rows if hit(r)]):
+        path = _path(ctx, r)
+        hits.append(SearchHit(row=_row_out(ctx, r), path=path or []))
+    return SearchResult(total=len(hits), hits=hits)
 
 
 @router.get("/rows/{row_id}", response_model=RowDetail)
@@ -376,16 +427,40 @@ async def update_row(
 
 @router.delete("/rows/{row_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_row(
-    row_id: uuid.UUID, version: int, request: Request, confirm: bool = False, access: MaterialAccess = Depends(require_material_permission(EDIT)),
-    user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
+    row_id: uuid.UUID, version: int, request: Request, confirm: bool = False, reset_al: bool = False,
+    access: MaterialAccess = Depends(require_material_permission(EDIT)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Removed logically (HR9); the rows hanging from it become orphans."""
+    """Removed logically (HR9); the rows hanging from it become orphans.
+    `reset_al` (E14): when the hueco is left with a single AL, it goes back
+    to AL 00 (NT §9.1.6) and the rows hanging from it follow."""
     if not confirm:
         raise confirmation_required()
-    row = await _locked(db, access.material, row_id, version)
-    await confunfis.delete_row(db, access.material, row, user.id, client_ip(request))
-    await confunfis.refresh_observations(db, access.material)
+    material = access.material
+    row = await _locked(db, material, row_id, version)
+    ip = client_ip(request)
+    await confunfis.delete_row(db, material, row, user.id, ip)
+    if reset_al:
+        rows = await confunfis.live_rows(db, material.id)
+        left = confunfis.single_al_left([r for r in rows if r.id != row.id], row.sns, row.co)
+        if left is not None:
+            confunfis.move_al(db, material, rows, row.sns, row.co, left, "00", user.id, ip)
+    await confunfis.refresh_observations(db, material)
     await db.commit()
+
+
+@router.post("/rows/{row_id}/reset-al", response_model=RowDetail)
+async def reset_al(
+    row_id: uuid.UUID, body: VersionIn, request: Request, access: MaterialAccess = Depends(require_material_permission(EDIT)),
+    user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
+) -> RowDetail:
+    """"Volver a AL 00" (E14): an alternative alone in its hueco (OF-012)."""
+    material = access.material
+    row = await _locked(db, material, row_id, body.version)
+    rows = await confunfis.live_rows(db, material.id)
+    if (row.sns, row.co, row.al) == ROOT or confunfis.single_al_left(rows, row.sns, row.co) != row.al:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("confunfis_not_single_alternative"))
+    confunfis.move_al(db, material, rows, row.sns, row.co, row.al, "00", user.id, client_ip(request))
+    return await _done(db, access, user, row.id)
 
 
 def _copy(row: PhysicalPosition, user_id: uuid.UUID, **changes: Any) -> PhysicalPosition:
@@ -416,15 +491,7 @@ async def duplicate_alternative(
     if row.al == "00":
         if len(free) < 2:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("confunfis_no_free_alternative"))
-        first = f"{free.pop(0):02d}"
-        for r in [r for r in rows if (r.sns, r.co, r.al) == (row.sns, row.co, "00")]:
-            before = confunfis.snapshot(r)
-            r.al, r.version, r.updated_by = first, r.version + 1, user.id
-            audit.record(db, action="confunfis.row_updated", entity_type="physical_position", entity_id=str(r.id), user_id=user.id, material_id=material.id, before=before, after=confunfis.snapshot(r), ip=ip)
-        for child in [r for r in rows if (r.cs_sns, r.cs_co, r.cs_al) == (row.sns, row.co, "00")]:
-            before = confunfis.snapshot(child)
-            child.cs_al, child.version, child.updated_by = first, child.version + 1, user.id
-            audit.record(db, action="confunfis.row_updated", entity_type="physical_position", entity_id=str(child.id), user_id=user.id, material_id=material.id, before=before, after=confunfis.snapshot(child), ip=ip)
+        confunfis.move_al(db, material, rows, row.sns, row.co, "00", f"{free.pop(0):02d}", user.id, ip)
     if not free:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("confunfis_no_free_alternative"))
     copy = _copy(row, user.id, al=f"{free[0]:02d}")

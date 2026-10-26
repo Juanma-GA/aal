@@ -3,17 +3,21 @@
 // (a row's children are asked for when it is opened) and virtualized. A
 // hueco with alternatives (AL) groups them under a header; a row with
 // alternative CS appears under each of them; the orphans (CS not found or
-// badly formed) go to their own group.
-import { useQueries } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { useMemo, useState } from 'react';
+// badly formed) go to their own group. (E14) A search by SNS, name, NOC or
+// P/N opens the path to each hit and walks them ("3 de 7"); "Expandir todo"
+// opens every level as it loads.
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { fetchTreeLevel } from '@/services/confunfisApi';
-import { ROOT_POSITION, positionOf, type PositionRow, type TreeLevel } from '@/types/confunfis';
+import { fetchTreeLevel, searchTree } from '@/services/confunfisApi';
+import { ROOT_POSITION, positionOf, type PositionRow, type TreeLevel, type TreeSearch } from '@/types/confunfis';
 import { ObservationBadges } from './ObservationBadges';
 
 const ROW_HEIGHT = 40;
@@ -21,6 +25,28 @@ const VIEW_HEIGHT = 600;
 const OVERSCAN = 8;
 const TOP = '__top__';
 const ORPHANS = '__orphans__';
+const ROOT_KEY = `${TOP}/root`;
+const DEBOUNCE_MS = 300;
+
+const rowKeyOf = (parent: string, row: { id: string; position: string }) => `${parent}/${row.id}|${row.position}`;
+
+/** The node keys from the top down to a hit, and the hit's own key. */
+function keysOf(hit: TreeSearch['hits'][number], hasRoot: boolean): { open: string[]; key: string } {
+  const position = positionOf(hit.row);
+  if (hit.row.orphan) return { open: [ORPHANS], key: rowKeyOf(ORPHANS, { id: hit.row.id, position }) };
+  if (hasRoot && position === ROOT_POSITION) return { open: [], key: ROOT_KEY };
+  const open: string[] = [];
+  let parent = TOP;
+  for (const step of hit.path) {
+    parent = step.position === ROOT_POSITION && hasRoot ? ROOT_KEY : rowKeyOf(parent, step);
+    open.push(parent);
+  }
+  if (hit.path.length === 0 && hasRoot) {
+    open.push(ROOT_KEY);
+    parent = ROOT_KEY;
+  }
+  return { open, key: rowKeyOf(parent, { id: hit.row.id, position }) };
+}
 
 type Line =
   | { kind: 'row'; key: string; row: PositionRow; depth: number }
@@ -36,18 +62,44 @@ interface Props {
 export function PhysicalTree({ materialId, selected, onSelect }: Props): React.JSX.Element {
   const { t } = useTranslation();
   // Open nodes by their path (a row may hang from two CS: two paths).
-  const [open, setOpen] = useState<Set<string>>(() => new Set([`${TOP}/root`]));
+  const [open, setOpen] = useState<Set<string>>(() => new Set([ROOT_KEY]));
+  // "Expandir todo": every node open but those closed by hand.
+  const [expandAll, setExpandAll] = useState(false);
+  const [closed, setClosed] = useState<Set<string>>(new Set());
   const [scrollTop, setScrollTop] = useState(0);
+  const viewport = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  // Every position whose children some open node shows.
-  const positions = useMemo(() => {
-    const out = new Set<string>([TOP]);
-    for (const key of open) {
-      const position = key.split('|').pop();
-      if (position && !key.endsWith('/root') && key !== ORPHANS) out.add(position);
+  // The search, and the hit shown.
+  const [text, setText] = useState('');
+  const [q, setQ] = useState('');
+  const [current, setCurrent] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => { setQ(text.trim()); setCurrent(0); }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [text]);
+  const found = useQuery({ queryKey: ['confunfis', materialId, 'search', q], queryFn: () => searchTree(materialId, q), enabled: q.length > 0 });
+  const hits = q && found.data ? found.data.hits : [];
+
+  const hit = hits.length ? hits[Math.min(current, hits.length - 1)] : null;
+  const topLevel = queryClient.getQueryData<TreeLevel>(['confunfis', materialId, 'tree', TOP]);
+  const target = hit && topLevel ? keysOf(hit, Boolean(topLevel.root)) : null;
+  const targetKey = target?.key ?? null;
+  const isOpen = (key: string) => Boolean(target?.open.includes(key)) || (expandAll ? !closed.has(key) : open.has(key));
+
+  // Every position whose children some open node shows; expanding all,
+  // every position with children among the levels already loaded.
+  const fromKeys = new Set<string>([TOP]);
+  for (const key of [...open, ...(target?.open ?? [])]) {
+    const position = key.split('|').pop();
+    if (position && key !== ROOT_KEY && key !== ORPHANS && !key.endsWith('/root')) fromKeys.add(position);
+  }
+  if (expandAll) {
+    for (const [, data] of queryClient.getQueriesData<TreeLevel>({ queryKey: ['confunfis', materialId, 'tree'] })) {
+      for (const r of data?.items ?? []) if (r.child_count) fromKeys.add(positionOf(r));
     }
-    return [...out];
-  }, [open]);
+  }
+  const positions = [...fromKeys];
   const levels = useQueries({
     queries: positions.map((p) => ({
       queryKey: ['confunfis', materialId, 'tree', p],
@@ -80,41 +132,82 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
         const key = `${path}/${row.id}|${positionOf(row)}`;
         out.push({ kind: 'row', key, row, depth: rowDepth });
         const pos = positionOf(row);
-        if (open.has(key) && !seen.has(pos)) walk(pos, key, rowDepth + 1, new Set([...seen, pos]));
+        if (isOpen(key) && !seen.has(pos)) walk(pos, key, rowDepth + 1, new Set([...seen, pos]));
       }
     };
     if (top?.root) {
-      const key = `${TOP}/root`;
-      out.push({ kind: 'row', key, row: top.root, depth: 0 });
-      if (open.has(key)) walk(ROOT_POSITION, key, 1, new Set([ROOT_POSITION]));
+      out.push({ kind: 'row', key: ROOT_KEY, row: top.root, depth: 0 });
+      if (isOpen(ROOT_KEY)) walk(ROOT_POSITION, ROOT_KEY, 1, new Set([ROOT_POSITION]));
     } else {
       walk(ROOT_POSITION, TOP, 0, new Set([ROOT_POSITION]));
     }
     if (top && top.orphans.length) {
       out.push({ kind: 'orphans', key: ORPHANS, count: top.orphans.length, depth: 0 });
-      if (open.has(ORPHANS)) for (const row of top.orphans) out.push({ kind: 'row', key: `${ORPHANS}/${row.id}|${positionOf(row)}`, row, depth: 1 });
+      if (isOpen(ORPHANS)) for (const row of top.orphans) out.push({ kind: 'row', key: `${ORPHANS}/${row.id}|${positionOf(row)}`, row, depth: 1 });
     }
     return out;
     // byPosition is rebuilt from `levels` on each render: its data are the dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stamp, open, top]);
+  }, [stamp, open, top, expandAll, closed, targetKey]);
+
+  // The hit shown: its path stays open while it is the one shown.
+  const targetIndex = targetKey ? lines.findIndex((l) => l.key === targetKey) : -1;
+  useEffect(() => {
+    if (targetIndex < 0 || !viewport.current) return;
+    viewport.current.scrollTop = Math.max(0, targetIndex * ROW_HEIGHT - VIEW_HEIGHT / 3);
+  }, [targetIndex]);
 
   if (!top) return <Skeleton className="h-96 w-full" />;
-  const toggle = (key: string) => setOpen((current) => {
-    const next = new Set(current);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    return next;
-  });
+  const toggle = (key: string) => {
+    const update = (c: Set<string>) => {
+      const next = new Set(c);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    };
+    if (expandAll) setClosed(update);
+    else setOpen(update);
+  };
+  const go = (step: number) => setCurrent((c) => (hits.length ? (c + step + hits.length) % hits.length : 0));
   const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
   const last = Math.min(lines.length, Math.ceil((scrollTop + VIEW_HEIGHT) / ROW_HEIGHT) + OVERSCAN);
 
   return (
     <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="search" className="w-full sm:w-80" value={text} onChange={(e) => setText(e.target.value)}
+          placeholder={t('confunfis.tree.searchHint')} aria-label={t('confunfis.tree.search')} data-testid="tree-search"
+        />
+        {q ? (
+          <>
+            <span className="text-sm text-muted-foreground" data-testid="tree-search-count" role="status">
+              {hits.length ? t('confunfis.tree.hitOf', { n: Math.min(current, hits.length - 1) + 1, m: hits.length }) : t('confunfis.tree.noHits')}
+            </span>
+            <Button variant="outline" size="icon" disabled={hits.length < 2} onClick={() => go(-1)} aria-label={t('confunfis.tree.previousHit')} data-testid="tree-search-previous">
+              <ChevronLeft aria-hidden="true" />
+            </Button>
+            <Button variant="outline" size="icon" disabled={hits.length < 2} onClick={() => go(1)} aria-label={t('confunfis.tree.nextHit')} data-testid="tree-search-next">
+              <ChevronRight aria-hidden="true" />
+            </Button>
+          </>
+        ) : null}
+        <div className="flex gap-2 sm:ml-auto">
+          <Button variant="outline" size="sm" onClick={() => { setExpandAll(true); setClosed(new Set()); }} data-testid="tree-expand-all">
+            <ChevronsUpDown aria-hidden="true" />
+            {t('confunfis.tree.expandAll')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { setExpandAll(false); setOpen(new Set([ROOT_KEY])); }} data-testid="tree-collapse-all">
+            <ChevronsDownUp aria-hidden="true" />
+            {t('confunfis.tree.collapseAll')}
+          </Button>
+        </div>
+      </div>
       {top.cycles.length ? (
         <p className="text-sm text-destructive" role="alert" data-testid="tree-cycles">{t('confunfis.tree.cycles', { huecos: top.cycles.join(', ') })}</p>
       ) : null}
       <div
+        ref={viewport}
         role="tree"
         aria-label={t('confunfis.tree.label')}
         data-testid="physical-tree"
@@ -126,11 +219,11 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
           {lines.slice(first, last).map((line, i) => {
             const style = { top: (first + i) * ROW_HEIGHT, height: ROW_HEIGHT, paddingLeft: 4 + line.depth * 18 };
             if (line.kind === 'orphans') {
-              const isOpen = open.has(line.key);
+              const lineOpen = isOpen(line.key);
               return (
-                <div key={line.key} role="treeitem" aria-level={1} aria-expanded={isOpen} className="absolute left-0 flex w-full items-center gap-2 border-t border-warning bg-muted text-sm font-medium" style={style}>
+                <div key={line.key} role="treeitem" aria-level={1} aria-expanded={lineOpen} className="absolute left-0 flex w-full items-center gap-2 border-t border-warning bg-muted text-sm font-medium" style={style}>
                   <button type="button" className="flex items-center gap-2" onClick={() => toggle(line.key)} data-testid="tree-orphans">
-                    {isOpen ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}
+                    {lineOpen ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}
                     {t('confunfis.tree.orphans', { count: line.count })}
                   </button>
                 </div>
@@ -148,27 +241,32 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
               );
             }
             const { row } = line;
-            const isOpen = open.has(line.key);
+            const lineOpen = isOpen(line.key);
             return (
               <div
                 key={line.key}
                 role="treeitem"
                 aria-level={line.depth + 1}
-                aria-expanded={row.child_count ? isOpen : undefined}
+                aria-expanded={row.child_count ? lineOpen : undefined}
                 aria-selected={selected === row.id}
                 data-testid={`tree-row-${row.sns}-${row.co}-${row.al}`}
-                className={cn('absolute left-0 flex w-full items-center gap-1 pr-2 text-sm', selected === row.id ? 'bg-accent text-accent-foreground' : 'hover:bg-muted')}
+                className={cn(
+                  'absolute left-0 flex w-full items-center gap-1 pr-2 text-sm',
+                  selected === row.id ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
+                  line.key === targetKey && 'ring-2 ring-inset ring-ring',
+                )}
+                data-hit={line.key === targetKey ? 'true' : undefined}
                 style={style}
               >
                 {row.child_count ? (
                   <button
                     type="button"
                     className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-background"
-                    aria-label={isOpen ? t('confunfis.tree.collapse', { position: positionOf(row) }) : t('confunfis.tree.expand', { position: positionOf(row) })}
+                    aria-label={lineOpen ? t('confunfis.tree.collapse', { position: positionOf(row) }) : t('confunfis.tree.expand', { position: positionOf(row) })}
                     onClick={() => toggle(line.key)}
                     data-testid={`tree-toggle-${row.sns}-${row.co}-${row.al}`}
                   >
-                    {isOpen ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}
+                    {lineOpen ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}
                   </button>
                 ) : (
                   <span className="size-6 shrink-0" />
