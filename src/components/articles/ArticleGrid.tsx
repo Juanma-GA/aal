@@ -23,8 +23,10 @@ const CELL_WIDTH = 'w-28 min-w-28';
  *  one value in one field of the selected rows. Saving sends the changed
  *  rows with their versions: a row someone else changed meanwhile is not
  *  overwritten -- it says so and shows the stored data. */
-export function ArticleGrid({ rows, fields, codes, onNearEnd, selected, onSelected }: {
+export function ArticleGrid({ rows, fields, codes, onNearEnd, selected, onSelected, maxBatchRows }: {
   rows: ArticleRow[];
+  /** Rows per request (the "articles" parameter): more go in several. */
+  maxBatchRows: number;
   fields: ArticleField[];
   codes: Record<string, ReferenceValue[]>;
   onNearEnd: () => void;
@@ -68,17 +70,25 @@ export function ArticleGrid({ rows, fields, codes, onNearEnd, selected, onSelect
       version: r.version,
       fields: Object.fromEntries(Object.entries(drafts[r.id]).map(([p, v]) => [p, cellValue(defs[p], v)])),
     }));
-    save.mutate(items, {
-      onSuccess: (results) => {
-        const errors: Record<string, string> = {};
-        for (const r of results) {
-          if (!r.ok) errors[r.id] = t(`errors.${r.error?.code ?? 'unexpected'}`, { defaultValue: t('articles.rowNotSaved') });
+    const chunks: (typeof items)[] = [];
+    for (let i = 0; i < items.length; i += maxBatchRows) chunks.push(items.slice(i, i + maxBatchRows));
+    void (async () => {
+      const errors: Record<string, string> = {};
+      for (const chunk of chunks) {
+        try {
+          for (const r of await save.mutateAsync(chunk)) {
+            if (!r.ok) errors[r.id] = t(`errors.${r.error?.code ?? 'unexpected'}`, { defaultValue: t('articles.rowNotSaved') });
+          }
+        } catch {
+          // The toast says why; the chunk's rows keep what was typed.
+          for (const item of chunk) errors[item.id] = t('articles.rowNotSaved');
         }
-        setRowErrors(errors);
-        // Saved rows and conflicts alike start from the stored data again.
-        setDrafts({});
-      },
-    });
+      }
+      setRowErrors(errors);
+      // A saved row shows the server's data; a refused one keeps what was
+      // typed, to correct it or save it again once reloaded.
+      setDrafts((d) => Object.fromEntries(Object.entries(d).filter(([id]) => id in errors)));
+    })();
   };
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const bulkDef = defs[bulkField];

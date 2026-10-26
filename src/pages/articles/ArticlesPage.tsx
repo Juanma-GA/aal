@@ -192,7 +192,7 @@ export function ArticlesPage(): React.JSX.Element {
       {!list.data || !fields.data ? (
         <Skeleton className="h-96 w-full" />
       ) : grid ? (
-        <ArticleGrid rows={rows} fields={fields.data} codes={codes} onNearEnd={nearEnd} selected={selected} onSelected={setSelected} />
+        <ArticleGrid rows={rows} fields={fields.data} codes={codes} onNearEnd={nearEnd} selected={selected} onSelected={setSelected} maxBatchRows={rights.data?.max_batch_rows ?? 1} />
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground" data-testid="articles-empty">{t('articles.empty')}</p>
       ) : (
@@ -251,6 +251,7 @@ export function ArticlesPage(): React.JSX.Element {
           title={t('articles.importTitle', { template: t(`articles.templates.${importing}`) })}
           start={(file) => startArticleImport(importing, file)}
           onApplied={() => void queryClient.invalidateQueries({ queryKey: ['articles'] })}
+          fieldNames={Object.fromEntries((fields.data ?? []).map((f) => [f.prisma_code, f.name]))}
         />
       ) : null}
       <ExportDialog template={exporting} filters={exportFilters} onOpenChange={(open) => !open && setExporting(null)} />

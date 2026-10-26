@@ -31,7 +31,7 @@ def test_where_used_is_a_registry():
     assert [name for name, _fn in articles.USAGE_PROVIDERS] == ["cuf"]
 
     @articles.register_usage("prueba")
-    async def provider(db, article):
+    async def provider(db, article, user):
         return [{"kind": "prueba"}]
 
     try:

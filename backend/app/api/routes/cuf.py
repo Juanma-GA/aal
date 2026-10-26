@@ -123,12 +123,18 @@ async def set_subcategories(
     return await cuf_out(db, material, user)
 
 
+async def _live_version(db: AsyncSession, version_id: uuid.UUID, lock: bool = False) -> CatalogVersion | None:
+    """A catalog version that is not deleted (E12)."""
+    query = select(CatalogVersion).where(CatalogVersion.id == version_id, CatalogVersion.deleted_at.is_(None))
+    return (await db.execute(query.with_for_update() if lock else query)).scalar_one_or_none()
+
+
 @router.get("/{material_id}/catalog-version-impact", response_model=ImpactOut)
 async def catalog_version_impact(
     material_id: uuid.UUID, to: uuid.UUID, _admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)
 ) -> ImpactOut:
     material = await _active_material(db, material_id)
-    if await db.get(CatalogVersion, to) is None:
+    if await _live_version(db, to) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail("catalog_version_not_found"))
     return ImpactOut(**await cuf.impact(db, material, to))
 
@@ -145,7 +151,8 @@ async def change_catalog_version(
     material = await _active_material(db, material_id)
     if material.version != body.version:
         raise version_conflict(material.version)
-    if await db.get(CatalogVersion, body.catalog_version_id) is None:
+    # Locked: a version being deleted meanwhile waits, then sees this CUF.
+    if await _live_version(db, body.catalog_version_id, lock=True) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail("catalog_version_not_found"))
     if body.catalog_version_id != material.catalog_version_id:
         report = await cuf.impact(db, material, body.catalog_version_id)

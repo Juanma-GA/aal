@@ -27,7 +27,7 @@ async def test_deleting_a_catalog_version(client, team):  # noqa: F811
     assert (in_use.status_code, in_use.json()["detail"]) == (409, {**in_use.json()["detail"], "code": "catalog_version_in_use", "materials": "CUF de prueba E11"})
     assert (await client.delete(f"/api/catalog/versions/{v1['id']}", params={"version": 2}, headers=admin)).json()["detail"]["code"] == "confirmation_required"
     assert (await client.delete(f"/api/catalog/versions/{v1['id']}", params={"version": 2, "confirm": "true"}, headers=team["analyst"])).status_code == 403
-    # The CUF moves to v2 ("Cambiar versión", E11): v1 can go.
+    # The CUF moves to v2 ("Cambiar versión", E11): v1 can go, and no CUF moves to it again.
     cuf = (await client.get(f"/api/materials/{mid}/cuf", headers=admin)).json()
     moved = await client.put(f"/api/materials/{mid}/catalog-version", json={"version": cuf["version"], "catalog_version_id": v2["id"], "confirm": True}, headers=admin)
     assert moved.status_code == 200, moved.text
@@ -37,6 +37,10 @@ async def test_deleting_a_catalog_version(client, team):  # noqa: F811
     ok = await client.delete(f"/api/catalog/versions/{v1['id']}", params={"version": v1_now["version"], "confirm": "true"}, headers=admin)
     assert ok.status_code == 204
     assert [v["number"] for v in await _versions(client, admin)] == [2]
+    cuf = (await client.get(f"/api/materials/{mid}/cuf", headers=admin)).json()
+    back = await client.put(f"/api/materials/{mid}/catalog-version", json={"version": cuf["version"], "catalog_version_id": v1["id"], "confirm": True}, headers=admin)
+    assert back.json()["detail"]["code"] == "catalog_version_not_found"
+    assert (await client.get(f"/api/materials/{mid}/catalog-version-impact", params={"to": v1["id"]}, headers=admin)).status_code == 404
     diff = await client.get("/api/catalog/diff", params={"from_version": v1["id"], "to_version": v2["id"]}, headers=admin)
     assert diff.json()["detail"]["code"] == "catalog_version_not_found"
     async with async_session_factory() as session:

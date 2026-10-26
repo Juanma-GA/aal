@@ -81,6 +81,9 @@ export interface ArticleFilters {
 export interface ArticleRights {
   can_edit: boolean;
   can_import: boolean;
+  /** Rows per save of the grid (the "articles" parameter). */
+  max_batch_rows: number;
+  max_life_controls: number;
 }
 
 export interface BatchResult {

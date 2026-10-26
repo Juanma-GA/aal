@@ -444,7 +444,34 @@ analista y espera "Materiales / CUF" disponible), `verify-auth-settings` y `veri
 
 **ESLint:** 10.11 funciona sin cambios en `eslint.config.js`; los plugins admiten 10.
 
-**Commits.** `c388e7a` (parte 1), `5d3c3da` (parte 2) y el de cierre (se anota).
+**Revisión (code-reviewer + security-reviewer).** Sin bloqueantes. Corregido:
+- **Controles de vida:** se guardan en su posición. Un Fichero Carga sin primer par ya no corría el
+  segundo a su sitio ni lo borraba al reimportar.
+- **P/N + NCAGE en la importación:** se comprueba en el fichero y contra la base. La fila se rechaza con
+  su motivo, en vez de un 500 al aplicar.
+- **Versiones borradas:** un CUF no puede pasar a una versión borrada. Además se bloquea la versión,
+  sin carrera con su borrado.
+- **Rejilla optimista:** muestra al momento y cada fila toma la respuesta del servidor. Las filas
+  rechazadas conservan lo tecleado. Se envía en tandas según el parámetro `articles.max_batch_rows`.
+- **Borrado de un artículo:** ahora es optimista.
+- **Errores 500 que pasan a 4xx:**
+  - nombre nulo → 422;
+  - la carrera en la unicidad → 409 por fila, con las filas bloqueadas en orden.
+- **Importación del Maestro:** sin NOC ni un P/N conocido, cae en el nombre. Un "Origen del nombre"
+  vacío ya no sale como modificado.
+- **"Dónde se usa":** solo los materiales a los que el usuario tiene acceso.
+- **Avisos AR:** nombran los campos, nunca los códigos PRISMA (HR21).
+- **Sin valores fijados en el código:** el patrón de la regla se construye desde `RULES` y el máximo de
+  controles de vida lo da el servidor.
+- **`purge_verify_data --restore-articles`:** solo borra lo creado durante la comprobación.
+
+Anotado sin cambiar:
+- Una fila con NOC no casa con un artículo provisional del mismo nombre, como dice el encargo.
+- Los filtros usan los hallazgos guardados; la ficha los recalcula.
+- `check-latest` en la CI coge el último 24.x.
+
+**Commits.** `c388e7a` (parte 1), `5d3c3da` (parte 2), `a28829f` (parte 3), la revisión y el de
+cierre (se anota).
 
 **Tests.** `npm run check:all` verde (ver el informe). `verify-articles`, `verify-materials`,
 `verify-conf-fun`, `verify-navigation`, `verify-reference-tables`, `verify-auth-settings` y `verify-health`

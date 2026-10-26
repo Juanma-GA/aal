@@ -50,7 +50,8 @@ class BatchItem(StrictModel):
 
 
 class BatchIn(StrictModel):
-    items: list[BatchItem] = Field(min_length=1, max_length=500)
+    # A sanity bound; the real limit is the "articles" parameter's max_batch_rows.
+    items: list[BatchItem] = Field(min_length=1, max_length=5000)
 
 
 class Finding(BaseModel):
@@ -107,6 +108,9 @@ class BatchResult(BaseModel):
 class ArticleRights(BaseModel):
     can_edit: bool
     can_import: bool
+    # What the screen needs to know: rows per grid save, life control pairs.
+    max_batch_rows: int
+    max_life_controls: int
 
 
 class ExportSummary(BaseModel):

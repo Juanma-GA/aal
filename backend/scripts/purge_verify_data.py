@@ -32,7 +32,7 @@ The requests for a new SNS a check created (E11) are removed for good.
 
 The articles (E12) are saved before and put back after: every column of
 every article (version and findings included) and its life controls; an
-article the check created is removed.
+article created while the check ran (after the save) is removed.
 
     python scripts/purge_verify_data.py --save-articles --snapshot FICHERO
     python scripts/purge_verify_data.py --restore-articles --snapshot FICHERO
@@ -43,7 +43,7 @@ import asyncio
 import json
 import sys
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -136,7 +136,8 @@ async def save_articles(snapshot: Path) -> int:
         articles = [{c.name: _jsonable(v) for c in Article.__table__.columns for v in [getattr(a, c.key)]} for a in (await db.execute(select(Article))).scalars()]
         life = [{c.name: _jsonable(getattr(x, c.key)) for c in ArticleLifeControl.__table__.columns} for x in (await db.execute(select(ArticleLifeControl))).scalars()]
     await engine.dispose()
-    snapshot.write_text(json.dumps({"articles": articles, "life": life}, ensure_ascii=False), encoding="utf-8")
+    saved_at = datetime.now(UTC).isoformat()
+    snapshot.write_text(json.dumps({"saved_at": saved_at, "articles": articles, "life": life}, ensure_ascii=False), encoding="utf-8")
     print(f"Artículos guardados: {len(articles)}")
     return 0
 
@@ -145,8 +146,11 @@ async def restore_articles(snapshot: Path) -> int:
     saved = json.loads(snapshot.read_text(encoding="utf-8"))
     async with async_session_factory() as db:
         ids = [_value(a["id"]) for a in saved["articles"]]
-        removed = await db.execute(delete(Article).where(Article.id.not_in(ids)) if ids else delete(Article))
-        await db.execute(delete(ArticleLifeControl))
+        # Only what appeared while the check ran (created after the save):
+        # an article that was there before is put back, never removed.
+        created = Article.created_at >= datetime.fromisoformat(saved["saved_at"])
+        removed = await db.execute(delete(Article).where(Article.id.not_in(ids), created) if ids else delete(Article).where(created))
+        await db.execute(delete(ArticleLifeControl).where(ArticleLifeControl.article_id.in_(ids)))
         for a in saved["articles"]:
             await db.execute(update(Article.__table__).where(Article.__table__.c.id == _value(a["id"])).values({k: _value(v) for k, v in a.items()}))
         for x in saved["life"]:

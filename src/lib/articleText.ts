@@ -8,3 +8,17 @@ export function cellProblemText(t: TFunction, p: CellProblem | { code: string; p
   if (!p) return '';
   return t(`articles.cellProblems.${p.code}`, { ...p.params, defaultValue: t(`import.issues.${p.code}`, { ...p.params, value: '' }) });
 }
+
+/** An AR finding in words, with the fields by their names, never by their
+ *  PRISMA codes (HR21). `names`: PRISMA code -> field name. */
+export function findingText(
+  t: TFunction,
+  f: { problem: string; field: string; params: Record<string, string | number> },
+  names: Record<string, string>,
+): string {
+  const name = (code: string) => names[code] ?? code;
+  const params: Record<string, string | number> = { ...f.params };
+  for (const key of ['flag', 'measure']) if (typeof params[key] === 'string') params[key] = name(params[key]);
+  if (typeof params.levels === 'string') params.levels = params.levels.split(', ').map(name).join(', ');
+  return t(`articles.problems.${f.problem}`, { ...params, field: name(f.field) });
+}

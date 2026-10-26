@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type InfiniteData, type QueryClient, type QueryKey, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { notifyError } from '@/lib/notify';
 import {
@@ -11,7 +11,7 @@ import {
   saveArticleBatch,
   updateArticle,
 } from '@/services/articlesApi';
-import type { Article, ArticleChanges, ArticleFilters, ArticleRow } from '@/types/articles';
+import type { Article, ArticleChanges, ArticleFilters, ArticlePage, ArticleRow, BatchResult } from '@/types/articles';
 
 export const articlesKey = ['articles'] as const;
 export const articleKey = (id: string) => ['articles', 'one', id] as const;
@@ -78,22 +78,70 @@ export function useCreateArticle() {
   });
 }
 
+type ListData = InfiniteData<ArticlePage, number>;
+
+/** Every cached page of the list, changed row by row. */
+function mapListRows(queryClient: QueryClient, fn: (row: ArticleRow) => ArticleRow | null): [QueryKey, ListData | undefined][] {
+  const previous = queryClient.getQueriesData<ListData>({ queryKey: ['articles', 'list'] });
+  for (const [key, data] of previous) {
+    if (!data) continue;
+    queryClient.setQueryData<ListData>(key, {
+      ...data,
+      pages: data.pages.map((p) => ({ ...p, items: p.items.map(fn).filter((r): r is ArticleRow => r !== null) })),
+    });
+  }
+  return previous;
+}
+
+function restore(queryClient: QueryClient, previous: [QueryKey, ListData | undefined][] | undefined): void {
+  for (const [key, data] of previous ?? []) queryClient.setQueryData(key, data);
+}
+
+/** Deleting: the row leaves the list at once (HR20), back if the server
+ *  refuses it. */
 export function useDeleteArticle() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   return useMutation({
     mutationFn: (article: ArticleRow) => deleteArticle(article.id, article.version),
-    onError: (error) => notifyError(error, t),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['articles', 'list'] }),
+    onMutate: async (article) => {
+      await queryClient.cancelQueries({ queryKey: ['articles', 'list'] });
+      return { previous: mapListRows(queryClient, (r) => (r.id === article.id ? null : r)) };
+    },
+    onError: (error, _article, context) => {
+      restore(queryClient, context?.previous);
+      notifyError(error, t);
+    },
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: ['articles', 'list'] }),
   });
 }
 
+type BatchItem = { id: string; version: number; fields: Record<string, string | null> };
+
+/** The grid's save: the new values show on the list at once (HR20); each
+ *  row saved takes the server's answer (version, findings), each refused
+ *  one goes back to what is stored. */
 export function useSaveBatch() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   return useMutation({
-    mutationFn: saveArticleBatch,
-    onError: (error) => notifyError(error, t),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['articles', 'list'] }),
+    mutationFn: (items: BatchItem[]) => saveArticleBatch(items),
+    onMutate: async (items) => {
+      await queryClient.cancelQueries({ queryKey: ['articles', 'list'] });
+      const byId = new Map(items.map((i) => [i.id, i]));
+      return { previous: mapListRows(queryClient, (r) => (byId.has(r.id) ? { ...r, fields: { ...r.fields, ...byId.get(r.id)?.fields } } : r)) };
+    },
+    onError: (error, _items, context) => {
+      restore(queryClient, context?.previous);
+      notifyError(error, t);
+    },
+    onSuccess: (results: BatchResult[], _items, context) => {
+      const saved = new Map(results.filter((r) => r.ok && r.article).map((r) => [r.id, r.article as ArticleRow]));
+      const refused = new Set(results.filter((r) => !r.ok).map((r) => r.id));
+      const before = new Map((context?.previous ?? []).flatMap(([, data]) => data?.pages.flatMap((p) => p.items) ?? []).map((r) => [r.id, r]));
+      mapListRows(queryClient, (r) => saved.get(r.id) ?? (refused.has(r.id) ? (before.get(r.id) ?? r) : r));
+      // A refused row: its stored data (and version) may have changed.
+      if (refused.size) void queryClient.invalidateQueries({ queryKey: ['articles', 'list'] });
+    },
   });
 }

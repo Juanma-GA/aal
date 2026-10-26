@@ -62,9 +62,17 @@ def life_of(article: Article) -> list[LifeControl]:
     return [LifeControl(c.unit_code, c.quantity) for c in sorted(article.life_controls, key=lambda c: c.position)]
 
 
+def _empty_pair(c: LifeControl) -> bool:
+    return c.unit_code in (None, "") and c.quantity is None
+
+
 def set_life(article: Article, life: list[LifeControl]) -> None:
-    """Replaces the life controls (empty pairs are dropped)."""
-    kept = [c for c in life if c.unit_code not in (None, "") or c.quantity is not None][:MAX_LIFE_CONTROLS]
+    """Replaces the life controls, each at its position: only the empty
+    pairs at the end are dropped, so an empty first pair (a Fichero Carga
+    row without one) never moves the second into its place."""
+    kept = list(life[:MAX_LIFE_CONTROLS])
+    while kept and _empty_pair(kept[-1]):
+        kept.pop()
     article.life_controls = [ArticleLifeControl(position=i, unit_code=c.unit_code or None, quantity=c.quantity) for i, c in enumerate(kept, start=1)]
 
 
@@ -107,7 +115,9 @@ class Checker:
         return found
 
 
-UsageProvider = Callable[[AsyncSession, Article], Awaitable[list[dict[str, Any]]]]
+# (db, article, the user asking): only what that user may open (a material
+# they are not in stays unknown to them, as a 404 does).
+UsageProvider = Callable[[AsyncSession, Article, User], Awaitable[list[dict[str, Any]]]]
 USAGE_PROVIDERS: list[tuple[str, UsageProvider]] = []
 
 
@@ -120,18 +130,21 @@ def register_usage(name: str) -> Callable[[UsageProvider], UsageProvider]:
 
 
 @register_usage("cuf")
-async def _cuf_of_material(db: AsyncSession, article: Article) -> list[dict[str, Any]]:
+async def _cuf_of_material(db: AsyncSession, article: Article, user: User) -> list[dict[str, Any]]:
     """The article is the CUF of a material: the material has its NOC."""
     if article.noc is None:
         return []
-    rows = (await db.execute(select(Material.id, Material.name).where(Material.noc == article.noc, Material.deleted_at.is_(None)).order_by(Material.name))).all()
+    query = select(Material.id, Material.name).where(Material.noc == article.noc, Material.deleted_at.is_(None))
+    if not user.is_admin:
+        query = query.join(UserMaterialRole, (UserMaterialRole.material_id == Material.id) & (UserMaterialRole.user_id == user.id))
+    rows = (await db.execute(query.order_by(Material.name))).all()
     return [{"kind": "material_cuf", "material_id": str(mid), "material_name": name} for mid, name in rows]
 
 
-async def where_used(db: AsyncSession, article: Article) -> list[dict[str, Any]]:
+async def where_used(db: AsyncSession, article: Article, user: User) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for _name, provider in USAGE_PROVIDERS:
-        out += await provider(db, article)
+        out += await provider(db, article, user)
     return out
 
 

@@ -104,7 +104,9 @@
     "article_not_found": "Ese artículo no existe o se ha borrado.",
     "article_invalid": "Hay datos del artículo que no se pueden guardar: revisa los campos marcados.",
     "article_noc_taken": "Ya hay otro artículo con ese NOC.",
-    "article_pn_ncage_taken": "Ya hay otro artículo con ese P/N y NCAGE."
+    "article_pn_ncage_taken": "Ya hay otro artículo con ese P/N y NCAGE.",
+    "batch_too_large": "Demasiadas filas en un guardado: el máximo es {{max}}.",
+    "article_identity_taken": "Otro artículo acaba de quedarse con ese NOC o ese P/N y NCAGE."
   },
   "actions": {
     "retry": "Reintentar",
@@ -343,7 +345,8 @@
         "max_file_mb": "Tamaño máximo del fichero (MB)",
         "max_uncompressed_mb": "Tamaño máximo descomprimido (MB)",
         "max_rows": "Filas de datos como máximo",
-        "stale_minutes": "Minutos tras los que un análisis se da por interrumpido"
+        "stale_minutes": "Minutos tras los que un análisis se da por interrumpido",
+        "max_batch_rows": "Filas por guardado de la rejilla de artículos"
       }
     },
     "modules": {
@@ -626,7 +629,9 @@
       "noc_invalid": "«{{value}}» no es un NOC: son 13 letras mayúsculas y cifras (el NPC lleva una X en la posición 7).",
       "ncage_invalid": "«{{value}}» no es un NCAGE: son 5 letras mayúsculas y cifras.",
       "name_required": "Falta el nombre coloquial: un artículo necesita al menos su nombre.",
-      "duplicate_article": "El mismo artículo ya está en la fila {{first_row}}."
+      "duplicate_article": "El mismo artículo ya está en la fila {{first_row}}.",
+      "duplicate_pn_ncage": "El mismo P/N y NCAGE ya está en la fila {{first_row}}.",
+      "pn_ncage_taken": "El P/N y NCAGE {{value}} ya es de otro artículo."
     },
     "page": "Página {{page}} de {{pages}} · {{total}} filas",
     "rejectedSummary": "{{count}} filas rechazadas (no se aplican; el resto, sí)."
@@ -935,17 +940,17 @@
     },
     "problems": {
       "required": "Falta «{{field}}», obligatorio.",
-      "required_if": "Falta «{{field}}»: es obligatorio porque {{flag}} = S.",
+      "required_if": "Falta «{{field}}»: es obligatorio porque «{{flag}}» = S.",
       "not_in_table": "«{{value}}» no está en la tabla {{table}} ({{field}}).",
       "inactive_in_table": "«{{value}}» está desactivado en la tabla {{table}} ({{field}}).",
       "no_level": "Es reparable y no tiene ningún escalón de mantenimiento = S.",
       "gap": "Desde el primer escalón con S, todos los siguientes deben ser S (faltan: {{levels}}).",
-      "unit_missing": "Hay {{measure}} pero falta «{{field}}».",
+      "unit_missing": "Hay «{{measure}}» pero falta «{{field}}».",
       "code_missing": "Tiene control unitario = S y falta «{{field}}».",
       "no_pair": "Tiene control de vida = S y ningún par código de vida + cantidad.",
       "pair_incomplete": "El control de vida {{position}} está incompleto: falta «{{field}}».",
       "too_many": "Más de {{max}} controles de vida.",
-      "requires": "Tiene mantenimiento preventivo = S y «{{field}}» no es S.",
+      "requires": "Tiene «{{flag}}» = S y «{{field}}» no es S.",
       "unit_control": "Tiene control de configuración = S y «{{field}}» no es S.",
       "group": "Tiene control de configuración = S y el grupo estructural es «{{value}}» (debe ser {{groups}})."
     },

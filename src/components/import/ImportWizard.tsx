@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { findingText } from '@/lib/articleText';
 import { humanize } from '@/lib/humanize';
 import { notifyError } from '@/lib/notify';
 import { describeApiError } from '@/services/apiErrors';
@@ -39,6 +40,8 @@ interface Props {
   start: (file: File) => Promise<ImportJob>;
   /** After applying: refresh what the import changed. */
   onApplied?: (job: ImportJob) => void;
+  /** Articles (E12): PRISMA code -> field name, for the AR findings. */
+  fieldNames?: Record<string, string>;
 }
 
 /** One page of `items`, and the controls to move (none for a single page). */
@@ -103,7 +106,7 @@ function Issues({ issues, testId }: { issues: ImportIssue[]; testId: string }): 
   );
 }
 
-function Report({ report, counts }: { report: ImportReport; counts: ImportJob['counts'] }): React.JSX.Element {
+function Report({ report, counts, fieldNames }: { report: ImportReport; counts: ImportJob['counts']; fieldNames: Record<string, string> }): React.JSX.Element {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>(
     counts.errors ? 'errors' : counts.rejected ? 'rejected' : counts.modified ? 'modified' : counts.new ? 'new' : 'unchanged',
@@ -284,7 +287,7 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
                     {items.map((i) => (
                       <li key={`${i.row}-${i.field}-${i.problem}`}>
                         {t('import.rowOnly', { row: i.row })} · <span className="font-mono text-xs">{i.key}</span> {i.name} —{' '}
-                        {t(`articles.problems.${i.problem}`, { ...i.params, field: i.field })}
+                        {findingText(t, i, fieldNames)}
                       </li>
                     ))}
                   </ul>
@@ -327,7 +330,7 @@ function Report({ report, counts }: { report: ImportReport; counts: ImportJob['c
   );
 }
 
-export function ImportWizard({ open, onOpenChange, title, start, onApplied }: Props): React.JSX.Element {
+export function ImportWizard({ open, onOpenChange, title, start, onApplied, fieldNames = {} }: Props): React.JSX.Element {
   const { t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -445,7 +448,7 @@ export function ImportWizard({ open, onOpenChange, title, start, onApplied }: Pr
                 <AlertDescription>{t('import.doneSummary', { new: current.counts.new ?? 0, modified: current.counts.modified ?? 0 })}</AlertDescription>
               </Alert>
             ) : null}
-            <Report report={current.report} counts={current.counts} />
+            <Report report={current.report} counts={current.counts} fieldNames={fieldNames} />
           </div>
         ) : null}
 

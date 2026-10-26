@@ -70,6 +70,8 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
     "articles": {
         "page_size": 200,
         "max_page_size": 1000,
+        # Rows of one save of the grid (it sends more in several).
+        "max_batch_rows": 200,
     },
     # The interface (E12): the sidebar's width in pixels, dragged by its edge.
     "ui": {

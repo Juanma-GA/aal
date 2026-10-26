@@ -152,6 +152,7 @@ class ArticleTarget:
             "pending": {"new": [], "modified": []},
         }
         seen: dict[str, int] = {}
+        seen_pn: dict[tuple[str, str], int] = {}
         for row in read.rows:
             values = row.values
             noc, pn, ncage, wrong = normalize_identity(values.get(NOC_FIELD), values.get(_PN), values.get(_NCAGE))
@@ -166,19 +167,27 @@ class ArticleTarget:
             identity = f"noc:{noc}" if noc else f"pn:{pn}/{ncage}" if pn and ncage else f"name:{_name_key(name)}"
             if not issues and identity in seen:
                 issues.append(Issue("duplicate_article", {"first_row": seen[identity]}, row=row.row).as_json())
+            match = by_noc.get(noc) if noc else (by_pn.get((pn, ncage)) if pn and ncage else None) or by_name.get(_name_key(name))
+            if not issues and pn and ncage:
+                # P/N + NCAGE is unique too: in the file and against the stored articles.
+                if (pn, ncage) in seen_pn:
+                    issues.append(Issue("duplicate_pn_ncage", {"first_row": seen_pn[(pn, ncage)]}, row=row.row).as_json())
+                elif (other := by_pn.get((pn, ncage))) is not None and other is not match:
+                    issues.append(Issue("pn_ncage_taken", {"value": f"{pn} / {ncage}"}, row=row.row).as_json())
             if issues:
                 report["rejected"].append({"row": row.row, "key": key, "issues": issues})
                 continue
             seen[identity] = row.row
+            if pn and ncage:
+                seen_pn[(pn, ncage)] = row.row
             report["warnings"] += [i.as_json() for i in row.warnings]
-
-            match = by_noc.get(noc) if noc else by_pn.get((pn, ncage)) if pn and ncage else by_name.get(_name_key(name))
             data = {p: values.get(p) for p in FIELD_COLUMNS}
             data[NOC_FIELD] = noc
             corrections = autocorrect(data)
             report["corrections"] += [{"row": row.row, "key": key, **c} for c in corrections]
             life = _life_from(values, self.kind, life_of(match) if match else None)
-            identity_values = {"pn": pn, "ncage": ncage, "origen_nombre": values.get(_ORIGIN)} if self.kind == MAESTRO else {}
+            # An empty origin is the default one, as apply writes it.
+            identity_values = {"pn": pn, "ncage": ncage, "origen_nombre": values.get(_ORIGIN) or "coloquial"} if self.kind == MAESTRO else {}
             for f in checker.findings(data, life):
                 report["ar"][f["code"]].append({"row": row.row, "key": key, "name": name, "field": f["field"], "problem": f["problem"], "params": f["params"]})
             file_values = {**data, **self._life_values(life), **identity_values}
@@ -235,6 +244,17 @@ class ArticleTarget:
             identity = {"pn": decoded.get(_PN), "ncage": decoded.get(_NCAGE), "origen_nombre": decoded.get(_ORIGIN) or "coloquial"}
         return data, life, identity
 
+    async def _check_pn_free(self, db: AsyncSession, identity: dict[str, Any], article_id: uuid.UUID | None, row: int) -> None:
+        """Another article took this P/N + NCAGE after the analysis: stale."""
+        pn, ncage = identity.get("pn"), identity.get("ncage")
+        if not (pn and ncage):
+            return
+        query = select(Article.id).where(Article.pn == pn, Article.ncage == ncage, Article.deleted_at.is_(None))
+        if article_id is not None:
+            query = query.where(Article.id != article_id)
+        if (await db.execute(query)).first():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_stale", row=row))
+
     async def apply(self, db: AsyncSession, job: ImportJob, template: Template, user: User, ip: str | None) -> None:
         await self.apply_report(db, job.report, template, user.id, {"import_job": str(job.id), "file_name": job.file_name}, ip)
 
@@ -253,6 +273,7 @@ class ArticleTarget:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_stale", row=item["row"]))
             before = snapshot(article)
             data, life, identity = self._decoded(template, item["values"])
+            await self._check_pn_free(db, identity, article.id, item["row"])
             if data[NOC_FIELD] is None:
                 data[NOC_FIELD] = article.noc  # matched by its P/N or name: it keeps its NOC
             set_data(article, data)
@@ -273,6 +294,7 @@ class ArticleTarget:
             noc = data[NOC_FIELD]
             if noc and (await db.execute(select(Article.id).where(Article.noc == noc, Article.deleted_at.is_(None)))).first():
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_stale", row=item["row"]))
+            await self._check_pn_free(db, identity, None, item["row"])
             article = Article(id=uuid.uuid4(), version=1, created_by=user_id, updated_by=user_id, origen_nombre="coloquial", nombre=data[NAME_FIELD])
             set_data(article, data)
             set_life(article, life)

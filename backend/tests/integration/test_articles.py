@@ -122,8 +122,10 @@ async def test_where_used_and_the_summary(client, factory, people):
     for name, noc in CUF.items():
         await factory.material(name=f"{name} (prueba)", noc=noc)
     tramontana = await find(client, people["observador"], "232033X900001")
-    card = (await client.get(f"/api/articles/{tramontana['id']}", headers=people["observador"])).json()
+    card = (await client.get(f"/api/articles/{tramontana['id']}", headers=people["admin"])).json()
     assert card["where_used"] == [{"kind": "material_cuf", "material_id": card["where_used"][0]["material_id"], "material_name": "VTL 4X4 TRAMONTANA (prueba)"}]
+    # A material the user is not in stays unknown to them (as its 404 does).
+    assert (await client.get(f"/api/articles/{tramontana['id']}", headers=people["observador"])).json()["where_used"] == []
     used = 0
     for item in (await client.get("/api/articles", headers=people["admin"])).json()["items"]:
         used += bool((await client.get(f"/api/articles/{item['id']}", headers=people["admin"])).json()["where_used"])
@@ -248,3 +250,43 @@ async def test_seed_demo_articles_is_idempotent(client, people):
     assert len(again) == len(first)
     rod = await find(client, people["admin"], "BIELA DM-6")
     assert rod["finding_codes"] == ["AR-006"]
+
+
+async def test_repeated_imports_keep_life_controls_2_and_3(client, people):
+    """A Fichero Carga row without a first pair never moves the second into
+    its place: the same file again is "unchanged" and pairs 2-3 stay."""
+    await imported(client, people["admin"])
+    tramontana = await find(client, people["admin"], "232033X900001")
+    body = {"version": tramontana["version"], "life_controls": [{"unit_code": None, "quantity": None}, {"unit_code": "01", "quantity": 7}]}
+    res = await client.patch(f"/api/articles/{tramontana['id']}", json=body, headers=people["admin"])
+    assert res.status_code == 200, res.text
+    wb = openpyxl.load_workbook(io.BytesIO(DEMO.read_bytes()))
+    ws = wb.worksheets[0]
+    row = next(r for r in range(3, ws.max_row + 1) if ws.cell(r, 1).value == "232033X900001")
+    ws.cell(row, 28).value = None
+    ws.cell(row, 29).value = None
+    out = io.BytesIO()
+    wb.save(out)
+    for _ in range(2):
+        await imported(client, people["admin"], out.getvalue())
+    again = await analyse(client, people["admin"], out.getvalue())
+    assert again["counts"]["modified"] == 0
+    life = (await client.get(f"/api/articles/{tramontana['id']}", headers=people["admin"])).json()["life_controls"]
+    assert [(c["position"], c["unit_code"]) for c in life] == [(1, None), (2, "01")]
+
+
+async def test_pn_ncage_is_unique_on_import_and_a_null_name_is_422(client, people):
+    await imported(client, people["admin"])
+    rod = await find(client, people["admin"], "BIELA DM-6")
+    assert (await client.patch(f"/api/articles/{rod['id']}", json={"version": rod["version"], "pn": "B-1", "ncage": "DEMO2"}, headers=people["admin"])).status_code == 200
+    assert (await client.patch(f"/api/articles/{rod['id']}", json={"version": rod["version"] + 1, "nombre": None}, headers=people["admin"])).status_code == 422
+    maestro = (await client.get("/api/articles/export", params={"template": "maestro"}, headers=people["admin"])).content
+    wb = openpyxl.load_workbook(io.BytesIO(maestro))
+    ws = wb.worksheets[0]
+    other = next(r for r in range(3, ws.max_row + 1) if ws.cell(r, 2).value == "AMORTIGUADOR")
+    ws.cell(other, 31).value, ws.cell(other, 32).value = "B-1", "DEMO2"
+    out = io.BytesIO()
+    wb.save(out)
+    job = await analyse(client, people["admin"], out.getvalue(), template="maestro", name="MAESTRO_AAL.xlsx")
+    assert [(r["key"], r["issues"][0]["code"]) for r in job["report"]["rejected"]] == [(ws.cell(other, 1).value, "pn_ncage_taken")]
+    assert (await client.post(f"/api/import-jobs/{job['id']}/apply", headers=people["admin"])).status_code == 200

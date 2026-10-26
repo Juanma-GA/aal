@@ -17,14 +17,13 @@ import { useArticle, useArticleHistory, useArticleRights, useDeleteArticle, useU
 import { activeCodes, useFieldCodes } from '@/hooks/useFieldCodes';
 import { useArticleFields } from '@/hooks/useReferenceTables';
 import { FIELD_GROUPS, LIFE_CODE_FIELD, LIFE_QUANTITY_FIELD, NAME_FIELD, NOC_FIELD, cellProblem, cellValue, tableOf, type CellProblem } from '@/lib/articleFields';
-import { cellProblemText } from '@/lib/articleText';
+import { cellProblemText, findingText } from '@/lib/articleText';
 import { describeApiError } from '@/services/apiErrors';
 import { ApiError } from '@/services/apiError';
 import { NAME_ORIGINS, type Article, type ArticleChanges, type Finding, type LifeControl, type NameOrigin } from '@/types/articles';
 import type { ArticleField } from '@/types/reference';
 
 export const ARTICLES_PATH = '/articulos';
-const MAX_LIFE_CONTROLS = 3;
 
 interface Draft {
   noc: string | null;
@@ -94,6 +93,8 @@ export function ArticlePage(): React.JSX.Element {
   const [edit, setEdit] = useState<{ key: string; draft: Draft } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const defs = useMemo(() => Object.fromEntries((fieldList.data ?? []).map((f) => [f.prisma_code, f])), [fieldList.data]);
+  const names = useMemo(() => Object.fromEntries((fieldList.data ?? []).map((f) => [f.prisma_code, f.name])), [fieldList.data]);
+  const maxLifeControls = rights.data?.max_life_controls ?? 0;
   const canEdit = Boolean(rights.data?.can_edit);
 
   const versionKey = article.data ? `${article.data.id}:${article.data.version}` : '';
@@ -240,7 +241,7 @@ export function ArticlePage(): React.JSX.Element {
           </Button>
         </div>
       ))}
-      {canEdit && draft.life.length < MAX_LIFE_CONTROLS ? (
+      {canEdit && draft.life.length < maxLifeControls ? (
         <Button variant="outline" size="sm" className="self-start" onClick={() => set({ life: [...draft.life, { unit_code: null, quantity: null }] })} data-testid="add-life-control">
           <Plus aria-hidden="true" />
           {t('articles.addLifeControl')}
@@ -305,7 +306,7 @@ export function ArticlePage(): React.JSX.Element {
                     <Badge variant={f.severity === 'bloqueante' ? 'destructive' : 'outline'}>{f.code}</Badge>
                     <span className="font-medium">{t(`articles.rules.${f.code}.title`)}</span>
                   </div>
-                  <p>{t(`articles.problems.${f.problem}`, { ...f.params, field: defs[f.field]?.name ?? f.field })}</p>
+                  <p>{findingText(t, f, names)}</p>
                   <button type="button" className="self-start text-link underline-offset-2 hover:underline" onClick={() => goTo(f)} data-testid={`finding-go-${f.code}`}>
                     {t('articles.goToField', { field: defs[f.field]?.name ?? f.field })}
                   </button>

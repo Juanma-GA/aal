@@ -8,12 +8,14 @@ article's version (409 when someone else changed it meanwhile).
 """
 
 import asyncio
+import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user, require_admin
@@ -24,7 +26,7 @@ from app.core.errors import error_detail
 from app.db.base import get_db
 from app.io_excel.targets import get_target
 from app.io_excel.writer import write_workbook
-from app.models import FIELD_COLUMNS, Article, AuditLog, User
+from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, Article, AuditLog, User
 from app.models.article import LIFE_CODE_FIELD, LIFE_QUANTITY_FIELD
 from app.schemas.articles import (
     ArticleIn,
@@ -54,10 +56,17 @@ TEMPLATES = {"fichero_carga": FICHERO_CARGA, "maestro": MAESTRO}
 _FILE_NAMES = {FICHERO_CARGA: "FICHERO_CARGA", MAESTRO: "MAESTRO_AAL"}
 # Identification is not among `fields`: it has its own keys.
 _NOT_A_FIELD = ("cdART", "NomArt", LIFE_CODE_FIELD, LIFE_QUANTITY_FIELD)
+# The rules an article can be filtered by (AR-008 corrects, it is no finding).
+_RULE_PATTERN = "^(" + "|".join(re.escape(code) for code, rule in RULES.items() if rule.severity != "autocorreccion") + ")$"
 
 
 def _not_found() -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail("article_not_found"))
+
+
+def _taken() -> HTTPException:
+    """The NOC or P/N + NCAGE was taken meanwhile (the unique index caught it)."""
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_identity_taken"))
 
 
 def _invalid(problems: list[dict[str, Any]]) -> HTTPException:
@@ -87,13 +96,13 @@ async def _names(db: AsyncSession, ids: set[uuid.UUID | None]) -> dict[uuid.UUID
     return dict((await db.execute(select(User.id, User.display_name).where(User.id.in_(ids)))).all()) if ids else {}
 
 
-async def _out(db: AsyncSession, a: Article, checker: Checker, corrections: list[dict[str, Any]] | None = None) -> ArticleOut:
+async def _out(db: AsyncSession, a: Article, checker: Checker, user: User, corrections: list[dict[str, Any]] | None = None) -> ArticleOut:
     names = await _names(db, {a.created_by, a.updated_by})
     return ArticleOut(
         **_row(a).model_dump(),
         # Checked now: a reference table may have changed since it was saved.
         findings=checker.findings(data_of(a), life_of(a)),
-        where_used=await where_used(db, a),
+        where_used=await where_used(db, a, user),
         corrections=corrections or [],
         created_at=a.created_at, updated_at=a.updated_at, created_by=names.get(a.created_by), updated_by=names.get(a.updated_by),
     )
@@ -203,7 +212,7 @@ class Filters:
     def __init__(
         self,
         q: str | None = Query(default=None, max_length=100),
-        rule: str | None = Query(default=None, pattern=r"^AR-00[1-7]$"),
+        rule: str | None = Query(default=None, pattern=_RULE_PATTERN),
         with_findings: bool | None = None,
         no_noc: bool | None = None,
         repairable: str | None = Query(default=None, pattern="^[SN]$"),
@@ -216,7 +225,10 @@ class Filters:
 
 @router.get("/rights", response_model=ArticleRights)
 async def rights(user: User = Depends(current_user), db: AsyncSession = Depends(get_db)) -> ArticleRights:
-    return ArticleRights(can_edit=await can_edit_articles(db, user), can_import=user.is_admin)
+    params = await get_parameter(db, "articles")
+    return ArticleRights(
+        can_edit=await can_edit_articles(db, user), can_import=user.is_admin, max_batch_rows=params["max_batch_rows"], max_life_controls=MAX_LIFE_CONTROLS
+    )
 
 
 @router.get("", response_model=ArticlePage)
@@ -296,13 +308,16 @@ async def create_article(body: ArticleIn, request: Request, user: User = Depends
     set_life(article, life)
     checker.recheck(article)
     db.add(article)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        raise _taken() from None
     audit.record(
         db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user.id,
         after={**snapshot(article), "corrections": corrections}, ip=client_ip(request),
     )
     await db.commit()
-    return await _out(db, await _one(db, article.id), checker, corrections)
+    return await _out(db, await _one(db, article.id), checker, user, corrections)
 
 
 async def _update(db: AsyncSession, article: Article, body: ArticleUpdate | Any, checker: Checker, user: User, request: Request) -> list[dict[str, Any]]:
@@ -310,6 +325,8 @@ async def _update(db: AsyncSession, article: Article, body: ArticleUpdate | Any,
     raises 422/409 before touching it."""
     problems: list[dict[str, Any]] = []
     sent = body.model_fields_set
+    if "nombre" in sent and getattr(body, "nombre", None) is None:
+        problems.append({"field": "nombre", "code": "required", "params": {}})
     noc, pn, ncage, name = _identity(
         body.noc if "noc" in sent else article.noc, body.pn if "pn" in sent else article.pn,
         body.ncage if "ncage" in sent else article.ncage, getattr(body, "nombre", None) if "nombre" in sent else article.nombre, problems, checker,
@@ -339,8 +356,8 @@ async def _update(db: AsyncSession, article: Article, body: ArticleUpdate | Any,
 
 
 @router.get("/{article_id}", response_model=ArticleOut)
-async def get_article(article_id: uuid.UUID, _user: User = Depends(current_user), db: AsyncSession = Depends(get_db)) -> ArticleOut:
-    return await _out(db, await _one(db, article_id), await Checker.load(db))
+async def get_article(article_id: uuid.UUID, user: User = Depends(current_user), db: AsyncSession = Depends(get_db)) -> ArticleOut:
+    return await _out(db, await _one(db, article_id), await Checker.load(db), user)
 
 
 @router.patch("/{article_id}", response_model=ArticleOut)
@@ -353,8 +370,12 @@ async def update_article(
     if article.version != body.version:
         raise version_conflict(article.version)
     corrections = await _update(db, article, body, checker, user, request)
+    try:
+        await db.flush()
+    except IntegrityError:
+        raise _taken() from None
     await db.commit()
-    return await _out(db, await _one(db, article_id), checker, corrections)
+    return await _out(db, await _one(db, article_id), checker, user, corrections)
 
 
 @router.post("/batch", response_model=list[BatchResult])
@@ -363,21 +384,28 @@ async def batch_update(body: BatchIn, request: Request, user: User = Depends(cur
     else changed meanwhile (or that is invalid) is reported and left as it
     is; the others are saved (one transaction, each row in a savepoint)."""
     await _require_editor(db, user)
+    limit = (await get_parameter(db, "articles"))["max_batch_rows"]
+    if len(body.items) > limit:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("batch_too_large", max=limit))
     checker = await Checker.load(db)
-    results: list[BatchResult] = []
-    for item in body.items:
+    results: dict[uuid.UUID, BatchResult] = {}
+    # Locked in one order (by id): two saves never wait on each other's rows.
+    for item in sorted(body.items, key=lambda i: str(i.id)):
         try:
             async with db.begin_nested():
                 article = await _one(db, item.id, lock=True)
                 if article.version != item.version:
                     raise version_conflict(article.version)
                 await _update(db, article, item, checker, user, request)
-                await db.flush()
-            results.append(BatchResult(id=item.id, ok=True, article=_row(article)))
+                try:
+                    await db.flush()
+                except IntegrityError:
+                    raise _taken() from None
+            results[item.id] = BatchResult(id=item.id, ok=True, article=_row(article))
         except HTTPException as exc:
-            results.append(BatchResult(id=item.id, ok=False, error=exc.detail if isinstance(exc.detail, dict) else {"code": "error"}))
+            results[item.id] = BatchResult(id=item.id, ok=False, error=exc.detail if isinstance(exc.detail, dict) else {"code": "error"})
     await db.commit()
-    return results
+    return [results[i.id] for i in body.items]
 
 
 @router.delete("/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
