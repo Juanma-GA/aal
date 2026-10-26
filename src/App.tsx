@@ -7,6 +7,7 @@ import { ArticlesPage } from '@/pages/articles/ArticlesPage';
 import { CATALOG_PATH, CatalogPage } from '@/pages/catalog/CatalogPage';
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage';
 import { MaterialLayout } from '@/layouts/MaterialLayout';
+import { ConfunfisPage } from '@/pages/material/ConfunfisPage';
 import { MaterialCufPage } from '@/pages/material/MaterialCufPage';
 import { ModulePage } from '@/pages/ModulePage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
@@ -45,6 +46,7 @@ export function App(): React.JSX.Element {
               <Route path="/materiales/:materialId" element={<MaterialLayout />}>
                 <Route index element={<PanelPage />} />
                 <Route path="ficha" element={<MaterialCufPage />} />
+                <Route path="confunfis" element={<ConfunfisPage />} />
                 <Route path="modulos/:code" element={<ModulePage />} />
               </Route>
               <Route path={CHANGE_PASSWORD_PATH} element={<ChangePasswordPage />} />

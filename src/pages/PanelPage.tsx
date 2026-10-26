@@ -12,6 +12,7 @@ import { useCuf } from '@/hooks/useCuf';
 import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
 import { moduleHref, useModules } from '@/hooks/useModules';
 import { catalogLabel } from '@/lib/labels';
+import { fetchSummary } from '@/services/confunfisApi';
 import { fetchActivity, fetchTeam } from '@/services/modulesApi';
 import type { ModuleBrief, ModuleStatus } from '@/types/modules';
 
@@ -30,6 +31,11 @@ export function PanelPage(): React.JSX.Element {
   const material = useMaterialOfPage();
   const modules = useModules();
   const cuf = useCuf(material.id);
+  const confunfis = useQuery({
+    queryKey: ['confunfis', material.id, 'summary'],
+    queryFn: () => fetchSummary(material.id),
+    enabled: material.permissions.includes('confunfis.ver'),
+  });
   const team = useQuery({ queryKey: ['materials', material.id, 'team'], queryFn: () => fetchTeam(material.id) });
   const activity = useQuery({ queryKey: ['materials', material.id, 'activity'], queryFn: () => fetchActivity(material.id) });
   const all = (modules.data ?? []).flatMap((g) => g.modules);
@@ -83,6 +89,19 @@ export function PanelPage(): React.JSX.Element {
                 ))}
               </ul>
             </div>
+            {confunfis.data ? (
+              <div className="flex flex-col gap-2" data-testid="panel-confunfis">
+                <span className="text-sm text-muted-foreground">
+                  <Link to={`/materiales/${material.id}/confunfis`} className="text-link underline-offset-2 hover:underline">{t('confunfis.title')}</Link>
+                </span>
+                <ul className="flex flex-wrap gap-2 text-sm">
+                  <li><Badge variant="secondary" data-testid="panel-confunfis-rows">{t('confunfis.summary.rows', { count: confunfis.data.rows })}</Badge></li>
+                  <li><Badge variant="secondary">{t('confunfis.summary.positions', { count: confunfis.data.positions })}</Badge></li>
+                  <li><Badge variant="secondary">{t('confunfis.summary.covered', { covered: confunfis.data.sns_covered, total: confunfis.data.sns_in_config })}</Badge></li>
+                  <li><Badge variant="outline">{t('confunfis.summary.observations', { count: confunfis.data.with_observations })}</Badge></li>
+                </ul>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">{t('material.yourPermissions')}</span>
               <ul className="flex flex-wrap gap-2" data-testid="material-permissions">

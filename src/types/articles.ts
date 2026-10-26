@@ -42,9 +42,13 @@ export interface Finding {
 }
 
 export interface WhereUsed {
-  kind: 'material_cuf' | string;
+  kind: 'material_cuf' | 'confunfis_position' | string;
   material_id?: string;
   material_name?: string;
+  /** E13, a CONFUNFIS position: its row, "SNS CO AL" and CS. */
+  row_id?: string;
+  position?: string;
+  cs?: string | null;
 }
 
 /** A P/N + NCAGE of an article (E13, NT §9.1.6: one NOC, several P/N). */

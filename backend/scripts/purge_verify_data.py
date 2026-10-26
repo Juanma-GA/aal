@@ -39,6 +39,12 @@ is removed, and so are the revalidations run meanwhile.
 
     python scripts/purge_verify_data.py --save-articles --snapshot FICHERO
     python scripts/purge_verify_data.py --restore-articles --snapshot FICHERO
+
+The CONFUNFIS rows (E13) likewise: every row of every material saved, put
+back after; a row added while the check ran is removed.
+
+    python scripts/purge_verify_data.py --save-confunfis --snapshot FICHERO
+    python scripts/purge_verify_data.py --restore-confunfis --snapshot FICHERO
 """
 
 import argparse
@@ -68,6 +74,7 @@ from app.models import (
     MaterialCategory,
     MaterialSubcategory,
     MaterialSubcategoryLink,
+    PhysicalPosition,
     ReferenceTable,
     ReferenceValue,
     SnsRequest,
@@ -176,6 +183,33 @@ async def restore_articles(snapshot: Path) -> int:
     return 0
 
 
+async def save_confunfis(snapshot: Path) -> int:
+    async with async_session_factory() as db:
+        rows = [{k: _jsonable(v) for k, v in dict(r._mapping).items()} for r in await db.execute(PhysicalPosition.__table__.select())]
+    await engine.dispose()
+    snapshot.write_text(json.dumps({"saved_at": datetime.now(UTC).isoformat(), "rows": rows}, ensure_ascii=False), encoding="utf-8")
+    print(f"Filas de CONFUNFIS guardadas: {len(rows)}")
+    return 0
+
+
+async def restore_confunfis(snapshot: Path) -> int:
+    """Every saved row as it was; a row added while the check ran (after
+    the save) is removed."""
+    saved = json.loads(snapshot.read_text(encoding="utf-8"))
+    table = PhysicalPosition.__table__
+    async with async_session_factory() as db:
+        ids = [_value(r["id"]) for r in saved["rows"]]
+        created = table.c.created_at >= datetime.fromisoformat(saved["saved_at"])
+        removed = await db.execute(table.delete().where(table.c.id.not_in(ids), created) if ids else table.delete().where(created))
+        for r in saved["rows"]:
+            await db.execute(table.update().where(table.c.id == _value(r["id"])).values({k: _value(v) for k, v in r.items()}))
+        await db.commit()
+        print(f"Filas de CONFUNFIS restauradas: {len(ids)}; eliminadas: {removed.rowcount}")
+    await engine.dispose()
+    snapshot.unlink()
+    return 0
+
+
 async def purge_catalog_versions(db, versions: list[uuid.UUID]) -> int:
     marked = CatalogVersion.file_name.startswith(VERIFY_FILE_PREFIX)
     others = (await db.execute(select(CatalogVersion.number).where(CatalogVersion.id.in_(versions), ~marked))).scalars().all()
@@ -246,6 +280,8 @@ def main() -> int:
     parser.add_argument("--restore-reference", action="store_true", help="devuelve las tablas guardadas")
     parser.add_argument("--save-articles", action="store_true", help="guarda todos los artículos")
     parser.add_argument("--restore-articles", action="store_true", help="devuelve los artículos guardados")
+    parser.add_argument("--save-confunfis", action="store_true", help="guarda todas las filas de CONFUNFIS")
+    parser.add_argument("--restore-confunfis", action="store_true", help="devuelve las filas de CONFUNFIS guardadas")
     parser.add_argument("--snapshot", type=Path, help="fichero de --save-* / --restore-*")
     args = parser.parse_args()
     if get_settings().environment == "production":
@@ -256,9 +292,14 @@ def main() -> int:
     if wrong:
         print(f"Solo usuarios {VERIFY_DOMAIN} y materiales \"{VERIFY_MATERIAL_PREFIX}…\": {', '.join(wrong)}", file=sys.stderr)
         return 1
-    if (args.save_reference or args.restore_reference or args.save_articles or args.restore_articles) and not args.snapshot:
+    snapshots = (args.save_reference, args.restore_reference, args.save_articles, args.restore_articles, args.save_confunfis, args.restore_confunfis)
+    if any(snapshots) and not args.snapshot:
         print("--save-* y --restore-* necesitan --snapshot.", file=sys.stderr)
         return 1
+    if args.save_confunfis:
+        return asyncio.run(save_confunfis(args.snapshot))
+    if args.restore_confunfis:
+        return asyncio.run(restore_confunfis(args.snapshot))
     if args.save_articles:
         return asyncio.run(save_articles(args.snapshot))
     if args.restore_articles:

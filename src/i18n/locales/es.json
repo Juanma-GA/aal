@@ -115,7 +115,13 @@
     "article_field_data_does_not_fit": "{{count}} artículos tienen un valor que no cabe en la nueva definición (por ejemplo, {{names}}). Corrígelos antes.",
     "revalidation_not_found": "Esa revalidación no existe.",
     "revalidation_failed": "La revalidación de los artículos ha fallado.",
-    "revalidation_interrupted": "La revalidación de los artículos se interrumpió."
+    "revalidation_interrupted": "La revalidación de los artículos se interrumpió.",
+    "confunfis_row_not_found": "Esa fila ya no está en la CONFUNFIS: recarga la vista.",
+    "confunfis_row_invalid": "La fila tiene datos que no se pueden guardar: revisa los campos marcados.",
+    "confunfis_position_invalid": "Esa posición no es SNS + CO + AL (por ejemplo, A20000 01 00).",
+    "confunfis_no_free_alternative": "Ese hueco ya no tiene ningún alternativo (AL) libre.",
+    "confunfis_same_cs": "Esa fila ya cuelga de ese conjunto superior: elige otro.",
+    "subcategory_used_by_confunfis": "No se puede quitar: {{count}} filas de la CONFUNFIS usan SNS que solo aporta esa subcategoría ({{rows}})."
   },
   "actions": {
     "retry": "Reintentar",
@@ -335,7 +341,8 @@
         "import": "Importación de Excel",
         "catalog": "Configuración funcional normalizada",
         "ui": "Interfaz",
-        "articles": "Artículos"
+        "articles": "Artículos",
+        "confunfis": "Configuración funcional física"
       },
       "labels": {
         "sidebar_width.min": "Ancho mínimo del panel lateral (px)",
@@ -356,7 +363,11 @@
         "max_rows": "Filas de datos como máximo",
         "stale_minutes": "Minutos tras los que un análisis se da por interrumpido",
         "max_batch_rows": "Filas por guardado de la rejilla de artículos",
-        "revalidation_stale_minutes": "Minutos tras los que una revalidación de artículos sin terminar se da por interrumpida"
+        "revalidation_stale_minutes": "Minutos tras los que una revalidación de artículos sin terminar se da por interrumpida",
+        "co.min": "Código de componente (CO) mínimo",
+        "co.max": "Código de componente (CO) máximo",
+        "al.min": "Alternativo (AL) mínimo",
+        "al.max": "Alternativo (AL) máximo"
       }
     },
     "modules": {
@@ -427,7 +438,12 @@
       "article.reference_removed": "Referencia quitada",
       "article_field.updated": "Campo del artículo corregido",
       "articles.revalidated": "Artículos revalidados",
-      "articles.revalidation_requested": "Revalidación de artículos pedida"
+      "articles.revalidation_requested": "Revalidación de artículos pedida",
+      "confunfis.row_created": "Fila de la CONFUNFIS añadida",
+      "confunfis.row_updated": "Fila de la CONFUNFIS editada",
+      "confunfis.row_deleted": "Fila de la CONFUNFIS quitada",
+      "confunfis.copied": "CONFUNFIS copiada",
+      "confunfis.seeded": "CONFUNFIS de demo cargada"
     },
     "entities": {
       "article": "Artículo",
@@ -444,7 +460,8 @@
       "catalog_version": "Versión del catálogo",
       "sns_request": "Solicitud de SNS",
       "article_field": "Campo del artículo",
-      "article_revalidation": "Revalidación de artículos"
+      "article_revalidation": "Revalidación de artículos",
+      "physical_position": "Fila de la CONFUNFIS"
     }
   },
   "nav": {
@@ -849,7 +866,8 @@
         "aceptada": "Aceptada",
         "rechazada": "Rechazada"
       }
-    }
+    },
+    "impactConfunfis": "Filas de la CONFUNFIS cuyo SNS desaparece"
   },
   "articles": {
     "title": "Artículos — datos básicos",
@@ -942,7 +960,8 @@
     "whereUsed": "Dónde se usa",
     "notUsed": "Todavía no se usa en ningún material.",
     "usage": {
-      "material_cuf": "Es el CUF del material"
+      "material_cuf": "Es el CUF del material",
+      "confunfis_position": "Posición de la CONFUNFIS"
     },
     "history": "Historial",
     "byScript": "Script de carga",
@@ -1053,6 +1072,207 @@
         "reference_table": "cambió la tabla {{table}}",
         "field_definition": "se corrigió el campo {{field}}"
       }
-    }
+    },
+    "usageCs": "CS {{cs}}"
+  },
+  "confunfis": {
+    "title": "Configuración funcional física",
+    "hint": "La CONFUNFIS del CUF (NT 10/17 §9, Anexo XI): cada componente físico en su posición funcional (SNS), con su código de componente (CO), sus alternativos (AL), su cantidad por unidad del conjunto superior (QTY) y su conjunto superior (CS). Las observaciones son avisos provisionales hasta el validador NT.",
+    "readOnly": "Solo lectura: tu rol no edita la CONFUNFIS de este material.",
+    "newRow": "Nueva fila",
+    "noName": "Sin nombre",
+    "theCuf": "El CUF",
+    "yes": "S · Sí",
+    "no": "N · No",
+    "observationsCount_one": "{{count}} observación",
+    "observationsCount_other": "{{count}} observaciones",
+    "tabs": {
+      "arbol": "Árbol físico",
+      "funcional": "Vista funcional",
+      "tabla": "Tabla"
+    },
+    "summary": {
+      "rows_one": "{{count}} fila",
+      "rows_other": "{{count}} filas",
+      "positions_one": "{{count}} hueco (SNS + CO + AL)",
+      "positions_other": "{{count}} huecos (SNS + CO + AL)",
+      "covered": "{{covered}} de {{total}} SNS de la configuración cubiertos",
+      "observations_one": "{{count}} fila con observaciones",
+      "observations_other": "{{count}} filas con observaciones",
+      "rows": "{{count}} filas",
+      "positions": "{{count}} huecos (SNS + CO + AL)",
+      "observations": "{{count}} filas con observaciones"
+    },
+    "fields": {
+      "sns": "SNS",
+      "co": "CO",
+      "al": "AL",
+      "qty": "QTY",
+      "noc": "NOC",
+      "pn": "P/N",
+      "ncage": "NCAGE",
+      "article_name": "Nombre del artículo",
+      "function_text": "Función del artículo",
+      "ct_sigle": "CT SIGLE",
+      "cs": "Conjunto superior (SNS CO AL)",
+      "total": "Total en el CUF",
+      "source": "Origen de la fila"
+    },
+    "sources": {
+      "manual": "A mano",
+      "seed": "Demo",
+      "import": "Importación",
+      "copia": "Copia de otro CUF"
+    },
+    "badges": {
+      "alternative": "Alternativo",
+      "csAlternative": "CS alternativo",
+      "ctSigle": "CT SIGLE",
+      "mounted": "CUF montado"
+    },
+    "observations": {
+      "OF-001": {
+        "short": "Fuera de configuración",
+        "text": "El SNS {{sns}} no está en la configuración normalizada del CUF."
+      },
+      "OF-002": {
+        "short": "CS mal formado",
+        "text": "El conjunto superior «{{cs}}» no es SNS (6) + CO (2) + AL (2)."
+      },
+      "OF-003": {
+        "short": "CS no encontrado",
+        "text": "Ninguna fila está en la posición del conjunto superior {{cs}}."
+      },
+      "OF-004": {
+        "short": "Duplicada",
+        "text": "Hay otra fila igual (mismo SNS, CO, AL y conjunto superior)."
+      },
+      "OF-005": {
+        "short": "CO/AL fuera de rango",
+        "text": "CO {{co}} o AL {{al}} fuera de los rangos de la configuración."
+      },
+      "OF-006": {
+        "short": "QTY no válida",
+        "text": "La cantidad «{{qty}}» no es un número entero mayor o igual que 1."
+      },
+      "OF-007": {
+        "short": "Sin NOC ni P/N",
+        "text": "El artículo no tiene NOC ni P/N + NCAGE."
+      },
+      "OF-008": {
+        "short": "Sin función",
+        "text": "La fila no dice la función del artículo."
+      },
+      "OF-009": {
+        "short": "Nombre distinto del maestro",
+        "text": "El nombre de la fila no es el del maestro de artículos ({{master}}). No es un error: la NT §9.1.3 dice qué nombre usar en cada caso."
+      },
+      "OF-010": {
+        "short": "Ciclo",
+        "text": "La fila está en un ciclo de conjuntos superiores: no tiene total."
+      },
+      "OF-011": {
+        "short": "P/N de otro artículo",
+        "text": "El P/N {{pn}} / {{ncage}} ya es de otro artículo: no se ha añadido a este."
+      }
+    },
+    "tree": {
+      "label": "Árbol físico de la CONFUNFIS",
+      "expand": "Desplegar {{position}}",
+      "collapse": "Plegar {{position}}",
+      "qtyTotal": "QTY {{qty}} · total {{total}}",
+      "alternatives_one": "{{count}} alternativo",
+      "alternatives_other": "{{count}} alternativos",
+      "orphans_one": "Sin conjunto superior válido ({{count}} fila)",
+      "orphans_other": "Sin conjunto superior válido ({{count}} filas)",
+      "cycles": "Hay ciclos de conjuntos superiores en: {{huecos}}.",
+      "alternatives": "{{count}} alternativos",
+      "orphans": "Sin conjunto superior válido ({{count}} filas)"
+    },
+    "functional": {
+      "covered": "{{covered}} de {{total}} SNS cubiertos",
+      "outside_one": "Fuera de la configuración normalizada ({{count}} fila)",
+      "outside_other": "Fuera de la configuración normalizada ({{count}} filas)",
+      "rows_one": "{{count}} fila",
+      "rows_other": "{{count}} filas",
+      "pick": "Elige un SNS para ver sus filas.",
+      "empty": "Ese SNS no tiene filas: hueco sin cubrir.",
+      "outside": "Fuera de la configuración normalizada ({{count}} filas)",
+      "rows": "{{count}} filas"
+    },
+    "table": {
+      "search": "Buscar",
+      "searchHint": "SNS, NOC, P/N, nombre o función",
+      "observations": "Observaciones",
+      "all": "Todas",
+      "withObservations": "Con alguna observación",
+      "orphans": "Huérfanas",
+      "mounted": "CUF montado",
+      "total_one": "{{count}} fila",
+      "total_other": "{{count}} filas",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "page": "Página {{page}} de {{pages}}",
+      "total": "{{count}} filas"
+    },
+    "card": {
+      "title": "Fila de la CONFUNFIS",
+      "edit": "Editar",
+      "duplicateAlternative": "Duplicar como alternativo",
+      "alternativeCs": "Añadir CS alternativo",
+      "remove": "Dar de baja",
+      "removeTitle": "¿Dar de baja la fila {{position}}?",
+      "removeHint": "Queda en el historial; las filas que cuelgan de ella se quedan sin conjunto superior.",
+      "noTotal": "Sin total (huérfana, en un ciclo o sin QTY)",
+      "calculation": "Cálculo",
+      "article": "Artículo",
+      "noNoc": "Sin NOC",
+      "provisional": "Provisional (creado desde la CONFUNFIS)",
+      "noArticle": "Sin artículo enlazado",
+      "mountedLink": "Es el CUF de {{name}}: abrir su CONFUNFIS",
+      "cs": "Conjunto superior",
+      "children_one": "Cuelga {{count}} fila",
+      "children_other": "Cuelgan {{count}} filas",
+      "observations": "Observaciones",
+      "history": "Historial",
+      "orphan": {
+        "malformed": "{{cs}} (mal formado)",
+        "not_found": "{{cs}} (no encontrado)"
+      },
+      "children": "Cuelgan {{count}} filas"
+    },
+    "form": {
+      "newTitle": "Nueva fila de la CONFUNFIS",
+      "editTitle": "Editar la fila {{position}}",
+      "hint": "El SNS sale de la configuración normalizada del CUF; CO y AL se sugieren. Si el artículo no está en el maestro, se crea uno provisional con sus datos.",
+      "snsHint": "Busca por SNS o nombre",
+      "article": "Artículo del maestro",
+      "articleHint": "Busca por NOC, P/N o nombre",
+      "provisionalHint": "O escribe su NOC, P/N + NCAGE o solo el nombre: se enlaza con el maestro o se crea un provisional.",
+      "csHint": "Busca la fila del conjunto superior",
+      "csRoot": "El CUF (000000 01 00)",
+      "change": "Cambiar",
+      "nothingFound": "Nada encontrado."
+    },
+    "alternativeCs": {
+      "title": "CS alternativo para {{position}}",
+      "hint": "Repite la fila cambiando solo el conjunto superior (NT §9.1.8): cuenta una sola vez en el total.",
+      "placeholder": "L48000 01 02"
+    },
+    "problems": {
+      "invalid": "Valor no válido.",
+      "required": "Obligatorio.",
+      "sns_format": "Un SNS son 6 letras mayúsculas o cifras.",
+      "sns_not_in_config": "El SNS {{sns}} no está en la configuración normalizada del CUF.",
+      "two_digits": "Son dos cifras (por ejemplo, 01).",
+      "qty_not_a_number": "La cantidad tiene que ser un número.",
+      "yes_no": "S o N.",
+      "cs_format": "El conjunto superior es SNS CO AL (por ejemplo, A20000 01 00).",
+      "pn_required": "Un NCAGE necesita su P/N.",
+      "noc_invalid": "No es un NOC: 13 letras mayúsculas y cifras.",
+      "ncage_invalid": "No es un NCAGE: 5 letras mayúsculas y cifras.",
+      "article_not_found": "Ese artículo ya no está en el maestro."
+    },
+    "observationsCount": "{{count}} observaciones"
   }
 }

@@ -1,0 +1,196 @@
+// E13: the CONFUNFIS, in a real browser, with the demo loaded (catalog
+// demo/CONF_FUN_DEMO.xlsx imported, backend/scripts/seed_demo_materials.py,
+// seed_demo_articles.py and seed_demo_confunfis.py run).
+//   1. The development analyst opens the CONFUNFIS of VTL 4X4 TRAMONTANA
+//      from the sidebar.
+//   2. Opens the motor and the pistón: the segments, QTY 3, total 18; their
+//      card says "3 × 6 (A21030) × 1 (A20000) = 18".
+//   3. Opens the radio (E12300, CUF montado) and jumps to its CONFUNFIS.
+//   4. In the functional view, B35010 is outside the configuration.
+//   5. Creates a row in A27010 (CO 04, suggested) with a provisional article
+//      and duplicates it as an alternative: AL 01 and 02.
+//   6. Tries to remove the subcategory 0102 from the Tramontana: refused,
+//      the afuste C66100 uses it.
+// Leaves the database as it was: every CONFUNFIS row and every article are
+// saved before and put back after (backend/scripts/purge_verify_data.py
+// --save-confunfis / --save-articles); only audit rows stay.
+//
+// Needs Vite (BASE_URL, default http://localhost:5173) and uvicorn running.
+// Credentials from the environment, never arguments (D17):
+//   VERIFY_ADMIN_EMAIL, VERIFY_ADMIN_PASSWORD, DEV_ANALISTA_PASSWORD
+//   (VERIFY_ANALISTA_EMAIL, default analista.dev@aal-dev.es)
+// Without them, the servers or the demo data, it says so and exits 2.
+//
+//   node scripts/verify-confunfis.mjs
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright-core';
+import { shot } from './lib/shots.mjs';
+import { readTextFile } from './lib/textFile.mjs';
+import { apiSession, backendPythonOrNotRun, notRun, runBackendScript } from './lib/verifyData.mjs';
+
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+const CHROMIUM_PATH = process.env.CHROMIUM_PATH;
+const ADMIN_EMAIL = process.env.VERIFY_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.VERIFY_ADMIN_PASSWORD;
+const ANALYST_EMAIL = process.env.VERIFY_ANALISTA_EMAIL || 'analista.dev@aal-dev.es';
+const ANALYST_PASSWORD = process.env.DEV_ANALISTA_PASSWORD;
+const TRAMONTANA = 'VTL 4X4 TRAMONTANA';
+const RADIO = 'RADIO VHF RT-500';
+const NEW_NAME = 'SOPORTE MOTOR TRASERO IZQUIERDO';
+const es = JSON.parse(readTextFile(path.join(ROOT, 'src', 'i18n', 'locales', 'es.json')));
+const ROWS_SNAPSHOT = shot(`verify-confunfis-rows-${Date.now()}.json`);
+const ARTICLES_SNAPSHOT = shot(`verify-confunfis-articles-${Date.now()}.json`);
+
+function assert(cond, msg) {
+  if (!cond) throw new Error('ASSERTION FAILED: ' + msg);
+  console.log('OK:', msg);
+}
+
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !ANALYST_PASSWORD) {
+  notRun('set VERIFY_ADMIN_EMAIL, VERIFY_ADMIN_PASSWORD and DEV_ANALISTA_PASSWORD (create_admin_user.py, seed_dev_data.py).');
+}
+try {
+  const res = await fetch(`${BASE_URL}/api/health`);
+  if (!res.ok) notRun(`${BASE_URL}/api/health answered ${res.status}.`);
+} catch {
+  notRun(`${BASE_URL} is not reachable -- start uvicorn (port 8000) and Vite first.`);
+}
+const python = backendPythonOrNotRun();
+const admin = await apiSession(BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD);
+const materials = await admin('GET', '/materials');
+const tramontana = materials.find((m) => m.name === TRAMONTANA);
+const radio = materials.find((m) => m.name === RADIO);
+if (!tramontana || !radio) notRun('no demo materials -- run backend/scripts/seed_demo_materials.py.');
+const summary = await admin('GET', `/materials/${tramontana.id}/confunfis/summary`);
+if (summary.rows !== 46) notRun(`the Tramontana has ${summary.rows} CONFUNFIS rows, not the demo's 46 -- run backend/scripts/seed_demo_confunfis.py.`);
+const startCuf = await admin('GET', `/materials/${tramontana.id}/cuf`);
+
+const purge = path.join('scripts', 'purge_verify_data.py');
+if (runBackendScript(python, 'save the CONFUNFIS', [purge, '--save-confunfis', '--snapshot', ROWS_SNAPSHOT]) !== 0) notRun('could not save the CONFUNFIS rows.');
+if (runBackendScript(python, 'save the articles', [purge, '--save-articles', '--snapshot', ARTICLES_SNAPSHOT]) !== 0) notRun('could not save the articles.');
+
+async function signIn(page, email, password) {
+  await page.goto(`${BASE_URL}/login`);
+  await page.getByLabel(es.auth.email).fill(email);
+  await page.getByLabel(es.auth.password, { exact: true }).fill(password);
+  await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/auth/login')), page.getByRole('button', { name: es.actions.signIn }).click()]);
+  await page.getByTestId('user-menu').waitFor();
+}
+
+const browser = await chromium.launch(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {});
+let failed = false;
+try {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  const consoleErrors = [];
+  page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
+
+  // ── 1. The analyst opens the Tramontana's CONFUNFIS ────────────────────
+  await signIn(page, ANALYST_EMAIL, ANALYST_PASSWORD);
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}`);
+  await page.getByTestId('sidebar-module-confunfis').click();
+  await page.waitForURL(`**/materiales/${tramontana.id}/confunfis`);
+  await page.getByTestId('physical-tree').waitFor();
+  assert((await page.getByTestId('confunfis-summary-rows').textContent()).includes('46'), 'the CONFUNFIS of the Tramontana: 46 rows');
+  assert((await page.getByTestId('tree-row-000000-01-00').count()) === 1, 'the tree starts at the CUF, 000000 01 00');
+
+  // ── 2. Motor -> pistón -> segments: total 18 ───────────────────────────
+  await page.getByTestId('tree-toggle-A20000-01-00').click();
+  await page.getByTestId('tree-toggle-A21030-01-00').click();
+  const total = page.getByTestId('tree-total-A21031-01-00');
+  await total.waitFor();
+  assert((await total.textContent()).includes('total 18'), 'the segments (QTY 3) under the pistón: total 18 in the CUF');
+  await page.getByTestId('tree-row-A21031-01-00').locator('button').last().click();
+  const calculation = page.getByTestId('row-calculation');
+  await calculation.waitFor();
+  assert((await calculation.textContent()).includes('3 × 6 (A21030) × 1 (A20000) = 18'), 'their card: 3 × 6 (A21030) × 1 (A20000) = 18');
+  await page.screenshot({ path: shot('verify-confunfis-1-tree.png') });
+  await page.keyboard.press('Escape');
+
+  // ── 3. The radio, CUF montado, to its own CONFUNFIS ────────────────────
+  await page.getByTestId('confunfis-tab-tabla').click();
+  await page.getByTestId('confunfis-search').fill('E12300');
+  await page.getByTestId('confunfis-table-total').filter({ hasText: /^1 / }).waitFor();
+  await page.getByTestId('confunfis-row-E12300-01-00').click();
+  const mounted = page.getByTestId('row-mounted-link');
+  await mounted.waitFor();
+  assert((await mounted.textContent()).includes(RADIO), 'E12300 is the CUF of the RADIO VHF RT-500');
+  await mounted.click();
+  await page.waitForURL(`**/materiales/${radio.id}/confunfis`);
+  await page.getByTestId('confunfis-page').waitFor();
+  assert(true, 'its link opens the CONFUNFIS of the radio');
+  await page.screenshot({ path: shot('verify-confunfis-2-radio.png') });
+
+  // ── 4. The functional view: B35010 outside the configuration ───────────
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}/confunfis?tab=funcional`);
+  const outside = page.getByTestId('functional-outside');
+  await outside.waitFor();
+  assert((await outside.textContent()).includes('B35010'), 'B35010 is outside the normalized configuration');
+  await page.screenshot({ path: shot('verify-confunfis-3-functional.png') });
+
+  // ── 5. A new row in A27010 CO 04, duplicated as an alternative ─────────
+  await page.getByTestId('confunfis-new-row').click();
+  const form = page.getByTestId('row-form');
+  await form.waitFor();
+  await page.getByTestId('row-form-sns').fill('A27010');
+  await page.getByTestId('row-form-sns-hit').first().click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="row-form-co"]')?.value === '04');
+  assert(true, 'CO 04 is suggested (01-03 are taken)');
+  await page.getByTestId('row-form-name').fill(NEW_NAME);
+  await page.getByTestId('row-form-function').fill('Sujetar el motor por detrás');
+  const [created] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith(`/confunfis/rows`) && r.request().method() === 'POST'),
+    page.getByTestId('row-form-save').click(),
+  ]);
+  const row = await created.json();
+  assert(created.status() === 201 && row.article?.origin === 'confunfis' && `${row.sns} ${row.co} ${row.al}` === 'A27010 04 00', 'the row A27010 04 00 is created, with a provisional article');
+  await page.getByTestId('row-sheet').filter({ hasText: NEW_NAME }).waitFor();
+  const [duplicated] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/duplicate-alternative')),
+    page.getByTestId('row-duplicate-alternative').click(),
+  ]);
+  assert(duplicated.status() === 201 && (await duplicated.json()).al === '02', 'duplicated as an alternative: AL 02');
+  await page.getByTestId('row-sheet').filter({ hasText: 'A27010 04 02' }).waitFor();
+  assert(true, 'the card of the copy opens');
+  const rows = await admin('GET', `/materials/${tramontana.id}/confunfis/rows?sns=A27010&page_size=50`);
+  const co04 = rows.items.filter((r) => r.co === '04').map((r) => r.al).sort();
+  assert(JSON.stringify(co04) === '["01","02"]', 'A27010 CO 04 now has AL 01 and 02');
+  await page.screenshot({ path: shot('verify-confunfis-4-alternative.png') });
+  await page.keyboard.press('Escape');
+
+  // ── 6. 0102 cannot leave the Tramontana ────────────────────────────────
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}/ficha`);
+  await page.getByTestId('cuf-subcategories').waitFor();
+  const [refused] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith(`/api/materials/${tramontana.id}/subcategories`) && r.request().method() === 'PUT'),
+    page.getByTestId('cuf-remove-0102').click(),
+  ]);
+  assert(refused.status() === 409 && (await refused.json()).detail.code === 'subcategory_used_by_confunfis', 'removing 0102 is refused: the CONFUNFIS uses it');
+  await page.getByText('C66100').first().waitFor();
+  assert(true, 'the message names the row (C66100, the afuste)');
+  await page.getByTestId('cuf-sub-0102').waitFor();
+  assert(true, '0102 is still there');
+  await page.screenshot({ path: shot('verify-confunfis-5-guard.png') });
+
+  const unexpected = consoleErrors.filter((e) => !/\b(401|409)\b/.test(e));
+  assert(unexpected.length === 0, `no console errors${unexpected.length ? `: ${unexpected.join(' | ')}` : ''}`);
+  console.log('verify-confunfis: ALL OK');
+} catch (err) {
+  failed = true;
+  console.error(err.message);
+  await browser.contexts()[0]?.pages()[0]?.screenshot({ path: shot('verify-confunfis-error.png') }).catch(() => undefined);
+} finally {
+  await browser.close();
+  runBackendScript(python, 'cleanup', [purge, '--restore-confunfis', '--snapshot', ROWS_SNAPSHOT]);
+  runBackendScript(python, 'cleanup', [purge, '--restore-articles', '--snapshot', ARTICLES_SNAPSHOT]);
+  // Had the guard failed, the Tramontana gets its subcategories back.
+  const now = await admin('GET', `/materials/${tramontana.id}/cuf`);
+  const codes = startCuf.subcategories.map((s) => s.code);
+  if (JSON.stringify(now.subcategories.map((s) => s.code)) !== JSON.stringify(codes)) {
+    await admin('PUT', `/materials/${tramontana.id}/subcategories`, { version: now.version, codes });
+    console.log('cleanup: subcategorías devueltas');
+  }
+}
+process.exit(failed ? 1 : 0);

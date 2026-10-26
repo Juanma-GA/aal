@@ -72,6 +72,7 @@ cp .env.example .env                     # y ajustar DATABASE_URL si hace falta
 .venv/bin/python scripts/seed_dev_data.py                 # material sintético + analista/revisor/observador
 .venv/bin/python scripts/seed_demo_materials.py           # los 5 materiales de demo/LEEME_DATOS_DEMO.md
 .venv/bin/python scripts/seed_demo_articles.py            # los 45 artículos de demo/FICHERO_CARGA_DEMO.xlsx
+.venv/bin/python scripts/seed_demo_confunfis.py           # la CONFUNFIS del Tramontana (46 filas) y su copia
 .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -208,11 +209,19 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   con la Event Timing API del navegador que teclear en una celda de la rejilla responde en < 100 ms
   (`ARTICLES_PERF_KEY_MS`) y "Aplicar a la selección" sobre 200 filas tarda < 1 s (`ARTICLES_PERF_APPLY_MS`);
   falla si se supera. Deja la base como estaba (`--save-articles` / `--restore-articles`).
+- **`verify-confunfis.mjs`** (E13): con la demo cargada (catálogo, `seed_demo_materials.py`, `seed_demo_articles.py`
+  y `seed_demo_confunfis.py`), el analista abre la CONFUNFIS del Tramontana desde el sidebar, despliega motor y
+  pistón y ve "total 18" en los segmentos y su cálculo, abre la radio (`E12300`, CUF montado) y salta a su
+  CONFUNFIS, ve `B35010` fuera de la configuración en la vista funcional, crea una fila en `A27010` (CO 04
+  sugerido, artículo provisional) y la duplica como alternativo (AL 01 y 02), e intenta quitar la subcategoría
+  0102 (se lo impide el afuste `C66100`). Deja la base como estaba (`purge_verify_data.py --save-confunfis` /
+  `--restore-confunfis` y `--save-articles` / `--restore-articles`). `verify-materials` (E13): con CONFUNFIS
+  cargada, comprueba que 0102 no se puede quitar y que la copia lleva la CONFUNFIS; sin ella, lo de E11.
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
-  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) + `verify-articles` + `verify-articles-perf` con Chrome
-  contra uvicorn y Vite.
+  job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) + `verify-articles` + `verify-articles-perf` + `verify-confunfis` (tras
+  `seed_demo_articles.py` y `seed_demo_confunfis.py`, después de `verify-materials`) con Chrome contra uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
 
@@ -362,6 +371,19 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   (`app/services/revalidation.py`, tabla `article_revalidation`): botón del admin, y sola tras importar o editar
   (activar/desactivar) una tabla de referencia que lean los artículos o corregir una definición de campo; el
   informe da por regla cuántos avisos aparecen y desaparecen. No sube la versión del artículo.
+- **CONFUNFIS (E13, RF-02)**: `physical_position` (una fila por componente: SNS, CO, AL, QTY, artículo y su
+  referencia, nombre y función de la fila, CT SIGLE, CS como texto tal cual; sin restricción única: los duplicados se
+  marcan). El grafo (hijos, padres, total en el CUF = QTY × total de los huecos CS distintos —CS alternativos y AL
+  cuentan una vez—, huérfanas, ciclos) se calcula, nunca se guarda (`app/services/confunfis_graph.py`, puro). Guardar
+  (`app/services/confunfis.py`, `save_row`): en pantalla, estricto (formatos y SNS de la configuración normalizada);
+  desde fichero, flexible; enlaza con el maestro por NOC → P/N + NCAGE → nombre exacto → provisional (`article.origin
+  = 'confunfis'`), añade la referencia que falte y nunca pisa datos SIGLE. Observaciones provisionales OF-001…OF-011
+  (hasta las reglas CF de E16) guardadas en la fila y recalculadas tras cada cambio (`refresh_observations`); rangos
+  de CO/AL en el parámetro `confunfis`. Permisos `confunfis.ver` / `confunfis.editar` (la matriz). Puntos de
+  extensión rellenos: copia (`MATERIAL_COPIERS`), guarda de subcategorías, `cuf.IMPACT_EXTENSIONS` (filas cuyo SNS
+  desaparece), "dónde se usa" (`confunfis`, solo materiales accesibles). CUF montado: el artículo es el CUF de otro
+  material (el enlace solo si el usuario lo puede abrir). Lector reutilizable de la hoja `CON_FUN_FIS`
+  (`app/services/confunfis_sheet.py`, base de E15). Pantalla `/materiales/:materialId/confunfis` (?tab, ?fila).
 - **Sidebar (E12)**: ancho (borde arrastrable, límites en el parámetro `ui`), plegado a iconos (botón al pie y
   `Ctrl+B`) y lado, en `ui_preferences` (`useSidebarLayout`); `/api/me/ui-settings` da los límites.
 - **Listas navegables y enlaces (E11)**: toda fila que abre algo es un `NavRow`

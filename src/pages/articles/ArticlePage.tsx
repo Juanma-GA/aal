@@ -326,6 +326,14 @@ export function ArticlePage(): React.JSX.Element {
                           {u.material_name}
                         </Link>
                       </>
+                    ) : u.kind === 'confunfis_position' && u.material_id ? (
+                      <>
+                        {u.material_name} ·{' '}
+                        <Link to={`/materiales/${u.material_id}/confunfis?fila=${u.row_id ?? ''}`} className="font-mono text-link underline-offset-2 hover:underline" data-testid="where-used-confunfis">
+                          {u.position}
+                        </Link>
+                        {u.cs ? <span className="text-muted-foreground"> · {t('articles.usageCs', { cs: u.cs })}</span> : null}
+                      </>
                     ) : (
                       t(`articles.usage.${u.kind}`, { defaultValue: u.kind })
                     )}

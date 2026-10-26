@@ -140,6 +140,7 @@ class FunctionalNode(BaseModel):
     sns: str
     name: str
     level: str
+    description_pending: bool
     child_count: int
     row_count: int
     # Rows in this SNS and every SNS below it in the configuration.

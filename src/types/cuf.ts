@@ -23,6 +23,8 @@ export interface Impact {
   subcategories_missing: string[];
   sns_before: number;
   sns_after: number;
+  /** E13: the CONFUNFIS rows whose SNS goes. */
+  confunfis_rows: { sns: string; co: string; al: string; name: string | null }[];
 }
 
 export interface NormalizedNode {

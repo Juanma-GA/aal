@@ -1,7 +1,8 @@
 // E11: Materials / CUF, in a real browser, with demo/CONF_FUN_DEMO.xlsx
 // imported and backend/scripts/seed_demo_materials.py run.
 //   1. The development analyst opens the card of VTL 4X4 TRAMONTANA.
-//   2. Removes the subcategory 0102 (62 SNS) and adds it back (65).
+//   2. Removes the subcategory 0102 (62 SNS) and adds it back (65); with the
+//      demo CONFUNFIS loaded (E13), the removal is refused instead.
 //   3. Opens "Configuración normalizada" and searches E12300 (from 0201).
 //   4. Creates a request for a new SNS and sends it; (E12) creates a draft
 //      and discards it ("Descartar borrador").
@@ -65,6 +66,7 @@ if (!tramontana) notRun(`no "${TRAMONTANA}" -- run backend/scripts/seed_demo_mat
 const startCuf = await admin('GET', `/materials/${tramontana.id}/cuf`);
 if (startCuf.sns_count !== 65) notRun('the Tramontana has not its demo subcategories -- import demo/CONF_FUN_DEMO.xlsx and run seed_demo_materials.py.');
 const snsRequests = [];
+const confunfisRows = (await admin('GET', `/materials/${tramontana.id}/confunfis/summary`)).rows;
 
 async function signIn(page, email, password) {
   await page.goto(`${BASE_URL}/login`);
@@ -102,19 +104,29 @@ try {
   await page.screenshot({ path: shot('verify-materials-1-card.png'), fullPage: true });
 
   // ── 2. Remove 0102 and add it back ─────────────────────────────────────
-  const removed = putSubcategories(page);
-  await page.getByTestId('cuf-remove-0102').click();
-  await page.getByTestId('cuf-sub-0102').waitFor({ state: 'detached', timeout: 2000 });
-  assert(true, 'the chip leaves at once (optimistic)');
-  assert((await removed).ok(), 'the server saved it');
-  await page.getByTestId('cuf-sns-count').filter({ hasText: count(62) }).waitFor();
-  assert(true, 'without 0102: 62 SNS');
-  await page.getByTestId('cuf-add-subcategory').click();
-  const added = putSubcategories(page);
-  await page.getByTestId('cuf-option-0102').click();
-  assert((await added).ok(), '0102 added back');
-  await page.getByTestId('cuf-sns-count').filter({ hasText: count(65) }).waitFor();
-  assert(true, 'with 0102 again: 65 SNS');
+  // (E13) With the demo CONFUNFIS loaded, its afuste (C66100) uses an SNS
+  // only 0102 brings: the removal is refused and the chip comes back.
+  if (confunfisRows > 0) {
+    const refused = putSubcategories(page);
+    await page.getByTestId('cuf-remove-0102').click();
+    assert((await refused).status() === 409, 'with a CONFUNFIS using it, 0102 cannot leave (E13)');
+    await page.getByTestId('cuf-sub-0102').waitFor();
+    assert((await page.getByTestId('cuf-sns-count').textContent()) === count(65), 'the chip comes back: 65 SNS');
+  } else {
+    const removed = putSubcategories(page);
+    await page.getByTestId('cuf-remove-0102').click();
+    await page.getByTestId('cuf-sub-0102').waitFor({ state: 'detached', timeout: 2000 });
+    assert(true, 'the chip leaves at once (optimistic)');
+    assert((await removed).ok(), 'the server saved it');
+    await page.getByTestId('cuf-sns-count').filter({ hasText: count(62) }).waitFor();
+    assert(true, 'without 0102: 62 SNS');
+    await page.getByTestId('cuf-add-subcategory').click();
+    const added = putSubcategories(page);
+    await page.getByTestId('cuf-option-0102').click();
+    assert((await added).ok(), '0102 added back');
+    await page.getByTestId('cuf-sns-count').filter({ hasText: count(65) }).waitFor();
+    assert(true, 'with 0102 again: 65 SNS');
+  }
 
   // ── 3. The normalized configuration ────────────────────────────────────
   await page.getByTestId('cuf-tab-configuracion').click();
@@ -193,16 +205,27 @@ try {
   await page.waitForURL(`**/materiales/${copy.id}/ficha`);
   await page.getByTestId('cuf-sns-count').filter({ hasText: count(65) }).waitFor();
   assert((await page.getByTestId('cuf-family').textContent()).includes(TRAMONTANA), 'the copy says it is a variant of the Tramontana');
-  await Promise.all([
-    page.waitForResponse((r) => r.url().endsWith(`/api/materials/${copy.id}/subcategories`) && r.ok()),
-    page.getByTestId('cuf-remove-0102').click(),
-  ]);
-  await page.getByTestId('cuf-sns-count').filter({ hasText: count(62) }).waitFor();
-  const original = await admin('GET', `/materials/${tramontana.id}/cuf`);
-  assert(original.sns_count === 65 && original.subcategories.length === 3, 'independent: the original keeps its 65 SNS');
+  if (confunfisRows > 0) {
+    // (E13) The copy carries the CONFUNFIS; a row removed from it stays in the original.
+    const copied = await admin('GET', `/materials/${copy.id}/confunfis/rows?page_size=1000`);
+    assert(copied.total === confunfisRows && copied.items.every((r) => r.source === 'copia'), `the copy carries the CONFUNFIS (${copied.total} rows)`);
+    const one = copied.items[0];
+    await admin('DELETE', `/materials/${copy.id}/confunfis/rows/${one.id}?version=${one.version}&confirm=true`);
+    const kept = await admin('GET', `/materials/${tramontana.id}/confunfis/summary`);
+    assert(kept.rows === confunfisRows, 'independent: the original keeps all its CONFUNFIS rows');
+  } else {
+    await Promise.all([
+      page.waitForResponse((r) => r.url().endsWith(`/api/materials/${copy.id}/subcategories`) && r.ok()),
+      page.getByTestId('cuf-remove-0102').click(),
+    ]);
+    await page.getByTestId('cuf-sns-count').filter({ hasText: count(62) }).waitFor();
+    const original = await admin('GET', `/materials/${tramontana.id}/cuf`);
+    assert(original.sns_count === 65 && original.subcategories.length === 3, 'independent: the original keeps its 65 SNS');
+  }
   await page.screenshot({ path: shot('verify-materials-4-copy.png'), fullPage: true });
 
-  const unexpected = consoleErrors.filter((e) => !/\b401\b/.test(e));
+  // The 409 of the refused removal (E13) is expected.
+  const unexpected = consoleErrors.filter((e) => !/\b401\b/.test(e) && !(confunfisRows > 0 && /\b409\b/.test(e)));
   assert(unexpected.length === 0, `no console errors${unexpected.length ? `: ${unexpected.join(' | ')}` : ''}`);
   console.log('verify-materials: ALL OK');
 } catch (err) {

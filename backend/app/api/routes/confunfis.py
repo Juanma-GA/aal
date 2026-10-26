@@ -186,7 +186,7 @@ async def functional(
                 below[node] = below.get(node, 0) + n
                 node = pairs[node]
         items = [
-            FunctionalNode(sns=n.sns, name=n.name, level=n.level, child_count=c, row_count=count.get(n.sns, 0), rows_below=below.get(n.sns, 0))
+            FunctionalNode(sns=n.sns, name=n.name, level=n.level, description_pending=n.description_pending, child_count=c, row_count=count.get(n.sns, 0), rows_below=below.get(n.sns, 0))
             for n, c in await tree_level(db, material.catalog_version_id, set(config), parent)
         ]
     level = FunctionalLevel(items=items)

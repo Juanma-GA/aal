@@ -92,6 +92,11 @@ export function CatalogVersionCard({ cuf, isAdmin }: { cuf: Cuf; isAdmin: boolea
                 <CodeList title={t('cuf.impactAdded')} codes={impact.data.added} testId="cuf-impact-added" />
                 <CodeList title={t('cuf.impactRemoved')} codes={impact.data.removed} testId="cuf-impact-removed" />
                 <CodeList title={t('cuf.impactSubcategories')} codes={impact.data.subcategories_missing} testId="cuf-impact-subcategories" />
+                <CodeList
+                  title={t('cuf.impactConfunfis')}
+                  codes={(impact.data.confunfis_rows ?? []).map((r) => `${r.sns} ${r.co} ${r.al}${r.name ? ` ${r.name}` : ''}`)}
+                  testId="cuf-impact-confunfis"
+                />
               </div>
             ) : null}
           </div>

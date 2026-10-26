@@ -31,6 +31,8 @@ type Props<N extends TreeNode> = TreeSource<N> & {
   onSelect: (sns: string) => void;
   /** Extra marks after a node's name (the CUF's subcategories of origin). */
   renderExtra?: (node: N) => React.ReactNode;
+  /** Nodes shown faded (E13: an SNS without CONFUNFIS rows). */
+  dimmed?: (node: N) => boolean;
 };
 
 interface Visible<N> {
@@ -38,7 +40,7 @@ interface Visible<N> {
   depth: number;
 }
 
-export function SnsTree<N extends TreeNode>({ cacheKey, loadLevel, selected, onSelect, renderExtra }: Props<N>): React.JSX.Element {
+export function SnsTree<N extends TreeNode>({ cacheKey, loadLevel, selected, onSelect, renderExtra, dimmed }: Props<N>): React.JSX.Element {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [levels, setLevels] = useState<Record<string, N[]>>({});
@@ -139,6 +141,7 @@ export function SnsTree<N extends TreeNode>({ cacheKey, loadLevel, selected, onS
               className={cn(
                 'absolute left-0 flex w-full items-center gap-1 pr-2 text-sm',
                 selected === node.sns ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
+                dimmed?.(node) && 'text-muted-foreground opacity-70',
               )}
               style={{ top: (first + i) * ROW_HEIGHT, height: ROW_HEIGHT, paddingLeft: 4 + depth * 16 }}
             >

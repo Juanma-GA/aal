@@ -5,9 +5,9 @@
 //   2. The Panel shows real data: the CUF, the role, the team, the module
 //      counts (the same as /api/modules) and recent activity.
 //   3. Three sidebar groups (Base común, PAAL, PRAMT) open their module
-//      cards; the card of "Configuración funcional física" shows RF-02, its
-//      dependencies with their state, who uses it and the "planned" notice,
-//      with breadcrumbs and the tab title.
+//      cards; (E13) "Configuración funcional física" opens the CONFUNFIS and
+//      the card of "Tabla de partes" shows RF-02, its dependency with its
+//      state and the "planned" notice, with breadcrumbs and the tab title.
 //   4. The URL of a material the analyst is not in -> the humanized 404.
 //   5. The admin changes a module (FTA) to "en desarrollo" in Ajustes ->
 //      Módulos.
@@ -123,7 +123,7 @@ try {
   assert((await page.title()).startsWith(es.panel.title), 'tab title of the Panel');
   await page.screenshot({ path: shot('verify-navigation-1-panel.png'), fullPage: true });
 
-  // ── 3. Three groups of the sidebar, and the CONFUNFIS card ─────────────
+  // ── 3. Three groups of the sidebar, and the Tabla de partes card ───────
   for (const [group, module] of [['base', 'tabla-partes'], ['paal', 'candidatos'], ['pramt', 'amfec']]) {
     await page.getByTestId(`sidebar-group-${group}`).waitFor();
     await page.getByTestId(`sidebar-module-${module}`).click();
@@ -138,21 +138,25 @@ try {
   await page.waitForURL(`${BASE_URL}/configuracion-funcional`);
   await page.getByTestId('catalog-page').waitFor();
   assert(true, 'base: "Configuración funcional normalizada" opens the common catalog');
+  // (E13) So does the CONFUNFIS, inside the material.
   await page.getByTestId('sidebar-module-confunfis').click();
-  await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/confunfis`);
-  await page.locator('main h2', { hasText: 'Configuración funcional física' }).waitFor();
+  await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/confunfis`);
+  await page.getByTestId('confunfis-page').waitFor();
+  assert(true, 'base: "Configuración funcional física" opens the CONFUNFIS of the material');
+  await page.getByTestId('sidebar-module-tabla-partes').click();
+  await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/tabla-partes`);
+  await page.locator('main h2', { hasText: 'Tabla de partes' }).waitFor();
   assert((await page.getByTestId('module-requirements').textContent()).includes('RF-02'), 'the card shows RF-02');
   const deps = await page.getByTestId('module-depends-on').textContent();
-  assert(deps.includes('Materiales / CUF') && deps.includes('Artículos — datos básicos'), 'the card shows its dependencies');
-  // Materiales / CUF is available since E11, Artículos since E12.
+  assert(deps.includes('Configuración funcional física'), 'the card shows its dependency');
+  // The CONFUNFIS is available since E13.
   const states = page.getByTestId('module-depends-on');
-  assert((await states.getByRole('img', { name: es.modules.status.disponible }).count()) === 2, 'each dependency shows its state');
-  assert((await page.getByTestId('module-used-by').textContent()).includes('Tabla de partes'), 'the card shows who uses it');
+  assert((await states.getByRole('img', { name: es.modules.status.disponible }).count()) === 1, 'the dependency shows its state');
   assert((await page.getByTestId('module-planned').textContent()).includes(es.modules.planned), 'the planned notice');
   assert((await page.getByTestId('module-card').getByRole('button').count()) === 0, 'no button on a planned module');
   const crumbs = await page.getByRole('navigation', { name: es.nav.breadcrumb }).textContent();
-  assert(crumbs.includes(MATERIAL_NAME) && crumbs.includes('Base común') && crumbs.includes('Configuración funcional física'), 'breadcrumbs material › group › module');
-  assert((await page.title()).startsWith('Configuración funcional física'), 'tab title of the card');
+  assert(crumbs.includes(MATERIAL_NAME) && crumbs.includes('Base común') && crumbs.includes('Tabla de partes'), 'breadcrumbs material › group › module');
+  assert((await page.title()).startsWith('Tabla de partes'), 'tab title of the card');
   await page.screenshot({ path: shot('verify-navigation-2-card.png'), fullPage: true });
 
   // Folding a group is kept on the server: it survives a reload.
@@ -249,11 +253,11 @@ try {
   await mobile.waitForTimeout(400);
   assert(true, 'phone: the menu opens as a side panel');
   await mobile.screenshot({ path: shot('verify-navigation-5-mobile-menu.png') });
-  await mobile.getByRole('dialog').getByTestId('sidebar-module-confunfis').click();
-  await mobile.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/confunfis`);
+  await mobile.getByRole('dialog').getByTestId('sidebar-module-tabla-partes').click();
+  await mobile.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/tabla-partes`);
   await mobile.getByRole('dialog').waitFor({ state: 'hidden', timeout: 5000 });
   assert(true, 'phone: choosing a module closes the panel');
-  await mobile.locator('main h2', { hasText: 'Configuración funcional física' }).waitFor();
+  await mobile.locator('main h2', { hasText: 'Tabla de partes' }).waitFor();
   await mobile.screenshot({ path: shot('verify-navigation-6-mobile-card.png'), fullPage: true });
 
   const unexpected = consoleErrors.filter((e) => !/\b(401|404)\b/.test(e));

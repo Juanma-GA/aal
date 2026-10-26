@@ -1,0 +1,141 @@
+// Configuración funcional física (E13, RF-02): the CONFUNFIS of the
+// material in three views -- the physical tree by CS, the functional view
+// over its normalized configuration, the Anexo XI table -- and the card of
+// a row in a side panel. The tab and the open row live in the URL (?tab,
+// ?fila), nothing in the browser (HR1). Editing needs confunfis.editar.
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
+import { FunctionalView } from '@/components/confunfis/FunctionalView';
+import { PhysicalTree } from '@/components/confunfis/PhysicalTree';
+import { RowFormDialog } from '@/components/confunfis/RowFormDialog';
+import { RowSheet } from '@/components/confunfis/RowSheet';
+import { RowsTable } from '@/components/confunfis/RowsTable';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAlternativeCs, useConfunfisSummary } from '@/hooks/useConfunfis';
+import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
+import { describeApiError } from '@/services/apiErrors';
+import { positionOf, type PositionRow } from '@/types/confunfis';
+
+const TABS = ['arbol', 'funcional', 'tabla'] as const;
+type Tab = (typeof TABS)[number];
+
+function AlternativeCsDialog({ materialId, row, onClose, onDone }: { materialId: string; row: PositionRow; onClose: () => void; onDone: (id: string) => void }): React.JSX.Element {
+  const { t } = useTranslation();
+  const mutation = useAlternativeCs(materialId);
+  const [cs, setCs] = useState('');
+  const parts = cs.trim().toUpperCase().split(/\s+/);
+  const valid = parts.length === 3 && /^[A-Z0-9]{6}$/.test(parts[0]) && /^\d{2}$/.test(parts[1]) && /^\d{2}$/.test(parts[2]);
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent data-testid="alternative-cs-dialog">
+        <DialogHeader>
+          <DialogTitle>{t('confunfis.alternativeCs.title', { position: positionOf(row) })}</DialogTitle>
+          <DialogDescription>{t('confunfis.alternativeCs.hint')}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="alt-cs">{t('confunfis.fields.cs')}</Label>
+          <Input id="alt-cs" className="font-mono" placeholder={t('confunfis.alternativeCs.placeholder')} value={cs} onChange={(e) => setCs(e.target.value)} data-testid="alternative-cs-input" />
+          {mutation.error ? <p className="text-sm text-destructive" role="alert">{describeApiError(mutation.error, t).message}</p> : null}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>{t('actions.cancel')}</Button>
+          <Button
+            disabled={!valid || mutation.isPending}
+            onClick={() => mutation.mutate({ row, cs: { cs_sns: parts[0], cs_co: parts[1], cs_al: parts[2] } }, { onSuccess: (created) => onDone(created.id) })}
+            data-testid="alternative-cs-save"
+          >
+            {t('actions.save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ConfunfisPage(): React.JSX.Element {
+  const { t } = useTranslation();
+  const material = useMaterialOfPage();
+  const summary = useConfunfisSummary(material.id);
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = TABS.find((x) => x === params.get('tab')) ?? 'arbol';
+  const rowId = params.get('fila');
+  const canEdit = material.permissions.includes('confunfis.editar');
+  const [form, setForm] = useState<{ row: PositionRow | null } | null>(null);
+  const [altCs, setAltCs] = useState<PositionRow | null>(null);
+  const title = t('confunfis.title');
+
+  const go = (next: { tab?: Tab; fila?: string | null }) => {
+    const out = new URLSearchParams(params);
+    if (next.tab !== undefined) {
+      if (next.tab === 'arbol') out.delete('tab');
+      else out.set('tab', next.tab);
+    }
+    if (next.fila !== undefined) {
+      if (next.fila) out.set('fila', next.fila);
+      else out.delete('fila');
+    }
+    setParams(out);
+  };
+  const open = (row: PositionRow) => go({ fila: row.id });
+
+  return (
+    <div className="flex flex-col gap-6" data-testid="confunfis-page">
+      <PageHeader crumbs={[{ label: material.name, to: `/materiales/${material.id}` }, { label: title }]} title={title} />
+      <div className="flex flex-wrap items-center gap-2">
+        {summary.data ? (
+          <>
+            <Badge data-testid="confunfis-summary-rows">{t('confunfis.summary.rows', { count: summary.data.rows })}</Badge>
+            <Badge variant="secondary">{t('confunfis.summary.positions', { count: summary.data.positions })}</Badge>
+            <Badge variant="secondary">{t('confunfis.summary.covered', { covered: summary.data.sns_covered, total: summary.data.sns_in_config })}</Badge>
+            {summary.data.with_observations ? (
+              <Badge variant="outline" className="border-warning text-warning">{t('confunfis.summary.observations', { count: summary.data.with_observations })}</Badge>
+            ) : null}
+          </>
+        ) : null}
+        {canEdit ? (
+          <Button className="sm:ml-auto" onClick={() => setForm({ row: null })} data-testid="confunfis-new-row">{t('confunfis.newRow')}</Button>
+        ) : (
+          <p className="text-sm text-muted-foreground sm:ml-auto">{t('confunfis.readOnly')}</p>
+        )}
+      </div>
+      <p className="text-sm text-muted-foreground">{t('confunfis.hint')}</p>
+      <Tabs value={tab} onValueChange={(v) => go({ tab: v as Tab })}>
+        <TabsList>
+          {TABS.map((name) => (
+            <TabsTrigger key={name} value={name} data-testid={`confunfis-tab-${name}`}>
+              {t(`confunfis.tabs.${name}`)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="arbol">
+          <PhysicalTree materialId={material.id} selected={rowId} onSelect={open} />
+        </TabsContent>
+        <TabsContent value="funcional">
+          <FunctionalView materialId={material.id} onSelect={open} />
+        </TabsContent>
+        <TabsContent value="tabla">
+          <RowsTable materialId={material.id} onSelect={open} />
+        </TabsContent>
+      </Tabs>
+      {rowId ? (
+        <RowSheet
+          materialId={material.id} rowId={rowId} canEdit={canEdit}
+          onOpen={(id) => go({ fila: id })} onEdit={(row) => setForm({ row })} onAlternativeCs={setAltCs}
+        />
+      ) : null}
+      {form ? (
+        <RowFormDialog materialId={material.id} row={form.row} onClose={() => setForm(null)} onSaved={(saved) => { setForm(null); go({ fila: saved.id }); }} />
+      ) : null}
+      {altCs ? (
+        <AlternativeCsDialog materialId={material.id} row={altCs} onClose={() => setAltCs(null)} onDone={(id) => { setAltCs(null); go({ fila: id }); }} />
+      ) : null}
+    </div>
+  );
+}
