@@ -45,7 +45,7 @@ from app.schemas.articles import (
     ReferenceUpdate,
 )
 from app.schemas.reference import ImportJobOut
-from app.services import audit, import_jobs
+from app.services import audit, confunfis, import_jobs
 from app.services.article_fields import FieldError, coerce
 from app.services.article_import import FICHERO_CARGA, MAESTRO, build_template, export_values, reference_rows, references_template
 from app.services.articles import (
@@ -401,6 +401,7 @@ async def update_article(
         await db.flush()
     except IntegrityError:
         raise _taken() from None
+    await confunfis.refresh_materials(db, article_ids={article_id})
     await db.commit()
     return await _out(db, await _one(db, article_id), checker, user, corrections)
 
@@ -431,6 +432,7 @@ async def batch_update(body: BatchIn, request: Request, user: User = Depends(cur
             results[item.id] = BatchResult(id=item.id, ok=True, article=_row(article))
         except HTTPException as exc:
             results[item.id] = BatchResult(id=item.id, ok=False, error=exc.detail if isinstance(exc.detail, dict) else {"code": "error"})
+    await confunfis.refresh_materials(db, article_ids={i for i, r in results.items() if r.ok})
     await db.commit()
     return [results[i.id] for i in body.items]
 
@@ -446,6 +448,10 @@ async def delete_article(
     article = await _one(db, article_id, lock=True)
     if article.version != version:
         raise version_conflict(article.version)
+    used = await confunfis.rows_using_article(db, article.id)
+    if used:
+        # A CONFUNFIS row is this component: it goes first (E13).
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_in_confunfis", count=len(used), rows=confunfis.rows_text(used)))
     before = snapshot(article)
     article.deleted_at = datetime.now(UTC)
     # Its P/N + NCAGE go with it: free for another article (uq_article_reference_pn_ncage).
@@ -517,6 +523,7 @@ async def _reference_changed(
         await db.flush()
     except IntegrityError:
         raise _taken() from None
+    await confunfis.refresh_materials(db, article_ids={article_id})
     await db.commit()
     # Their server-side defaults and onupdate timestamps, loaded here (no lazy IO).
     for r in article.references:
@@ -560,6 +567,10 @@ async def update_reference(
         raise version_conflict(reference.version)
     sent = body.model_fields_set
     before = reference_snapshot(reference)
+    if ("pn" in sent and body.pn != reference.pn) or ("ncage" in sent and body.ncage != reference.ncage):
+        used = await confunfis.rows_using_reference(db, reference.id)
+        if used:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_reference_in_confunfis", count=len(used), rows=confunfis.rows_text(used)))
     if "pn" in sent or "ncage" in sent:
         reference.pn, reference.ncage = await _reference_identity(
             db, article, body.pn if "pn" in sent else reference.pn, body.ncage if "ncage" in sent else reference.ncage, reference
@@ -588,6 +599,10 @@ async def remove_reference(
     reference = _reference(article, reference_id)
     if reference.version != version:
         raise version_conflict(reference.version)
+    used = await confunfis.rows_using_reference(db, reference.id)
+    if used:
+        # Those rows are that P/N (E13): they change first.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_reference_in_confunfis", count=len(used), rows=confunfis.rows_text(used)))
     before = reference_snapshot(reference)
     reference.deleted_at, reference.version, reference.updated_by = datetime.now(UTC), reference.version + 1, user.id
     return await _reference_changed(db, article, user, request, "article.reference_removed", before, None)

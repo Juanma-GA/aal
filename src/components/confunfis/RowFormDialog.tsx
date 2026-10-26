@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -92,10 +92,13 @@ interface Form {
   cs: string;
 }
 
+/** A new row starts with QTY 1, CT SIGLE N and the CUF as CS; an edit with
+ *  the row exactly as stored (a blank stays blank: nothing is sent unless
+ *  the user changes it). */
 const formOf = (row: PositionRow | null): Form => ({
-  sns: row?.sns ?? '', snsName: row?.sns_name ?? null, co: row?.co ?? '', al: row?.al ?? '00', qty: row?.qty ?? '1',
+  sns: row?.sns ?? '', snsName: row?.sns_name ?? null, co: row?.co ?? '', al: row ? row.al : '00', qty: row ? (row.qty ?? '') : '1',
   article: row?.article ?? null, noc: '', pn: '', ncage: '', article_name: row?.article_name ?? '', function_text: row?.function_text ?? '',
-  ct_sigle: row?.ct_sigle ?? 'N', cs: row ? [row.cs_sns, row.cs_co, row.cs_al].filter(Boolean).join(' ') || ROOT_POSITION : ROOT_POSITION,
+  ct_sigle: row ? (row.ct_sigle ?? '') : 'N', cs: row ? [row.cs_sns, row.cs_co, row.cs_al].filter(Boolean).join(' ') : ROOT_POSITION,
 });
 
 const blank = (v: string): string | null => v.trim() || null;
@@ -130,24 +133,30 @@ export function RowFormDialog({ materialId, row, onClose, onSaved }: {
     set({ sns, snsName: name });
     if (!row) fetchNextSlot(materialId, sns).then((slot) => set({ co: slot.co, al: slot.al })).catch(() => undefined);
   };
+  const initial = useMemo(() => formOf(row), [row]);
   const values = (): RowValues => {
-    const [cs_sns, cs_co, cs_al] = form.cs.split(' ');
-    const out: RowValues = {
+    // An empty CS is the CUF (NT §9.1.8): shown so, sent as written.
+    const [cs_sns, cs_co, cs_al] = form.cs ? form.cs.split(' ') : [null, null, null];
+    const all: RowValues = {
       sns: form.sns, co: form.co.trim(), al: form.al.trim() || '00', qty: blank(form.qty), article_name: blank(form.article_name),
       function_text: blank(form.function_text), ct_sigle: form.ct_sigle === 'S' || form.ct_sigle === 'N' ? form.ct_sigle : null,
-      cs_sns: form.cs === ROOT_POSITION ? '000000' : cs_sns, cs_co: form.cs === ROOT_POSITION ? '01' : cs_co, cs_al: form.cs === ROOT_POSITION ? '00' : cs_al,
+      cs_sns, cs_co, cs_al,
     };
-    const articleChanged = row ? form.article?.id !== row.article?.id || Boolean(form.noc || form.pn || form.ncage) : true;
-    if (articleChanged) {
-      Object.assign(out, form.article ? { article_id: form.article.id, pn: blank(form.pn), ncage: blank(form.ncage) } : { noc: blank(form.noc), pn: blank(form.pn), ncage: blank(form.ncage) });
+    const identity: RowValues = form.article
+      ? { article_id: form.article.id, pn: blank(form.pn), ncage: blank(form.ncage) }
+      : { noc: blank(form.noc), pn: blank(form.pn), ncage: blank(form.ncage) };
+    if (!row) return { ...all, ...identity };
+    // An edit sends only what the user changed.
+    const out: RowValues = {};
+    const fields: [keyof Form, (keyof RowValues)[]][] = [
+      ['sns', ['sns']], ['co', ['co']], ['al', ['al']], ['qty', ['qty']], ['article_name', ['article_name']],
+      ['function_text', ['function_text']], ['ct_sigle', ['ct_sigle']], ['cs', ['cs_sns', 'cs_co', 'cs_al']],
+    ];
+    for (const [field, keys] of fields) {
+      if (form[field] !== initial[field]) for (const k of keys) Object.assign(out, { [k]: all[k] });
     }
-    if (!row) return out;
-    const changed: RowValues = {};
-    for (const [k, v] of Object.entries(out) as [keyof RowValues, string | null][]) {
-      const before = (row as unknown as Record<string, unknown>)[k];
-      if (['article_id', 'noc', 'pn', 'ncage'].includes(k) || (v ?? null) !== (before ?? null)) Object.assign(changed, { [k]: v });
-    }
-    return changed;
+    if (form.article?.id !== initial.article?.id || form.noc || form.pn || form.ncage) Object.assign(out, identity);
+    return out;
   };
   const save = () => {
     const v = values();
@@ -201,6 +210,7 @@ export function RowFormDialog({ materialId, row, onClose, onSaved }: {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={NONE}>{t('confunfis.form.blank')}</SelectItem>
                 <SelectItem value="S">{t('confunfis.yes')}</SelectItem>
                 <SelectItem value="N">{t('confunfis.no')}</SelectItem>
               </SelectContent>
@@ -248,8 +258,8 @@ export function RowFormDialog({ materialId, row, onClose, onSaved }: {
           <div className="sm:col-span-4">
             <SearchPick<string>
               id="row-cs" label={t('confunfis.fields.cs')} placeholder={t('confunfis.form.csHint')} testId="row-form-cs"
-              picked={form.cs === ROOT_POSITION ? t('confunfis.form.csRoot') : form.cs}
-              onClear={() => set({ cs: '' })}
+              picked={form.cs === '?' ? null : !form.cs || form.cs === ROOT_POSITION ? t('confunfis.form.csRoot') : form.cs}
+              onClear={() => set({ cs: '?' })}
               onPick={(cs) => set({ cs })}
               search={async (q) => (await fetchRows(materialId, { q }, 1, 20)).items.map((r) => ({ id: r.id, label: `${positionOf(r)} · ${r.article_name ?? ''}`, value: positionOf(r) }))}
             />
@@ -259,7 +269,7 @@ export function RowFormDialog({ materialId, row, onClose, onSaved }: {
         {generalError ? <p className="text-sm text-destructive" role="alert">{generalError}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('actions.cancel')}</Button>
-          <Button disabled={pending || !form.sns || !form.co || !form.cs} onClick={save} data-testid="row-form-save">{t('actions.save')}</Button>
+          <Button disabled={pending || !form.sns || !form.co || form.cs === '?'} onClick={save} data-testid="row-form-save">{t('actions.save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -85,6 +85,8 @@ async def set_subcategories(db: AsyncSession, material: Material, codes: set[str
 @dataclass(frozen=True)
 class CopyOptions:
     copy_members: bool
+    # Who copies (the copiers' audit and created_by, D11).
+    user_id: uuid.UUID | None = None
 
 
 # A copier copies one aspect of `source` into the new `target` (no commit).

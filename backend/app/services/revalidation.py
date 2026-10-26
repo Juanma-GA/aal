@@ -57,10 +57,17 @@ async def tables_used(db: AsyncSession) -> set[str]:
 
 
 async def request(db: AsyncSession, reason: str, detail: dict[str, Any], user_id: uuid.UUID | None) -> ArticleRevalidation:
+    # Locked until the caller commits: the task that starts it waits for
+    # this change, so it reads it (otherwise a new run is queued).
     queued = (
-        await db.execute(select(ArticleRevalidation).where(ArticleRevalidation.status == "queued").order_by(ArticleRevalidation.created_at).limit(1))
+        await db.execute(
+            select(ArticleRevalidation).where(ArticleRevalidation.status == "queued").order_by(ArticleRevalidation.created_at).limit(1)
+            .with_for_update(skip_locked=True)
+        )
     ).scalar_one_or_none()
     if queued is not None:
+        # Every change that asked for it, in its detail.
+        queued.detail = {**queued.detail, "also": [*queued.detail.get("also", []), {"reason": reason, **detail}]}
         return queued
     found = ArticleRevalidation(id=uuid.uuid4(), reason=reason, detail=detail, status="queued", created_by=user_id)
     db.add(found)

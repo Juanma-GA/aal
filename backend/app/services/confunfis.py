@@ -38,6 +38,7 @@ from typing import Any
 
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.models import Article, ArticleReference, Material, PhysicalPosition, User
 from app.services import audit, cuf
@@ -218,7 +219,7 @@ def _qty(value: Any, problems: list[dict[str, Any]], bounds: dict[str, Any]) -> 
 
 
 # Problems of the value's type: always, whatever was changed.
-_TYPE_CODES = {"qty_not_a_number", "qty_out_of_range", "yes_no", "required"}
+_TYPE_CODES = {"qty_not_a_number", "yes_no", "required"}
 # Without the parameter at hand (a unit test): the defaults'.
 _QTY_BOUNDS = {"max": 1_000_000, "decimals": 6}
 
@@ -376,8 +377,36 @@ async def refresh_observations(db: AsyncSession, material: Material) -> None:
                 .values(observations=found[r.id], observation_codes=sorted({o["code"] for o in found[r.id]}), updated_at=PhysicalPosition.updated_at)
                 .execution_options(synchronize_session=False)
             )
-            r.observations = found[r.id]
-            r.observation_codes = sorted({o["code"] for o in found[r.id]})
+            # Committed values on the instance: no second UPDATE at commit.
+            set_committed_value(r, "observations", found[r.id])
+            set_committed_value(r, "observation_codes", sorted({o["code"] for o in found[r.id]}))
+
+
+async def refresh_materials(db: AsyncSession, *, article_ids: set[uuid.UUID] | None = None, material_ids: set[uuid.UUID] | None = None) -> None:
+    """The observations depend on what other screens change (the CUF's
+    configuration, an article's NOC, name or references): the materials
+    whose rows use these articles, or these materials, are refreshed."""
+    ids = set(material_ids or ())
+    if article_ids:
+        ids |= set((await db.execute(
+            select(PhysicalPosition.material_id).where(PhysicalPosition.article_id.in_(article_ids), PhysicalPosition.deleted_at.is_(None)).distinct()
+        )).scalars())
+    for material in (await db.execute(select(Material).where(Material.id.in_(ids), Material.deleted_at.is_(None)))).scalars() if ids else []:
+        await refresh_observations(db, material)
+
+
+async def rows_using_reference(db: AsyncSession, reference_id: uuid.UUID) -> list[PhysicalPosition]:
+    query = select(PhysicalPosition).where(PhysicalPosition.article_reference_id == reference_id, PhysicalPosition.deleted_at.is_(None))
+    return list((await db.execute(query)).scalars())
+
+
+async def rows_using_article(db: AsyncSession, article_id: uuid.UUID) -> list[PhysicalPosition]:
+    query = select(PhysicalPosition).where(PhysicalPosition.article_id == article_id, PhysicalPosition.deleted_at.is_(None))
+    return list((await db.execute(query)).scalars())
+
+
+def rows_text(rows: list[PhysicalPosition]) -> str:
+    return "; ".join(_row_text(r) for r in rows[:10])
 
 
 # ── CUF montado ──────────────────────────────────────────────────────────
@@ -414,8 +443,9 @@ async def mounted(db: AsyncSession, material: Material, rows: list[PhysicalPosit
 
 
 @cuf.register_copier("confunfis")
-async def copy_confunfis(db: AsyncSession, source: Material, target: Material, options: cuf.CopyOptions, user_id: uuid.UUID | None = None) -> int:
-    """Its rows, new, with the same articles (source "copia")."""
+async def copy_confunfis(db: AsyncSession, source: Material, target: Material, options: cuf.CopyOptions) -> int:
+    """Its rows, new, with the same articles (source "copia"), by whoever copies."""
+    user_id = options.user_id
     rows = await live_rows(db, source.id)
     for r in rows:
         db.add(PhysicalPosition(

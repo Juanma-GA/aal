@@ -121,7 +121,10 @@
     "confunfis_position_invalid": "Esa posición no es SNS + CO + AL (por ejemplo, A20000 01 00).",
     "confunfis_no_free_alternative": "Ese hueco ya no tiene ningún alternativo (AL) libre.",
     "confunfis_same_cs": "Esa fila ya cuelga de ese conjunto superior: elige otro.",
-    "subcategory_used_by_confunfis": "No se puede quitar: {{count}} filas de la CONFUNFIS usan SNS que solo aporta esa subcategoría ({{rows}})."
+    "subcategory_used_by_confunfis": "No se puede quitar: {{count}} filas de la CONFUNFIS usan SNS que solo aporta esa subcategoría ({{rows}}).",
+    "article_in_confunfis": "No se puede dar de baja: {{count}} filas de la CONFUNFIS son este artículo ({{rows}}). Cámbialas antes.",
+    "article_reference_in_confunfis": "Esa referencia la usan {{count}} filas de la CONFUNFIS ({{rows}}): cámbialas antes.",
+    "confunfis_root_has_no_alternative": "La fila del propio CUF (000000 01 00) no tiene alternativos."
   },
   "actions": {
     "retry": "Reintentar",
@@ -1254,7 +1257,8 @@
       "csHint": "Busca la fila del conjunto superior",
       "csRoot": "El CUF (000000 01 00)",
       "change": "Cambiar",
-      "nothingFound": "Nada encontrado."
+      "nothingFound": "Nada encontrado.",
+      "blank": "Sin dato"
     },
     "alternativeCs": {
       "title": "CS alternativo para {{position}}",

@@ -46,7 +46,7 @@ from app.io_excel.targets import register
 from app.io_excel.template import Column, ColumnType, Template
 from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, NAME_ORIGINS, REFERENCE_ORIGINS, Article, ImportJob, User
 from app.models.article import LIFE_CODE_FIELD, LIFE_QUANTITY_FIELD
-from app.services import audit
+from app.services import audit, confunfis
 from app.services.article_fields import FieldDef, field_defs
 from app.services.articles import PN_MAX_LENGTH, Checker, data_of, life_of, normalize_identity, reference_owner, set_data, set_life, set_principal, snapshot
 from app.validacion.articulos import RULES, LifeControl, autocorrect
@@ -300,6 +300,7 @@ class ArticleTarget:
         """Writes what an analysis found (also scripts/seed_demo_articles.py,
         without a user)."""
         checker = await Checker.load(db)
+        touched: set[uuid.UUID] = set()
         corrections: dict[int, list[dict[str, Any]]] = {}
         for c in report.get("corrections", []):
             corrections.setdefault(c["row"], []).append({"code": c["code"], "field": c["field"], "value": c["value"]})
@@ -324,6 +325,7 @@ class ArticleTarget:
                 db, action="article.updated", entity_type="article", entity_id=str(article.id), user_id=user_id,
                 before=before, after={**snapshot(article), **source, "corrections": corrections.get(item["row"], [])}, ip=ip,
             )
+            touched.add(article.id)
         for item in report["pending"]["new"]:
             data, life, identity = self._decoded(template, item["values"])
             noc = data[NOC_FIELD]
@@ -341,6 +343,8 @@ class ArticleTarget:
                 db, action="article.created", entity_type="article", entity_id=str(article.id), user_id=user_id,
                 after={**snapshot(article), **source, "corrections": corrections.get(item["row"], [])}, ip=ip,
             )
+        # The CONFUNFIS rows of the changed articles (their name, NOC, P/N: E13).
+        await confunfis.refresh_materials(db, article_ids=touched)
 
 
 register(ArticleTarget(FICHERO_CARGA))

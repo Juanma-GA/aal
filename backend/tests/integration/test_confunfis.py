@@ -247,3 +247,35 @@ async def test_the_seed_is_idempotent(client, demo):
     async with async_session_factory() as session:
         count = await session.scalar(select(func.count()).select_from(PhysicalPosition).where(PhysicalPosition.material_id == demo["materials"][TRAMONTANA].id))
     assert count == 46
+
+
+async def test_what_other_screens_change_keeps_the_rows_right(client, demo):
+    """The review of E13: observations follow the CUF's subcategories, a
+    reference or an article a row uses cannot go, a principal a row uses is
+    kept as another reference, and the CUF's own row has no alternative."""
+    admin, analyst = demo["people"]["admin"], demo["people"]["analista"]
+    mid = demo["materials"][TRAMONTANA].id
+    current = (await client.get(f"/api/materials/{mid}/cuf", headers=analyst)).json()
+    res = await client.put(f"/api/materials/{mid}/subcategories", json={"version": current["version"], "codes": ["0102", "0201", "0601", "0602"]}, headers=analyst)
+    assert res.status_code == 200, res.text
+    [chain] = find((await all_rows(client, demo, analyst))["items"], "B35010")
+    assert "OF-001" not in chain["observation_codes"]  # 0602 brings B35010
+
+    rows = (await all_rows(client, demo, admin))["items"]
+    [piston] = find(rows, "A21030")
+    article = (await client.get(f"/api/articles/{piston['article']['id']}", headers=admin)).json()
+    [ref] = article["references"]
+    gone = await client.delete(f"/api/articles/{article['id']}/references/{ref['id']}", params={"version": ref["version"], "confirm": "true"}, headers=admin)
+    assert (gone.status_code, gone.json()["detail"]["code"]) == (409, "article_reference_in_confunfis")
+    deleted = await client.delete(f"/api/articles/{article['id']}", params={"version": article["version"], "confirm": "true"}, headers=admin)
+    assert (deleted.status_code, deleted.json()["detail"]["code"]) == (409, "article_in_confunfis")
+    # A new principal P/N: the one the rows use stays, as another reference.
+    res = await client.patch(f"/api/articles/{article['id']}", json={"version": article["version"], "pn": "DM6-1030-09", "ncage": "DEMO2"}, headers=admin)
+    assert res.status_code == 200, res.text
+    assert [(r["pn"], r["principal"]) for r in res.json()["references"]] == [("DM6-1030-09", True), ("DM6-1030-01", False)]
+    [piston] = find((await all_rows(client, demo, admin))["items"], "A21030")
+    assert piston["article"]["pn"] == "DM6-1030-01"
+
+    [root] = find(rows, "000000")
+    res = await client.post(f"{base(demo)}/rows/{root['id']}/duplicate-alternative", json={"version": root["version"]}, headers=analyst)
+    assert (res.status_code, res.json()["detail"]["code"]) == (409, "confunfis_root_has_no_alternative")

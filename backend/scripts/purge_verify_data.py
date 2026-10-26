@@ -116,6 +116,7 @@ async def restore_reference(snapshot: Path) -> int:
             await db.execute(update(ReferenceTable).where(ReferenceTable.code == code).values(version=table["version"]))
             print(f"Tabla restaurada: {code}")
         # The revalidations of the articles its import or edits queued (E13).
+        await _await_revalidations(db, datetime.fromisoformat(saved["saved_at"]))
         await db.execute(delete(ArticleRevalidation).where(ArticleRevalidation.created_at >= datetime.fromisoformat(saved["saved_at"])))
         await db.commit()
     await engine.dispose()
@@ -145,6 +146,20 @@ def _value(value):
     return value
 
 
+async def _await_revalidations(db, since: datetime, seconds: float = 60) -> None:
+    """A revalidation the check queued writes findings until it ends: the
+    restore waits for it, or it would write over what is put back."""
+    waited = 0.0
+    while waited < seconds:
+        query = select(ArticleRevalidation.id).where(ArticleRevalidation.created_at >= since, ArticleRevalidation.status.in_(("queued", "running")))
+        if not (await db.execute(query)).first():
+            return
+        await db.rollback()
+        await asyncio.sleep(0.5)
+        waited += 0.5
+    print("Una revalidación sigue en marcha: se restaura igualmente.", file=sys.stderr)
+
+
 async def save_articles(snapshot: Path) -> int:
     async with async_session_factory() as db:
         articles = [{c.name: _jsonable(v) for c in Article.__table__.columns for v in [getattr(a, c.key)]} for a in (await db.execute(select(Article))).scalars()]
@@ -166,7 +181,8 @@ async def restore_articles(snapshot: Path) -> int:
         # an article that was there before is put back, never removed.
         created = Article.created_at >= datetime.fromisoformat(saved["saved_at"])
         removed = await db.execute(delete(Article).where(Article.id.not_in(ids), created) if ids else delete(Article).where(created))
-        # The revalidations run meanwhile (E13); their audit rows stay.
+        # The revalidations run meanwhile (E13), once ended; their audit rows stay.
+        await _await_revalidations(db, datetime.fromisoformat(saved["saved_at"]))
         await db.execute(delete(ArticleRevalidation).where(ArticleRevalidation.created_at >= datetime.fromisoformat(saved["saved_at"])))
         await db.execute(delete(ArticleLifeControl).where(ArticleLifeControl.article_id.in_(ids)))
         await db.execute(delete(ArticleReference).where(ArticleReference.article_id.in_(ids)))

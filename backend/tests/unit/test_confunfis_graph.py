@@ -78,3 +78,9 @@ def test_cycles_are_found_and_have_no_total():
     assert g.cycle_huecos == {("X10000", "01"), ("X20000", "01"), ("Y10000", "01")}
     assert all(g.total(h) is None for h in (("X10000", "01"), ("X30000", "01"), ("Y10000", "01")))
     assert g.in_cycle(rows[0]) and not g.in_cycle(rows[2])
+
+
+def test_a_blank_cs_and_the_cuf_spelled_out_are_the_same():
+    rows = [row("B32020", qty=4), row("B32020", qty=4, cs="000000 01 00")]
+    g = Graph(rows)
+    assert g.duplicates() == {rows[0].id, rows[1].id} and not g.is_cs_alternative(rows[0])

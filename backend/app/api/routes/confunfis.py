@@ -17,6 +17,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user, require_material_permission
@@ -95,7 +96,7 @@ async def _context(db: AsyncSession, material: Material, user: User) -> Context:
 
 def _row_out(ctx: Context, r: PhysicalPosition) -> RowOut:
     a = ctx.articles.get(r.article_id) if r.article_id else None
-    ref = next((x for x in a.references if x.id == r.article_reference_id), None) if a else None
+    ref = next((x for x in a.live_references if x.id == r.article_reference_id), None) if a else None
     g = ctx.graph.rows[str(r.id)]
     m = ctx.mounted.get(r.id)
     link = m if m is not None and m.id in ctx.visible else None
@@ -293,6 +294,18 @@ async def next_slot(
     return NextSlot(co=co, al=f"{free_al:02d}")
 
 
+async def _serialized(db: AsyncSession, material: Material) -> None:
+    """One change of a material's CONFUNFIS at a time: the observations of
+    each see the rows of the previous one (a duplicate made by two people at
+    once is still marked)."""
+    await db.execute(select(Material.id).where(Material.id == material.id).with_for_update())
+
+
+def _taken() -> HTTPException:
+    """Another save created that NOC or P/N + NCAGE meanwhile."""
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("article_identity_taken"))
+
+
 def _invalid(exc: confunfis.RowError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("confunfis_row_invalid", problems=exc.problems))
 
@@ -309,16 +322,20 @@ async def create_row(
     body: RowIn, request: Request, access: MaterialAccess = Depends(require_material_permission(EDIT)),
     user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ) -> RowDetail:
+    await _serialized(db, access.material)
     values = body.model_dump(exclude=set(_IDENTITY))
     identity = {k: getattr(body, k) for k in _IDENTITY}
     try:
         row = await confunfis.save_row(db, access.material, values, user.id, source="manual", strict=True, identity=identity, audit_ip=client_ip(request))
     except confunfis.RowError as exc:
         raise _invalid(exc) from None
+    except IntegrityError:
+        raise _taken() from None
     return await _done(db, access, user, row.id)
 
 
 async def _locked(db: AsyncSession, material: Material, row_id: uuid.UUID, version: int) -> PhysicalPosition:
+    await _serialized(db, material)
     row = (
         await db.execute(
             select(PhysicalPosition).where(PhysicalPosition.id == row_id, PhysicalPosition.material_id == material.id, PhysicalPosition.deleted_at.is_(None)).with_for_update()
@@ -352,6 +369,8 @@ async def update_row(
         )
     except confunfis.RowError as exc:
         raise _invalid(exc) from None
+    except IntegrityError:
+        raise _taken() from None
     return await _done(db, access, user, row.id)
 
 
@@ -389,9 +408,15 @@ async def duplicate_alternative(
     row = await _locked(db, material, row_id, body.version)
     params = await get_parameter(db, "confunfis")
     ip = client_ip(request)
+    if (row.sns, row.co, row.al) == ROOT:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("confunfis_root_has_no_alternative"))
     rows = await confunfis.live_rows(db, material.id)
+    used = {int(r.al) for r in rows if (r.sns, r.co) == (row.sns, row.co) and r.al.isdigit()}
+    free = [n for n in range(max(1, params["al"]["min"]), params["al"]["max"] + 1) if n not in used]
     if row.al == "00":
-        first = f"{max(1, params['al']['min']):02d}"
+        if len(free) < 2:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("confunfis_no_free_alternative"))
+        first = f"{free.pop(0):02d}"
         for r in [r for r in rows if (r.sns, r.co, r.al) == (row.sns, row.co, "00")]:
             before = confunfis.snapshot(r)
             r.al, r.version, r.updated_by = first, r.version + 1, user.id
@@ -400,11 +425,9 @@ async def duplicate_alternative(
             before = confunfis.snapshot(child)
             child.cs_al, child.version, child.updated_by = first, child.version + 1, user.id
             audit.record(db, action="confunfis.row_updated", entity_type="physical_position", entity_id=str(child.id), user_id=user.id, material_id=material.id, before=before, after=confunfis.snapshot(child), ip=ip)
-    used = {int(r.al) for r in rows if (r.sns, r.co) == (row.sns, row.co) and r.al.isdigit()}
-    free = next((n for n in range(max(1, params["al"]["min"]), params["al"]["max"] + 1) if n not in used), None)
-    if free is None:
+    if not free:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("confunfis_no_free_alternative"))
-    copy = _copy(row, user.id, al=f"{free:02d}")
+    copy = _copy(row, user.id, al=f"{free[0]:02d}")
     db.add(copy)
     await db.flush()
     audit.record(db, action="confunfis.row_created", entity_type="physical_position", entity_id=str(copy.id), user_id=user.id, material_id=material.id, after={**confunfis.snapshot(copy), "alternative_of": str(row.id)}, ip=ip)

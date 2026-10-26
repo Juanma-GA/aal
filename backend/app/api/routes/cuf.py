@@ -35,7 +35,7 @@ from app.schemas.cuf import (
     VersionBrief,
 )
 from app.schemas.materials import MaterialOut
-from app.services import audit, cuf
+from app.services import audit, confunfis, cuf
 from app.services.catalog_import import TEMPLATE, export_rows
 from app.services.catalog_tree import tree_level
 from app.services.permissions import MaterialAccess, accessible_materials, material_access
@@ -119,6 +119,8 @@ async def set_subcategories(
             user_id=user.id, material_id=material.id, before={"subcategories": sorted(before)},
             after={"subcategories": sorted(wanted), "added": sorted(wanted - before), "removed": sorted(before - wanted)}, ip=client_ip(request),
         )
+        # Which CONFUNFIS rows are outside the configuration changed (E13).
+        await confunfis.refresh_materials(db, material_ids={material.id})
         await db.commit()
     return await cuf_out(db, material, user)
 
@@ -170,6 +172,7 @@ async def change_catalog_version(
             user_id=admin.id, material_id=material.id, before={"catalog_version_id": before},
             after={"catalog_version_id": str(body.catalog_version_id), **report}, ip=client_ip(request),
         )
+        await confunfis.refresh_materials(db, material_ids={material.id})
         await db.commit()
     return await cuf_out(db, material, admin)
 
@@ -263,7 +266,7 @@ async def copy_material(
         await db.flush()
     except IntegrityError:
         raise _noc_taken() from None
-    options = cuf.CopyOptions(copy_members=body.copy_members)
+    options = cuf.CopyOptions(copy_members=body.copy_members, user_id=admin.id)
     for _name, copier in cuf.MATERIAL_COPIERS:
         await copier(db, source, target, options)
     # Who got access to the new CUF, and with which role (D11).

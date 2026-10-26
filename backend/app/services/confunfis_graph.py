@@ -214,13 +214,15 @@ class Graph:
 
     def is_cs_alternative(self, r: Row) -> bool:
         """The same position under several CS (§9.1.8 case 2)."""
-        return len({(x.cs_sns, x.cs_co, x.cs_al) for x in self.by_key[r.key]}) > 1
+        return len({self.parent.get(x.id) or (x.cs_sns, x.cs_co, x.cs_al) for x in self.by_key[r.key]}) > 1
 
     def duplicates(self) -> set[str]:
-        """Rows identical in SNS + CO + AL + CS to another."""
+        """Rows identical in SNS + CO + AL + CS to another (a blank CS and
+        000000 01 00 are the same: the CUF; an orphan's CS as written)."""
         groups: dict[tuple, list[str]] = defaultdict(list)
         for r in self.rows.values():
-            groups[(*r.key, r.cs_sns, r.cs_co, r.cs_al)].append(r.id)
+            cs = ("?", r.cs_sns, r.cs_co, r.cs_al) if r.id in self.orphan else self.parent.get(r.id)
+            groups[(*r.key, cs)].append(r.id)
         return {rid for ids in groups.values() if len(ids) > 1 for rid in ids}
 
     def in_cycle(self, r: Row) -> bool:

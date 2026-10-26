@@ -157,14 +157,16 @@ try {
   assert(saved.ok(), 'the change is saved');
   await page.getByTestId('article-no-findings').waitFor();
   assert((await page.getByTestId('finding-AR-006').count()) === 0, 'AR-006 is gone');
-  // E13: a second P/N for the same NOC; the first one is the principal.
+  // E13: another P/N for the same NOC (principal if it is its first).
   await page.getByTestId('reference-new-pn').fill('VRF-PN-1');
   await page.getByTestId('reference-new-ncage').fill('a1234');
   const [added] = await Promise.all([
     page.waitForResponse((r) => r.url().includes('/references') && r.request().method() === 'POST'),
     page.getByTestId('reference-add').click(),
   ]);
-  assert(added.ok() && (await added.json()).references.some((r) => r.pn === 'VRF-PN-1' && r.ncage === 'A1234' && r.principal), 'a reference is added to the card (principal)');
+  const refs = added.ok() ? (await added.json()).references : [];
+  const mine = refs.find((r) => r.pn === 'VRF-PN-1' && r.ncage === 'A1234');
+  assert(mine && mine.principal === (refs.length === 1), `a reference is added to the card (${refs.length} in all)`);
   await page.getByTestId('reference-VRF-PN-1').waitFor();
   await page.screenshot({ path: shot('verify-articles-3-saved.png'), fullPage: true });
 

@@ -37,6 +37,7 @@ from app.models import (
     ArticleLifeControl,
     ArticleReference,
     Material,
+    PhysicalPosition,
     RolePermission,
     User,
     UserMaterialRole,
@@ -124,19 +125,32 @@ async def reference_owner(db: AsyncSession, pn: str, ncage: str | None, *, exclu
     return (await db.execute(query.limit(1))).scalar_one_or_none()
 
 
+async def _reference_in_use(db: AsyncSession, reference_id: uuid.UUID) -> bool:
+    query = select(PhysicalPosition.id).where(PhysicalPosition.article_reference_id == reference_id, PhysicalPosition.deleted_at.is_(None))
+    return (await db.execute(query.limit(1))).first() is not None
+
+
 async def set_principal(db: AsyncSession, article: Article, pn: str | None, ncage: str | None, user_id: uuid.UUID | None, origin: str) -> None:
     """The article's principal P/N + NCAGE becomes this one:
+    - a principal a CONFUNFIS row uses is never changed nor removed: it
+      becomes another reference, and the new one the principal (E13);
     - both empty: the principal reference is removed (logically);
     - one of its other references: that one becomes the principal;
     - otherwise the principal changes in place (or is created).
     The caller has checked that no other article has it and that an NCAGE
     never comes without its P/N."""
     current = article.principal_reference
+    if current is not None and (current.pn, current.ncage) == (pn, ncage):
+        return
+    # A principal a CONFUNFIS row is linked to keeps its P/N (that row's
+    # component is still that one): it stays as another reference (E13).
+    if current is not None and await _reference_in_use(db, current.id):
+        current.principal, current.version, current.updated_by = False, current.version + 1, user_id
+        await db.flush()
+        current = None
     if pn is None:
         if current is not None:
             current.deleted_at, current.version, current.updated_by = datetime.now(UTC), current.version + 1, user_id
-        return
-    if current is not None and (current.pn, current.ncage) == (pn, ncage):
         return
     other = next((r for r in article.live_references if not r.principal and (r.pn, r.ncage) == (pn, ncage)), None)
     if other is not None:
