@@ -496,8 +496,9 @@ en verde.
 - **CONFUNFIS:** `physical_position` (0010), grafo calculado (totales con CS alternativos y AL una vez,
   huérfanas, ciclos), enlace con el maestro (NOC → P/N → nombre → provisional), observaciones OF-001…OF-011,
   API, puntos de extensión (copia, guarda de subcategorías, impacto, dónde se usa), `seed_demo_confunfis.py`
-  y la pantalla (árbol, vista funcional, tabla, ficha, edición). Cifras del §2.3 reproducidas salvo CUF
-  montados: 2 (la radio y el motor, cuyo NOC es el CUF del material MOTOR DIESEL).
+  y la pantalla (árbol, vista funcional, tabla, ficha, edición). Cifras del §2.3 reproducidas; CUF
+  montados: 2 (la radio y el motor, cuyo NOC es el CUF del material MOTOR DIESEL), confirmado por Juanma:
+  se mantiene la regla. Permisos `confunfis.*` y hoja `Referencias` solo de exportación, aprobados.
 
 **Por qué.** Encargo E13 (`docs/encargos/E13.md`).
 
