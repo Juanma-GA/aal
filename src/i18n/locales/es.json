@@ -100,7 +100,11 @@
     "subcategory_not_in_version": "Estas subcategorías no tienen SNS en la versión del catálogo del material: {{codes}}.",
     "subcategory_in_use": "No se pueden quitar estas subcategorías porque la CONFUNFIS usa sus SNS: {{codes}}.",
     "sns_request_not_found": "Esa solicitud de SNS no existe.",
-    "sns_request_wrong_state": "No se puede hacer en una solicitud en estado «{{state}}»."
+    "sns_request_wrong_state": "No se puede hacer en una solicitud en estado «{{state}}».",
+    "article_not_found": "Ese artículo no existe o se ha borrado.",
+    "article_invalid": "Hay datos del artículo que no se pueden guardar: revisa los campos marcados.",
+    "article_noc_taken": "Ya hay otro artículo con ese NOC.",
+    "article_pn_ncage_taken": "Ya hay otro artículo con ese P/N y NCAGE."
   },
   "actions": {
     "retry": "Reintentar",
@@ -319,7 +323,8 @@
         "panel": "Panel del material",
         "import": "Importación de Excel",
         "catalog": "Configuración funcional normalizada",
-        "ui": "Interfaz"
+        "ui": "Interfaz",
+        "articles": "Artículos"
       },
       "labels": {
         "sidebar_width.min": "Ancho mínimo del panel lateral (px)",
@@ -399,9 +404,14 @@
       "sns_request.accepted": "Solicitud de SNS aceptada",
       "sns_request.rejected": "Solicitud de SNS rechazada",
       "sns_request.discarded": "Solicitud de SNS descartada",
-      "sns_request.annulled": "Solicitud de SNS anulada"
+      "sns_request.annulled": "Solicitud de SNS anulada",
+      "article.created": "Artículo creado",
+      "article.updated": "Artículo editado",
+      "article.deleted": "Artículo borrado",
+      "articles.seeded": "Artículos de demo cargados"
     },
     "entities": {
+      "article": "Artículo",
       "user": "Usuario",
       "material": "Material",
       "user_material_role": "Rol en un material",
@@ -609,7 +619,11 @@
       "cn_005": "La descripción de {{sns}} venía partida en dos columnas: se ha unido.",
       "cn_006": "La descripción de {{sns}} está pendiente ({{mark}}).",
       "cn_007": "{{sns}} tiene distinta descripción según la subcategoría: {{values}}.",
-      "extra_cells_ignored": "Hay datos fuera de la plantilla (columnas {{columns}}): no se importan."
+      "extra_cells_ignored": "Hay datos fuera de la plantilla (columnas {{columns}}): no se importan.",
+      "noc_invalid": "«{{value}}» no es un NOC: son 13 letras mayúsculas y cifras (el NPC lleva una X en la posición 7).",
+      "ncage_invalid": "«{{value}}» no es un NCAGE: son 5 letras mayúsculas y cifras.",
+      "name_required": "Falta el nombre coloquial: un artículo necesita al menos su nombre.",
+      "duplicate_article": "El mismo artículo ya está en la fila {{first_row}}."
     },
     "page": "Página {{page}} de {{pages}} · {{total}} filas"
   },

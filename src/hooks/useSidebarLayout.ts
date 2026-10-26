@@ -27,7 +27,13 @@ export function useSidebarLayout(): SidebarLayout {
   const me = useMe();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const settings = useQuery({ queryKey: ['ui-settings'], queryFn: fetchUiSettings, staleTime: Infinity });
+  // Only once in: before the password change the API answers 403.
+  const settings = useQuery({
+    queryKey: ['ui-settings'],
+    queryFn: fetchUiSettings,
+    staleTime: Infinity,
+    enabled: me.data !== undefined && !me.data.must_change_password,
+  });
   const limits = settings.data?.sidebar_width;
   const open = useUiStore((s) => s.sidebarOpen);
   const width = useUiStore((s) => s.sidebarWidth);

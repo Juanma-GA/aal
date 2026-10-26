@@ -287,6 +287,9 @@ async def list_article_fields(_user: User = Depends(current_user), db: AsyncSess
             supplied_by_contractor=f.supplied_by_contractor,
             reference_table_code=f.reference_table_code,
             reference_table_name=names.get(f.reference_table_code) if f.reference_table_code else None,
+            header=f.header,
+            allowed_values=f.allowed_values,
+            help=f.help,
         )
         for f in fields
     ]

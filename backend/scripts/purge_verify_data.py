@@ -29,6 +29,13 @@ import may have renamed them).
 The requests for a new SNS a check created (E11) are removed for good.
 
     python scripts/purge_verify_data.py --sns-requests <id>
+
+The articles (E12) are saved before and put back after: every column of
+every article (version and findings included) and its life controls; an
+article the check created is removed.
+
+    python scripts/purge_verify_data.py --save-articles --snapshot FICHERO
+    python scripts/purge_verify_data.py --restore-articles --snapshot FICHERO
 """
 
 import argparse
@@ -36,6 +43,8 @@ import asyncio
 import json
 import sys
 import uuid
+from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
 from _common import utf8_output
@@ -45,6 +54,8 @@ from sqlalchemy import delete, select, update
 from app.core.config import get_settings
 from app.db.base import async_session_factory, engine
 from app.models import (
+    Article,
+    ArticleLifeControl,
     CatalogVersion,
     ImportJob,
     LoginFailure,
@@ -93,6 +104,55 @@ async def restore_reference(snapshot: Path) -> int:
             await db.execute(update(ReferenceTable).where(ReferenceTable.code == code).values(version=table["version"]))
             print(f"Tabla restaurada: {code}")
         await db.commit()
+    await engine.dispose()
+    snapshot.unlink()
+    return 0
+
+
+def _jsonable(value):
+    if isinstance(value, uuid.UUID):
+        return {"uuid": str(value)}
+    if isinstance(value, Decimal):
+        return {"decimal": str(value)}
+    if isinstance(value, datetime):
+        return {"datetime": value.isoformat()}
+    return value
+
+
+def _value(value):
+    if isinstance(value, dict) and len(value) == 1:
+        kind, text = next(iter(value.items()))
+        if kind == "uuid":
+            return uuid.UUID(text)
+        if kind == "decimal":
+            return Decimal(text)
+        if kind == "datetime":
+            return datetime.fromisoformat(text)
+    return value
+
+
+async def save_articles(snapshot: Path) -> int:
+    async with async_session_factory() as db:
+        articles = [{c.name: _jsonable(v) for c in Article.__table__.columns for v in [getattr(a, c.key)]} for a in (await db.execute(select(Article))).scalars()]
+        life = [{c.name: _jsonable(getattr(x, c.key)) for c in ArticleLifeControl.__table__.columns} for x in (await db.execute(select(ArticleLifeControl))).scalars()]
+    await engine.dispose()
+    snapshot.write_text(json.dumps({"articles": articles, "life": life}, ensure_ascii=False), encoding="utf-8")
+    print(f"Artículos guardados: {len(articles)}")
+    return 0
+
+
+async def restore_articles(snapshot: Path) -> int:
+    saved = json.loads(snapshot.read_text(encoding="utf-8"))
+    async with async_session_factory() as db:
+        ids = [_value(a["id"]) for a in saved["articles"]]
+        removed = await db.execute(delete(Article).where(Article.id.not_in(ids)) if ids else delete(Article))
+        await db.execute(delete(ArticleLifeControl))
+        for a in saved["articles"]:
+            await db.execute(update(Article.__table__).where(Article.__table__.c.id == _value(a["id"])).values({k: _value(v) for k, v in a.items()}))
+        for x in saved["life"]:
+            await db.execute(ArticleLifeControl.__table__.insert().values({k: _value(v) for k, v in x.items()}))
+        await db.commit()
+        print(f"Artículos restaurados: {len(ids)}; eliminados: {removed.rowcount}")
     await engine.dispose()
     snapshot.unlink()
     return 0
@@ -166,7 +226,9 @@ def main() -> int:
     parser.add_argument("--sns-requests", nargs="*", default=[], type=uuid.UUID, help="ids de solicitudes de SNS")
     parser.add_argument("--save-reference", nargs="*", default=[], help="tablas de referencia que guardar")
     parser.add_argument("--restore-reference", action="store_true", help="devuelve las tablas guardadas")
-    parser.add_argument("--snapshot", type=Path, help="fichero de --save-reference / --restore-reference")
+    parser.add_argument("--save-articles", action="store_true", help="guarda todos los artículos")
+    parser.add_argument("--restore-articles", action="store_true", help="devuelve los artículos guardados")
+    parser.add_argument("--snapshot", type=Path, help="fichero de --save-* / --restore-*")
     args = parser.parse_args()
     if get_settings().environment == "production":
         print("No se ejecuta con ENVIRONMENT=production.", file=sys.stderr)
@@ -176,9 +238,13 @@ def main() -> int:
     if wrong:
         print(f"Solo usuarios {VERIFY_DOMAIN} y materiales \"{VERIFY_MATERIAL_PREFIX}…\": {', '.join(wrong)}", file=sys.stderr)
         return 1
-    if (args.save_reference or args.restore_reference) and not args.snapshot:
-        print("--save-reference y --restore-reference necesitan --snapshot.", file=sys.stderr)
+    if (args.save_reference or args.restore_reference or args.save_articles or args.restore_articles) and not args.snapshot:
+        print("--save-* y --restore-* necesitan --snapshot.", file=sys.stderr)
         return 1
+    if args.save_articles:
+        return asyncio.run(save_articles(args.snapshot))
+    if args.restore_articles:
+        return asyncio.run(restore_articles(args.snapshot))
     if args.save_reference:
         return asyncio.run(save_reference(args.save_reference, args.snapshot))
     if args.restore_reference:

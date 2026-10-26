@@ -171,7 +171,8 @@ modulos:
   nombre: Artículos — datos básicos
   orden: 7
   fase: '1'
-  estado: planificado
+  estado: disponible
+  ruta: /articulos
   encargo: E12
   objetivo: Mantener un maestro único de artículos con sus datos básicos SIGLE (NOC, referencia-NCAGE, reparable, precio,
     peso, dimensiones, control de vida…).

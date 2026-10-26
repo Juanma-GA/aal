@@ -75,10 +75,21 @@ class Template:
     # consumer's own analysis groups the rows, the reader does not refuse
     # them as duplicates.
     unique_keys: bool = True
+    # The header rows the reader checks (1-based); None: all of them. The
+    # Fichero Carga is recognized by its PRISMA codes (row 2) only (E12).
+    checked_header_rows: tuple[int, ...] | None = None
+    # How the header looks in the export: "aal" (bold on a grey fill,
+    # frozen), or "fichero_carga" (the official SIGLE template's: Calibri 8
+    # bold, wrapped, the codes' row on a white fill, nothing frozen).
+    header_look: str = "aal"
 
     def __post_init__(self) -> None:
         if self.header_rows not in (1, 2):
             raise ValueError("a template has one or two header rows")
+        if self.header_look not in ("aal", "fichero_carga"):
+            raise ValueError(f"unknown header look {self.header_look}")
+        if self.checked_header_rows is not None and not set(self.checked_header_rows) <= set(range(1, self.header_rows + 1)):
+            raise ValueError("checked_header_rows outside the header rows")
         fields = [c.field for c in self.columns]
         if len(set(fields)) != len(fields):
             raise ValueError("duplicate field in a template")

@@ -87,3 +87,9 @@ class ArticleFieldDefinition(Base):
     supplied_by_contractor: Mapped[str] = mapped_column(String(200), nullable=False)
     reference_table_code: Mapped[str | None] = mapped_column(String(40), ForeignKey("reference_table.code"), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    # E12: the column's name in the official Fichero Carga (row 1; row 2 is
+    # the PRISMA code), the values a S/N field takes, and the MAR06 help
+    # (app/seeds/article_field_help.yaml, by guide_field; None without one).
+    header: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    allowed_values: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    help: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)

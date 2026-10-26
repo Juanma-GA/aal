@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.admin import router as admin_router
+from app.api.routes.articles import router as articles_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.catalog import router as catalog_router
 from app.api.routes.cuf import router as cuf_router
@@ -50,4 +51,5 @@ app.include_router(modules_router)
 app.include_router(reference_tables_router)
 app.include_router(imports_router)
 app.include_router(catalog_router)
+app.include_router(articles_router)
 app.include_router(admin_router)

@@ -15,6 +15,12 @@ app/seeds/reference_tables_seed.yaml.
     edited it): where it differs from the seed, the report says so;
   - a table's name, source, note and attribute schema, and the article
     fields, are not editable in the app and follow the seed.
+- `load_article_field_extras(conn)` (E12, migration 0008 and the reload
+  script) writes what the article fields gained after migration 0004: the
+  column's name in the official Fichero Carga (`cabecera`), the values of a
+  S/N field (`valores`) and the MAR06 help of app/seeds/article_field_help.yaml,
+  matched by `campo_guia` (several fields may share one: 58 is the four
+  maintenance levels; a field without one, cdPolEl, has none).
 """
 
 from dataclasses import dataclass, field
@@ -28,6 +34,9 @@ from app.models import ATTRIBUTE_TYPES, REFERENCE_CODE_MAX_LENGTH, ArticleFieldD
 from app.services.reference import attribute_problem
 
 SEED_PATH = Path(__file__).resolve().parents[1] / "seeds" / "reference_tables_seed.yaml"
+HELP_PATH = Path(__file__).resolve().parents[1] / "seeds" / "article_field_help.yaml"
+# The help's keys kept for a field (the document's own words).
+_HELP_KEYS = ("titulo", "importancia", "tipo", "tamano", "definicion", "finalidad", "observaciones")
 
 
 class SeedError(ValueError):
@@ -241,3 +250,50 @@ def load_reference_tables(conn: Connection, seed: Seed | None = None) -> LoadRep
             conn.execute(update(ArticleFieldDefinition).where(ArticleFieldDefinition.prisma_code == f["prisma_code"]).values(**f))
             report.fields_updated += 1
     return report
+
+
+def read_field_extras(seed_path: Path = SEED_PATH, help_path: Path = HELP_PATH) -> dict[str, dict[str, Any]]:
+    """prisma code -> {header, allowed_values, help} (see the docstring)."""
+    fields = yaml.safe_load(seed_path.read_text(encoding="utf-8"))["campos_articulo"]
+    help_doc = yaml.safe_load(help_path.read_text(encoding="utf-8"))
+    by_guide = {str(h["campo_guia"]): {k: h.get(k) for k in _HELP_KEYS} for h in help_doc["campos"]}
+    extras = {}
+    for f in fields:
+        values = f.get("valores")
+        extras[f["codigo_prisma"]] = {
+            "header": f.get("cabecera"),
+            "allowed_values": [str(v) for v in values] if values else None,
+            "help": by_guide.get(str(f["campo_guia"])),
+        }
+    return extras
+
+
+def check_field_extras(extras: dict[str, dict[str, Any]]) -> list[str]:
+    problems = []
+    for code, e in extras.items():
+        if not e["header"]:
+            problems.append(f"article field {code}: no cabecera")
+        if e["allowed_values"] is not None and any(len(v) != 1 for v in e["allowed_values"]):
+            problems.append(f"article field {code}: valores must be one character each")
+    return problems
+
+
+def load_article_field_extras(conn: Connection, extras: dict[str, dict[str, Any]] | None = None) -> int:
+    """Writes the extras over the stored fields; returns how many changed."""
+    extras = extras if extras is not None else read_field_extras()
+    problems = check_field_extras(extras)
+    if problems:
+        raise SeedError(problems)
+    stored = {
+        row.prisma_code: row
+        for row in conn.execute(
+            select(ArticleFieldDefinition.prisma_code, ArticleFieldDefinition.header, ArticleFieldDefinition.allowed_values, ArticleFieldDefinition.help)
+        )
+    }
+    changed = 0
+    for code, e in extras.items():
+        row = stored.get(code)
+        if row is not None and (row.header, row.allowed_values, row.help) != (e["header"], e["allowed_values"], e["help"]):
+            conn.execute(update(ArticleFieldDefinition).where(ArticleFieldDefinition.prisma_code == code).values(**e))
+            changed += 1
+    return changed

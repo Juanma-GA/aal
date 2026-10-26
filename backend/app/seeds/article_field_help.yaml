@@ -1,0 +1,386 @@
+fuente: Campos Ficha de Datos Básicos SIGLE Contratista (extracto de la Guía de Datos Básicos en el SIGLE para la Gestión
+  Logística de un Artículo/NOC, MAR06)
+nota: Texto literal del documento. Se enlaza con article_field_definition por campo_guia (el 58 cubre los 4 escalones; los
+  64 y 65 cubren el control de vida). El código POL (cdPolEl) no tiene ficha en este documento.
+campos:
+- campo_guia: '1'
+  titulo: N.O.C.
+  importancia: Obligatorio
+  tipo: Carácter
+  tamano: '13'
+  definicion: El Numero OTAN de Catalogo del artículo, N.O.C.; si aún no se dispone de él, será el Número provisional de catálogo,
+    N.P.C.
+  finalidad: 'Es el campo fundamental de la aplicación.
+
+    Permite enlazar un artículo con sus operaciones de mantenimiento, con su configuración teórica / real, con sus posibilidades
+    de transporte, de adquisición, con su planificación....'
+  observaciones: 'Se recuerda la necesidad de que todo artículo que se quiera introducir en el SIGLE, debe tener un Código
+    OTAN, sea definitivo (NOC), o provisional (NPC).
+
+    Si se dispone de un artículo con NOC pero no está dado de alta en el SIGLE, es posible que sea debido a que SECAT no conoce
+    que somos usuarios del mismo, por lo que se le debe comunicar.'
+- campo_guia: '9'
+  titulo: NO.COLOQUIAL
+  importancia: Obligatorio
+  tipo: Carácter
+  tamano: '40'
+  definicion: Nombre coloquial.
+  finalidad: 'Es el nombre con el que el gestor del artículo quiere que se conozca. Descripción. Permite identificar el artículo
+    por parte del usuario.
+
+    Aunque no se usa para introducir datos, cualquier consulta por pantalla o informe impreso, además de presentar el CDART,
+    presenta el NOCOLOART.'
+  observaciones: 'Es necesario se cargue como descripción del artículo aquella que identifique plenamente al mismo; por ejemplo:
+    En vez de introducir ‘TORNILLO’ se debe introducir ‘TORNILLO HEXAGONAL MÉTRICA...’'
+- campo_guia: '15'
+  titulo: GRUPO-ESTRUCT.
+  importancia: Obligatorio
+  tipo: Carácter
+  tamano: '1'
+  definicion: Código de relación estructural Artículo final--Conjunto- Repuesto
+  finalidad: "Este campo, da idea del nivel o grupo estructural al que pertenece el artículo; puede ser un artículo final,\
+    \ conjunto, subconjunto, repuesto, elemento opcional, o auxiliar, etc.\n Esto da una idea de la importancia relativa del\
+    \ artículo, independientemente del lugar que ocupe en la configuración teórica de otros artículos."
+  observaciones: 'Debe existir una coherencia entre el contenido de este campo y la Clase/Subclase de Abastecimiento.
+
+    La selección, por el órgano gestor de la ficha de datos básicos, del código correcto, permite una adecuada gestión de
+    mantenimiento del artículo, y de los sistemas de los que en su caso forme parte.
+
+    Sólo a un Equipo o un CUF al que se asigne un código: ‘0- ARTÍCULO FINAL’, o, ‘7-  ARTÍCULO FINAL SIN FILIACIÓN’:
+
+    Tabulado en tabla D107 NIVEL ESTRUCTURAL DE ARTÍCULO.
+
+    Esta Tabla indica los Códigos del Nivel/ Grupo Estructural del Artículo- NOC (código Conjunto- Repuesto) en: el Campo
+    GRUPO- ESTRUCTURA de la Ficha de Datos Básicos; y, en el Campo COD. de CONJUNTO del Árbol de Configuración Teórica.'
+- campo_guia: '18'
+  titulo: PRECIO ESTND
+  importancia: Obligatorio
+  tipo: Numérico
+  tamano: '9'
+  definicion: Importe estimado como estándar de la Unidad de Suministro/ Envío Interna del artículo/NOC (Campo 38), en Euros
+    (€).
+  finalidad: Orientar al usuario sobre el valor del artículo.
+  observaciones: "Como norma general se anotará el último conocido.\nSe valora en Euros (€). \nNo debe cargarse el dato en\
+    \ Dólares ($) u otra moneda extranjera."
+- campo_guia: '19'
+  titulo: C.SEG.
+  importancia: Recomendado
+  tipo: Carácter
+  tamano: '1'
+  definicion: Grado de Seguridad, física y de protección contra el robo, OTAN, del Articulo.
+  finalidad: 'Este campo, debe contener el código de seguridad física y de protección contra el robo asignado al artículo,
+    según la normativa de la OTAN.
+
+    Es un código que indica, mediante la clasificación de seguridad y/o el grado de peligrosidad o susceptibilidad de hurto,
+    los controles especiales a los que ha de someterse un artículo en su almacenamiento o transporte.'
+  observaciones: "Se incluye la Seguridad Criptológica.\n.\nEn caso de no estar clasificado el artículo, se debe cargar como\
+    \ ‘U- NO CLASIFICADO'. \nTabulado en tabla D106 GRADOS DE SEGURIDAD OTAN."
+- campo_guia: '25'
+  titulo: REPARABLE
+  importancia: Obligatorio
+  tipo: Carácter. (Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Si, o No, es un artículo Reparable  (Mantenible)
+  finalidad: "Indicar si un artículo tiene mantenimiento (preventivo, correctivo, y/o modificativo), o no.\nA tener en cuenta:\n\
+    \tEn caso de ser definido como ‘Reparable: sí’, debe anotarse como “Sí” el indicador de que se le realizan operaciones\
+    \ de mantenimiento en algún Escalón- EMAN (Campo 58, de escalones de mantenimiento, en la segunda pantalla de la Ficha\
+    \ de Datos Básicos).\nEn caso contrario (‘reparable: No’), no se permite asignar operaciones de mantenimiento a dicho\
+    \ artículo.\n\tHay que tener en cuenta el evitar las posibles inconsistencias, en el sentido de que si un artículo se\
+    \ define como reparable, debe tener al menos una anotación ‘SÍ’ en alguno de los campos de la ficha de datos básicos:\
+    \ mantenimiento individual  y/o colectivo  y/o preventivo –53-, además de alguno de los indicadores de los escalones de\
+    \ mantenimiento –campo 58-."
+  observaciones: null
+- campo_guia: '26'
+  titulo: CONSUMIBLE
+  importancia: Obligatorio
+  tipo: Carácter. (Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Si, o No, es un artículo  Consumible.
+  finalidad: "Indicar  si el artículo en cuestión es consumible (Material de Consumo), o no, entendiendo por consumible que\
+    \ es fungible, que dejará de estar en inventario cuando el usuario dé la baja en el sistema mediante el código de movimiento\
+    \ 502 de ‘baja por  consumo’.\n\tEsto implicará que aquellos artículos que finalizan su vida o causan baja, sea por uso\
+    \ o por avería de los “no reparables” (campo 25), se han de sustituir por otro."
+  observaciones: null
+- campo_guia: '30'
+  titulo: DOCU.ADJU.
+  importancia: Recomendado
+  tipo: Carácter. (Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Sí, o No, el artículo ha de disponer de Documentación técnica adjunta.
+  finalidad: "Indicador de si el artículo debe llevar documentación técnica adjunta, o no.\nPuede ser el caso de Sistemas\
+    \ de Armas o CUF técnicamente complejos, o de nueva adquisición por el ET, y/o con documentación sobre Garantía Contractual\
+    \ (según el Anexo Normas de Recepción de Recursos, de la NG del Servicio Logístico de Abastecimiento).\n Dicha documentación\
+    \ deberá ser entregada por el fabricante o proveedor del artículo, y acompañara a los artículos cuando el almacén los\
+    \ entregue a las unidades que los soliciten."
+  observaciones: Se debe indicar 'S' en todos aquellos artículos que al adquirirse vienen acompañados de documentación de
+    cualquier tipo. En general, CUF.
+- campo_guia: '35'
+  titulo: MANU.TECNICOS
+  importancia: Opcional
+  tipo: Carácter
+  tamano: '40'
+  definicion: Manuales Técnicos donde figura o que se refieren al artículo (hasta 6).
+  finalidad: Ayudar a identificar el artículo, y facilitar la gestión de mantenimiento en los Talleres, y los Almacenes de
+    Repuestos.
+  observaciones: "Contendrá la denominación por la cual es conocido el manual, catálogo, CD-ROM etc.\n Además de esta denominación,\
+    \ se debe señalar cualquier dato que dé una mayor información sobre el artículo en dicho manual (pág. figura, etc.).\n\
+    \ Debe ser una lista de los manuales técnicos que acompañan al material al adquirirlos, entendiéndose como manual técnico,\
+    \ cualquier libro de despiece, ficha de uso, libro de mantenimiento....\nEl máximo número de manuales o publicaciones\
+    \ técnicas, independientemente del formato o soporte, a anotar es de seis."
+- campo_guia: '37'
+  titulo: U.ENVIO EXTERNA
+  importancia: Obligatorio
+  tipo: Carácter
+  tamano: '2'
+  definicion: Código Unidad de Suministro Externa, o,  UNIDAD  DE ADQUISICIÓN.
+  finalidad: 'Es la unidad de medida, para indicar embalaje o transporte, o formato externo del artículo, en la que el proveedor
+    suministra un artículo/NOC cuando se adquiere por el ET.
+
+    Corresponde a la unidad mínima en que se puede adquirir un artículo'
+  observaciones: "Tabulado en tabla D155 UNIDADES DE SUMINISTRO O ENVÍO. \nEn esa tabla se detalla la definición de cada Código\
+    \ y el término asociado\nEl código EA corresponde al término ‘Unidad’ (1). Es la expresión numérica de ‘un (1) artículo\
+    \ de abastecimiento’. No debe utilizarse si es aplicable un código o término más específico, tal como kit, juego (set),\
+    \ surtido, conjunto, grupo, hoja/lámina, plancha, tira/banda, o largo.\nLos siguientes campos de la ficha de datos básicos\
+    \ se refieren siempre a la U. ENVÍO EXTERNA: \n40- PESO; 41- UNIDAD MEDIDA; 42-LARGO; 43-ANCHO; 44-ALTO; 45-U-MED; 46-VOLUMEN;\
+    \ 47-UNIDAD MEDIDA"
+- campo_guia: '40'
+  titulo: PESO
+  importancia: Recomendado
+  tipo: Numérico
+  tamano: '8'
+  definicion: Peso del Articulo.
+  finalidad: null
+  observaciones: 'Contiene el peso unitario del artículo con su embalaje, referido a la Unidad de Envío Externa.
+
+    Debe ir relacionado con la unidad de peso especificada.
+
+    Este campo refiere siempre al campo 37-U. ENVÍO EXTERNA de la ficha de datos básicos.
+
+    Es empleado en los subsistemas de Abastecimiento y Transporte para calcular automáticamente el Peso del Bulto del Albarán'
+- campo_guia: '41'
+  titulo: UNIDAD MEDIDA
+  importancia: Recomendado
+  tipo: Carácter
+  tamano: '2'
+  definicion: Código de Unidad de Peso.
+  finalidad: "Indica el código de unidad de la cantidad de peso especificada el campo anterior.\nA tener en cuenta:\n\tEs\
+    \ obligatorio  que siempre que se rellene el Peso se rellene el código de medida."
+  observaciones: Tabulado en tabla D112.
+- campo_guia: '42'
+  titulo: LARGO
+  importancia: Recomendado
+  tipo: Numérico
+  tamano: '8'
+  definicion: Longitud del Artículo
+  finalidad: 'Largo del artículo en cuestión (con embalaje).
+
+    Este campo refiere siempre al campo 37-U. ENVÍO EXTERNA (o, de Adquisición) de la ficha de datos básicos.'
+  observaciones: null
+- campo_guia: '43'
+  titulo: ANCHO
+  importancia: Recomendado
+  tipo: Numérico
+  tamano: '8'
+  definicion: Anchura del artículo
+  finalidad: "Ancho del artículo (con embalaje). \nEste campo refiere siempre al campo 37-U. ENVÍO EXTERNA de la ficha de\
+    \ datos básicos."
+  observaciones: null
+- campo_guia: '44'
+  titulo: ALTO
+  importancia: Recomendado
+  tipo: Numérico
+  tamano: '8'
+  definicion: Altura del Artículo.
+  finalidad: "Altura del artículo (con embalaje).  \nEste campo refiere siempre al campo 37-U. ENVÍO EXTERNA de la ficha de\
+    \ datos básicos."
+  observaciones: null
+- campo_guia: '45'
+  titulo: U.MED
+  importancia: Recomendado
+  tipo: Carácter
+  tamano: '2'
+  definicion: Código de Unidad de longitud
+  finalidad: "Unidad de medida de longitud. Contiene el código de la tabla de unidades de medida indicando la unidad de medida\
+    \ a las que se refieren las cantidades anteriores de dimensiones, entendiendo por tales el ancho, alto y largo del artículo.\
+    \ Ver campo 37\nEs obligatorio rellenar este campo, siempre que se hayan introducido las medidas del artículo.\n   Tabulado\
+    \ en tabla D112."
+  observaciones: null
+- campo_guia: '46'
+  titulo: VOLUMEN
+  importancia: Recomendado
+  tipo: Numérico
+  tamano: '8'
+  definicion: Volumen del Artículo
+  finalidad: "Contiene el volumen unitario del artículo (con embalaje). \nEste campo refiere siempre al campo 37-U. ENVÍO\
+    \ EXTERNA  de la ficha de datos básicos. \nEs empleado por los subsistemas de abastecimiento y transporte para cálculo\
+    \ automático del volumen de los bultos."
+  observaciones: null
+- campo_guia: '47'
+  titulo: UNIDAD MEDIDA
+  importancia: Recomendado
+  tipo: Carácter
+  tamano: '2'
+  definicion: Código de Unidad de Volumen.
+  finalidad: 'Contiene el código de la tabla de unidades de medida, indicando la unidad a la que se refiere la cantidad del
+    volumen del artículo. Ver campo 37
+
+    Debe cargarse siempre que se haya introducido el volumen.
+
+    Tabulado en tabla D112.'
+  observaciones: null
+- campo_guia: '53'
+  titulo: MANT. PREVENTIVO.
+  importancia: Obligatorio
+  tipo: Carácter.(Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Sí, o No,  tiene tareas de Mantenimiento Preventivo o Programado.
+  finalidad: Indica si el artículo a nivel global tiene mantenimiento preventivo, o programado.
+  observaciones: "Se anotará 'S' en todos aquellos artículos a los que se les realice mantenimiento preventivo, sean CUF o\
+    \ sean conjuntos y subconjuntos.\nDebe anotarse: ‘Sí’, en los materiales y equipos que puedan ser objeto de revistas e\
+    \ inspecciones técnicas; éstas se han de considerar Tareas de Mantenimiento Preventivo y formar parte de los datos básicos\
+    \ de mantenimiento.\n\tSu carga correcta permitirá abrir operaciones o tareas de mantenimiento preventivo a dicho artículo.\n\
+    \tRecordad que para tener un artículo tareas de mantenimiento preventivo (Tipo: P), debe anotarse al menos un Control\
+    \ de Vida (Campo 63); para que pueda haber una cadencia o periodicidad en la Tarea"
+- campo_guia: '56'
+  titulo: COSTE DE USO
+  importancia: Opcional
+  tipo: Numérico
+  tamano: '5'
+  definicion: Valor Uso o utilización de un  Articulo (herramienta, utillaje, equipos de comprobación y test) utilizado en
+    talleres de mantenimiento, en. EUROS/ hora.
+  finalidad: 'Se refiere a artículos/NOC de Clase C.IX.c: herramientas, utillaje, equipos de comprobación y test.
+
+    Indica el coste en euros de una hora de utilización de un artículo que sea “A - MAQUINA / HERRAMIENTA (AMORTIZABLE) o
+    B - UTIL/HERRAMIENTA (NO AMORTIZABLE)”  y necesario para realizar una Operación Estándar de Mantenimiento.
+
+    Se emplea para obtener los Costes de Utilización, durante la ejecución de órdenes de trabajo (ORTR), de los Recursos Técnicos
+    asociados a una Operación Estándar de Mantenimiento, que sean equipos catalogados y técnicamente complejos o costosos
+    de los 3º y 4º EMAN: bancos de motores, lectores de tarjetas electrónicos, equipos de calibración, de ITV, etc.'
+  observaciones: 'Opcional, pero sólo para aquellos artículos que definidos de tipo A - MAQUINA / HERRAMIENTA (AMORTIZABLE)
+    o B - UTIL/HERRAMIENTA (NO AMORTIZABLE) en el campo:   8 – Tipo de Artículo.
+
+    .'
+- campo_guia: '57'
+  titulo: CONFIG. TEORICA
+  importancia: Obligatorio
+  tipo: Carácter. (Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Sí, o No, ha de tener  un Árbol de Configuración Teórica ese artículo.
+  finalidad: Indica la posibilidad de tener o no el artículo un Árbol de  configuración teórica para la gestión logística,
+    que se reflejará como configuración real en los Formularios Descriptivos de la Filiación- Historial de Mantenimiento,
+    y permitirá desmontar y/o sustituir componentes en las actividades de mantenimiento del CUF o Equipo, y anotar si procede
+    diferentes datos de consumo o uso para cada componente definido en la Configuración.
+  observaciones: 'No confundir con la Gestión de Configuración de la Ingeniería de Sistemas.
+
+    Se debe contestar afirmativamente a todos aquellos artículos de los que posteriormente se vayan a definir un árbol de
+    configuración para la gestión logística, independientemente de que está configuración ya haya sido elaborada,  o aún no:
+    CUF, materiales principales o equipos, etc.
+
+    Además,  para poder dar de alta, en el subsistema de Mantenimiento, la configuración real de un artículo, es preciso que
+    en la ficha de datos básicos se haya anotado.
+
+    “SÍ” en el campo 59- CONTROL UNITARIO.
+
+    En el campo 15 GRUPO ESTRUCTURA: o, “0- Artículo Final”, o, “7- Artículo Final sin Filiación”.'
+- campo_guia: '58'
+  titulo: 'ESCALONES MANTENIMIENTO : 1, 2, 3, 4, 5'
+  importancia: Obligatorio
+  tipo: Carácter. (Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Sí, o No, tiene el artículo operaciones de mantenimiento en cada escalón (EMAN 1 a 5).
+  finalidad: 'Los siguientes cinco campos, permitirán al usuario final poder asignar tareas de los diferentes escalones al
+    artículo.
+
+    1: Indica si el artículo tiene operaciones de mantenimiento de 1º EMAN (Operador/ Mantenimiento Orgánico).
+
+    2: Indica si el artículo tiene operaciones de mantenimiento para un 2º EMAN (de Unidad/ Mantenimiento Orgánico).
+
+    3: Indica si el artículo tiene operaciones de mantenimiento de para un 3º EMAN (Intermedio).
+
+    4: Indica si el artículo tiene operaciones de mantenimiento para un 4º EMAN (Superior).
+
+    5: Indica si el artículo tiene operaciones de mantenimiento de nivel 5 (Industrial o Civil).'
+  observaciones: "Este Campo está relacionado con el Campo 25- REPARABLE/ mantenible.\nSi se ha anotado REPARABLE: SÍ, entonces\
+    \ deberá anotarse SÍ en al menos un Escalón de Mantenimiento\nSe considera que siempre que un artículo tenga mantenimiento\
+    \ de un escalón (EMAN), debe poder tenerlo de los siguientes.\n\tEl no señalar mantenimiento en un escalón determinado,\
+    \ imposibilitará el abrir operaciones de mantenimiento a ese artículo en dicho EMAN.\nUn material considerado ESPECIAL\
+    \ (Campo 27) deberá tener anotado “Sí” sólo en el EMAN que proceda."
+- campo_guia: '59'
+  titulo: CONTROL UNITARIO
+  importancia: Obligatorio
+  tipo: Carácter. (Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Sí,  o No, ha de tener un  Control unitario.
+  finalidad: "Indica si un determinado artículo será identificado individualmente por cualquier código de identificación individual:\
+    \ matrícula, número de serie, número Z, número de inventario, lote, etc.\nLos códigos de identificación de control unitario\
+    \ que se pueden emplear se anotan en el campo 60-COD. CONTROL UNIT.\n\tEn la función Mantenimiento, para poder dar de\
+    \ alta, en la Filiación- Historial de Mantenimiento, una configuración real de un artículo, es preciso tenga asignado\
+    \ un control unitario (CONTROL UNITARIO: Sí)."
+  observaciones: "Se debe rellenar con 'S' todos aquellos artículos que de una forma u otra interese tener controlados unitariamente.\n\
+    \ En este aspecto se recuerda que se pueden controlar artículos no seriados, de los que se quiera controlar su vida (código:\
+    \ L- LOTE)."
+- campo_guia: '60'
+  titulo: COD.CONTROL UNIT
+  importancia: Obligatorio
+  tipo: Carácter. (Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Código de Control Unitario del artículo
+  finalidad: "Código de configuración utilizado para identificar individualmente un artículo o grupo de artículos (lote, matricula,\
+    \ Nº de serie...)\n\tEn base a este código, se abrirá y llevará en el subsistema de mantenimiento la Filiación/ historial\
+    \ de mantenimiento del artículo."
+  observaciones: "Se debe rellenar este campo, siempre que se haya rellenado el campo 59- CONTROL UNITARIO  con un 'S'.\n\
+    Tabulado en tabla D113 TIPO DE CONTROL UNITARIO. \nTABLA D113  TIPO DE CONTROL UNITARIO\nA                           MATRICULA\
+    \ AERONÁUTICA          \nB                           NUMERO DE BASTIDOR             \nC                           NUMERO\
+    \ DE CHASIS               \nI                            NUMERO DE INVENTARIO           \nK                          \
+    \ MATRICULA ANIMAL               \nL                            LOTE                           \nM                   \
+    \        MATRICULA                      \nN                           MATRICULA VE                   \nS             \
+    \              NUMERO DE SERIE                \nZ                           NUMERO Z (INGENIEROS ZAPADORES)\n0       \
+    \                    POSICIONAL                     \n1                           UNITARIO"
+- campo_guia: '63'
+  titulo: CONTROL DE VIDA
+  importancia: Obligatorio
+  tipo: Carácter. (Puede ser “S” o “N” )
+  tamano: '1'
+  definicion: Sí, o No, tiene el artículo uno, o varios, Controles de su Vida útil en servicio.
+  finalidad: 'Indica si se efectúa o no un control sobre la vida útil y/o el uso o empleo del artículo.
+
+    La vida útil se puede controlar por tiempo/ plazos, o, por el uso o utilización del material (se anota en la Filiación/
+    Historial de Mantenimiento).
+
+    El Sistema permite que se pueda controlar simultáneamente la vida de un artículo por un máximo de tres conceptos diferentes.
+
+    Estos controles de vida  también se usan en la gestión de Operaciones Estándar de Mantenimiento de Tipo “P” (preventivo),
+    para marcar la cadencia.'
+  observaciones: "Se debe indicar 'S' en todos aquellos artículos que por sus Características tienen una vida determinada.\
+    \ Siempre que se rellene este campo, se deben rellenar también los  campos 64- COD. UNIDAD VIDA (un máximo de tres códigos),\
+    \ y,  65-CANTIDAD VIDA para cada código anotado)\n\tNo se pueden asignar Tareas de Mantenimiento Preventivo (Campo 53),\
+    \ entre las que se pueden incluir las revistas e inspecciones técnicas, en artículos que no tengan Control de Vida.\n\
+    Cuando se trate de un componente en la configuración, los controles de vida (Código, y Cantidad de Vida) se toman por\
+    \ el subsistema de mantenimiento de los anotados en la configuración teórica. Si no se ha anotado, no habrá un control."
+- campo_guia: '64'
+  titulo: COD.UNIDAD VIDA (HASTA 3)
+  importancia: Obligatorio
+  tipo: Carácter
+  tamano: '2'
+  definicion: Son los conceptos por los que se va a controlar la vida o uso de un artículo/ NOC
+  finalidad: "Contendrá las Unidades de Medida de los conceptos de la definición. \n\tSe deberán cargar aquellos códigos de\
+    \ unidad de vida que se vayan a emplear posteriormente en la medida de las cadencias de las operaciones o tareas de mantenimiento\
+    \ preventivo.\nEl Sistema SIGLE permite controlar la vida útil o uso de un artículo con un máximo de tres conceptos, que\
+    \ tendrán su reflejo en la Filiación- Historial de Mantenimiento."
+  observaciones: "Tabulado en D114 CÓDIGOS DE CONTROL DE VIDA DE ARTÍCULOS.\n Hay dos tipos de códigos: una las que corresponden\
+    \ a tiempo transcurrido (días, meses, quincenas, años, etc.) que basta con aplicar una de ellas para que posteriormente\
+    \ se pueda controlar por cualquiera. El otro tipo corresponde a aquellos que se den controlar manualmente (disparos, horas\
+    \ de funcionamiento, etc.), y han de anotarse en el registro M-0057 TIEMPO DE FUNCIONAMIENTO, de la Filiación- Historial\
+    \ de Mantenimiento.\nTambién se relaciona con la CADENCIA de una Operación Estándar de Mantenimiento.\nPara cada código\
+    \ de control de vida, la ficha de datos básicos debe reflejar en el campo 65 la CANTIDAD DE VIDA o uso prevista."
+- campo_guia: '65'
+  titulo: CANTIDAD VIDA
+  importancia: Obligatorio
+  tipo: Numérico
+  tamano: '8'
+  definicion: Cantidad de Vida o uso del artículo.
+  finalidad: "Cantidad de vida. Establece la cantidad del código señalado en el campo anterior, 64-COD. UNIDAD VIDA. \nCorresponde\
+    \ a la vida, uso o  utilización máxima y esperada del artículo, según su diseño o especificaciones técnicas de adquisición.\n\
+    También permite gestionar en el Subsistema de Abastecimiento los artículos controlados por su LOTE, dentro de su vida\
+    \ útil (Campo 59 CONTROL UNITARIO), con el fin de prevenir riesgos"
+  observaciones: null

@@ -65,6 +65,12 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
         "page_size": 50,
         "max_page_size": 200,
     },
+    # The article master (E12): a page of its list (virtualized) and of the
+    # grid's batch.
+    "articles": {
+        "page_size": 200,
+        "max_page_size": 1000,
+    },
     # The interface (E12): the sidebar's width in pixels, dragged by its edge.
     "ui": {
         "sidebar_width": {"min": 200, "max": 480, "default": 256},

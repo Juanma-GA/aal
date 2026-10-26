@@ -30,6 +30,9 @@ _EXCEL_ESCAPE_RE = re.compile(r"_x[0-9A-Fa-f]{4}_")
 _XML_ILLEGAL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 _HEADER_FONT = Font(bold=True)
 _HEADER_FILL = PatternFill("solid", fgColor="DDE3EA")
+# The official Fichero Carga's header (header_look "fichero_carga").
+_SIGLE_FONT = Font(name="Calibri", size=8, bold=True)
+_SIGLE_CODES_FILL = PatternFill("solid", fgColor="FFFFFFFF")
 
 
 def excel_text(value: str) -> str:
@@ -63,10 +66,16 @@ def write_workbook(template: Template, rows: Iterable[dict[str, Any]]) -> bytes:
     sheet = workbook.active
     sheet.title = template.sheet
 
+    sigle = template.header_look == "fichero_carga"
     for r in range(template.header_rows):
         for i, col in enumerate(columns):
             cell = sheet.cell(row=r + 1, column=i + 1)
-            cell.font, cell.fill = _HEADER_FONT, _HEADER_FILL
+            if sigle:
+                cell.font = _SIGLE_FONT
+                if r == 1:
+                    cell.fill = _SIGLE_CODES_FILL
+            else:
+                cell.font, cell.fill = _HEADER_FONT, _HEADER_FILL
             cell.alignment = Alignment(vertical="center", wrap_text=True)
             cell.value = excel_text(col.headers[r])
             cell.data_type = "s"
@@ -95,7 +104,8 @@ def write_workbook(template: Template, rows: Iterable[dict[str, Any]]) -> bytes:
                 cell.value = excel_text(display(col, value))
                 cell.data_type = "s"
 
-    sheet.freeze_panes = sheet.cell(row=template.first_data_row, column=1)
+    if not sigle:
+        sheet.freeze_panes = sheet.cell(row=template.first_data_row, column=1)
     out = io.BytesIO()
     workbook.save(out)
     return out.getvalue()

@@ -6,7 +6,8 @@ app/seeds/reference_tables_seed.yaml (E03), after the seed changes:
 Adds the new tables and values; a value already in the database is never
 modified (an admin may have edited it): where it differs from the seed it
 is listed, so a person decides. The tables' name, source, note and
-attribute schema, and the 30 article fields, follow the seed (they are not
+attribute schema, and the 30 article fields (with their Fichero Carga
+header, S/N values and MAR06 help, E12), follow the seed (they are not
 editable in the app). Checks the seed first (unique codes, codes as text,
 attributes, reference tables of the fields) and loads nothing if it fails.
 The run is recorded in the audit log.
@@ -19,13 +20,14 @@ from _common import utf8_output
 
 from app.db.base import async_session_factory, engine
 from app.services import audit
-from app.services.reference_seed import SeedError, load_reference_tables
+from app.services.reference_seed import SeedError, load_article_field_extras, load_reference_tables
 
 
 async def main() -> int:
     async with async_session_factory() as session:
         try:
             report = await (await session.connection()).run_sync(load_reference_tables)
+            extras = await (await session.connection()).run_sync(load_article_field_extras)
         except SeedError as exc:
             print("La semilla no pasa la validación; no se ha cargado nada:", file=sys.stderr)
             for problem in exc.problems:
@@ -41,6 +43,7 @@ async def main() -> int:
                 "values_added": report.values_added,
                 "fields_added": report.fields_added,
                 "fields_updated": report.fields_updated,
+                "field_extras_updated": extras,
                 "differences": len(report.differences),
                 "values_not_in_seed": report.values_not_in_seed,
             },
@@ -49,7 +52,8 @@ async def main() -> int:
     await engine.dispose()
     print(
         f"Tablas nuevas: {report.tables_added}. Valores nuevos: {report.values_added}. "
-        f"Campos del artículo nuevos: {report.fields_added}; actualizados: {report.fields_updated}."
+        f"Campos del artículo nuevos: {report.fields_added}; actualizados: {report.fields_updated}; "
+        f"cabecera, valores y ayuda actualizados: {extras}."
     )
     if report.differences:
         print("Valores que difieren de la semilla (se conservan los de la base):")

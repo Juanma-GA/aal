@@ -1,0 +1,148 @@
+"""The article master (E12): its data as PRISMA code -> value, the checks
+that run on every save, "dónde se usa" and who may edit.
+
+- `data_of(article)` / `set_data(article, data)`: the 26 field columns,
+  the NOC (cdART) and the name (NomArt) by PRISMA code; the life controls
+  apart (`life_of`, `set_life`).
+- `recheck(db, article)`: AR-001…AR-007 over its data, kept on the article
+  (findings, finding_codes) so the list filters by rule.
+- `USAGE_PROVIDERS` / `register_usage`: where an article is used. E12 has
+  one provider ("Es el CUF del material X": a material with its NOC);
+  E13/E14 add the CONFUNFIS positions, the parts and the functional
+  products, E17 the "affects a CUF with a baseline" warning, without
+  touching the endpoint.
+- `can_edit_articles(db, user)`: the article is global, so the permission
+  articulos.editar of any material the user is in (the matrix in BD, D5),
+  or an admin.
+"""
+
+import re
+from collections.abc import Awaitable, Callable
+from decimal import Decimal
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import FIELD_COLUMNS, MAX_LIFE_CONTROLS, Article, ArticleLifeControl, Material, RolePermission, User, UserMaterialRole
+from app.schemas.materials import NCAGE_PATTERN, NOC_PATTERN, normalize_code
+from app.services.article_fields import FieldDef, field_defs
+from app.services.reference import codes_by_state
+from app.validacion.articulos import LifeControl, check
+
+EDIT_PERMISSION = "articulos.editar"
+IDENTITY = ("noc", "pn", "ncage", "nombre", "origen_nombre")
+
+
+def normalize_identity(noc: Any, pn: Any, ncage: Any) -> tuple[str | None, str | None, str | None, list[str]]:
+    """NOC/NPC and NCAGE as E10/E11 check them (upper case, no spaces; the
+    NPC's X in position 7 is a letter like any other), the P/N trimmed;
+    with the names of the wrong ones."""
+    noc, ncage = normalize_code(noc), normalize_code(ncage)
+    pn = pn.strip() or None if isinstance(pn, str) else pn
+    wrong = []
+    if noc is not None and not re.fullmatch(NOC_PATTERN, str(noc)):
+        wrong.append("noc")
+    if ncage is not None and not re.fullmatch(NCAGE_PATTERN, str(ncage)):
+        wrong.append("ncage")
+    return noc, pn, ncage, wrong
+
+
+def data_of(article: Article) -> dict[str, Any]:
+    return {prisma: getattr(article, column) for prisma, column in FIELD_COLUMNS.items()}
+
+
+def set_data(article: Article, data: dict[str, Any]) -> None:
+    for prisma, column in FIELD_COLUMNS.items():
+        if prisma in data:
+            setattr(article, column, data[prisma])
+
+
+def life_of(article: Article) -> list[LifeControl]:
+    return [LifeControl(c.unit_code, c.quantity) for c in sorted(article.life_controls, key=lambda c: c.position)]
+
+
+def set_life(article: Article, life: list[LifeControl]) -> None:
+    """Replaces the life controls (empty pairs are dropped)."""
+    kept = [c for c in life if c.unit_code not in (None, "") or c.quantity is not None][:MAX_LIFE_CONTROLS]
+    article.life_controls = [ArticleLifeControl(position=i, unit_code=c.unit_code or None, quantity=c.quantity) for i, c in enumerate(kept, start=1)]
+
+
+def _plain(value: Any) -> Any:
+    return str(value) if isinstance(value, Decimal) else value
+
+
+def snapshot(article: Article) -> dict[str, Any]:
+    """The article as the audit keeps it."""
+    return {
+        **{k: getattr(article, k) for k in IDENTITY},
+        "fields": {prisma: _plain(v) for prisma, v in data_of(article).items() if prisma not in ("cdART", "NomArt")},
+        "life_controls": [{"unit_code": c.unit_code, "quantity": _plain(c.quantity)} for c in life_of(article)],
+    }
+
+
+async def references_for(db: AsyncSession, defs: dict[str, FieldDef]) -> dict[str, dict[str, bool]]:
+    tables = {d.table for d in defs.values() if d.table} | {"D114"}
+    return {t: await codes_by_state(db, t) for t in sorted(tables)}
+
+
+class Checker:
+    """The definitions and reference codes, read once for many articles."""
+
+    def __init__(self, defs: dict[str, FieldDef], references: dict[str, dict[str, bool]]):
+        self.defs, self.references = defs, references
+
+    @classmethod
+    async def load(cls, db: AsyncSession) -> "Checker":
+        defs = await field_defs(db)
+        return cls(defs, await references_for(db, defs))
+
+    def findings(self, data: dict[str, Any], life: list[LifeControl]) -> list[dict[str, Any]]:
+        return check(data, life, self.defs, self.references)
+
+    def recheck(self, article: Article) -> list[dict[str, Any]]:
+        found = self.findings(data_of(article), life_of(article))
+        article.findings = found
+        article.finding_codes = sorted({f["code"] for f in found})
+        return found
+
+
+UsageProvider = Callable[[AsyncSession, Article], Awaitable[list[dict[str, Any]]]]
+USAGE_PROVIDERS: list[tuple[str, UsageProvider]] = []
+
+
+def register_usage(name: str) -> Callable[[UsageProvider], UsageProvider]:
+    def decorate(fn: UsageProvider) -> UsageProvider:
+        USAGE_PROVIDERS.append((name, fn))
+        return fn
+
+    return decorate
+
+
+@register_usage("cuf")
+async def _cuf_of_material(db: AsyncSession, article: Article) -> list[dict[str, Any]]:
+    """The article is the CUF of a material: the material has its NOC."""
+    if article.noc is None:
+        return []
+    rows = (await db.execute(select(Material.id, Material.name).where(Material.noc == article.noc, Material.deleted_at.is_(None)).order_by(Material.name))).all()
+    return [{"kind": "material_cuf", "material_id": str(mid), "material_name": name} for mid, name in rows]
+
+
+async def where_used(db: AsyncSession, article: Article) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for _name, provider in USAGE_PROVIDERS:
+        out += await provider(db, article)
+    return out
+
+
+async def can_edit_articles(db: AsyncSession, user: User) -> bool:
+    if user.is_admin:
+        return True
+    found = await db.scalar(
+        select(UserMaterialRole.material_id)
+        .join(RolePermission, RolePermission.role_code == UserMaterialRole.role_code)
+        .join(Material, Material.id == UserMaterialRole.material_id)
+        .where(UserMaterialRole.user_id == user.id, RolePermission.permission_code == EDIT_PERMISSION, Material.deleted_at.is_(None))
+        .limit(1)
+    )
+    return found is not None

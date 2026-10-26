@@ -2,6 +2,7 @@
 (alembic/env.py imports this package)."""
 
 from app.models.app_parameter import AppParameter
+from app.models.article import FIELD_COLUMNS, MAX_LIFE_CONTROLS, NAME_ORIGINS, Article, ArticleLifeControl
 from app.models.audit_log import AuditLog
 from app.models.catalog import CatalogVersion, MaterialCategory, MaterialSubcategory, SnsExtraName, SnsPosition, SubcategorySns
 from app.models.import_job import IMPORT_JOB_STATUSES, ImportJob
@@ -24,14 +25,19 @@ from app.models.user import User
 __all__ = [
     "ATTRIBUTE_TYPES",
     "AppParameter",
+    "Article",
+    "ArticleLifeControl",
     "ArticleFieldDefinition",
     "AuditLog",
     "CatalogVersion",
+    "FIELD_COLUMNS",
     "IMPORT_JOB_STATUSES",
     "ImportJob",
     "LoginFailure",
+    "MAX_LIFE_CONTROLS",
     "MODULE_STATUSES",
     "Material",
+    "NAME_ORIGINS",
     "MaterialCategory",
     "MaterialSubcategory",
     "MaterialSubcategoryLink",

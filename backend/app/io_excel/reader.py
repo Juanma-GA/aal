@@ -115,6 +115,8 @@ def _header_text(value: Any) -> str:
 def _check_headers(template: Template, header_rows: list[tuple[Any, ...]], result: ReadResult) -> None:
     width = len(template.columns)
     for r in range(template.header_rows):
+        if template.checked_header_rows is not None and r + 1 not in template.checked_header_rows:
+            continue
         cells = header_rows[r] if r < len(header_rows) else ()
         for i, col in enumerate(template.columns):
             found = _header_text(cells[i] if i < len(cells) else None)

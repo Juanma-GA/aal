@@ -87,6 +87,10 @@ class ArticleFieldOut(BaseModel):
     supplied_by_contractor: str
     reference_table_code: str | None
     reference_table_name: str | None
+    # E12: its name in the Fichero Carga, its S/N values, its MAR06 help.
+    header: str | None = None
+    allowed_values: list[str] | None = None
+    help: dict[str, Any] | None = None
 
 
 class ImportIssueOut(BaseModel):
@@ -107,6 +111,12 @@ class ImportReportOut(BaseModel):
     removed: list[dict[str, Any]] | None = None
     errors: list[ImportIssueOut]
     warnings: list[ImportIssueOut]
+    # Articles (E12): rows refused (with their row and reasons; they do not
+    # block applying the rest), the AR findings by rule and the AR-008
+    # corrections; absent for the other templates.
+    rejected: list[dict[str, Any]] | None = None
+    ar: dict[str, list[dict[str, Any]]] | None = None
+    corrections: list[dict[str, Any]] | None = None
 
 
 class ImportJobOut(BaseModel):

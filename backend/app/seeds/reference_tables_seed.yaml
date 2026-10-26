@@ -1748,6 +1748,7 @@ tablas:
     descripcion: Producto de sustitución de emergencia
 campos_articulo:
 - codigo_prisma: cdART
+  cabecera: 'NOC del artículo'
   nombre: NOC del artículo
   importancia: Obligatorio
   campo_guia: '1'
@@ -1758,6 +1759,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: NomArt
+  cabecera: 'Nombre coloquial'
   nombre: Nombre coloquial
   importancia: Obligatorio
   campo_guia: '9'
@@ -1768,6 +1770,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: cdConjRep
+  cabecera: 'Grupo estructural.'
   nombre: Grupo estructural
   importancia: Obligatorio
   campo_guia: '15'
@@ -1778,6 +1781,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: D107
 - codigo_prisma: cdSegArt
+  cabecera: 'Código de Seguridad.'
   nombre: Código de Seguridad
   importancia: Recomendado
   campo_guia: '19'
@@ -1788,7 +1792,9 @@ campos_articulo:
   suministrado_por_contratista: Valor por defecto "U"
   tabla_referencia: D106
 - codigo_prisma: snRepaArt
+  cabecera: 'Reparable (S/N)'
   nombre: Reparable (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '25'
   tipo: Carácter
@@ -1798,7 +1804,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: snConsuArt
+  cabecera: 'Consumible (S/N)'
   nombre: Consumible (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '26'
   tipo: Carácter
@@ -1808,6 +1816,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: cdUsumExtrArt
+  cabecera: 'Unidad de suministro externa.'
   nombre: Unidad de suministro externa
   importancia: Obligatorio
   campo_guia: '37'
@@ -1818,7 +1827,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: D155
 - codigo_prisma: snCtrlUniArt
+  cabecera: 'Control unitario (S/N).'
   nombre: Control unitario (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '59'
   tipo: Carácter
@@ -1828,6 +1839,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: imEstdArt
+  cabecera: 'Precio estandar.'
   nombre: Precio estándar
   importancia: Obligatorio
   campo_guia: '18'
@@ -1838,7 +1850,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: snDocuAdjUArt
+  cabecera: 'Documentación adjunta (S/N)'
   nombre: Documentación adjunta (S/N)
+  valores: [S, N]
   importancia: Recomendado
   campo_guia: '30'
   tipo: Carácter
@@ -1848,6 +1862,7 @@ campos_articulo:
   suministrado_por_contratista: N
   tabla_referencia: null
 - codigo_prisma: caPesoArt
+  cabecera: 'Peso.'
   nombre: Peso
   importancia: Recomendado
   campo_guia: '40'
@@ -1858,6 +1873,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: cdUnidPesoArt
+  cabecera: 'Unidad de peso.'
   nombre: Unidad de peso
   importancia: Recomendado
   campo_guia: '41'
@@ -1868,6 +1884,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: D112
 - codigo_prisma: caLargoArt
+  cabecera: 'Largo.'
   nombre: Largo
   importancia: Recomendado
   campo_guia: '42'
@@ -1878,6 +1895,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: caAnchoArt
+  cabecera: 'Ancho.'
   nombre: Ancho
   importancia: Recomendado
   campo_guia: '43'
@@ -1888,6 +1906,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: caAltoArt
+  cabecera: 'Alto.'
   nombre: Alto
   importancia: Recomendado
   campo_guia: '44'
@@ -1898,6 +1917,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: cdUnidLongArt
+  cabecera: 'Unidad longitudinal.'
   nombre: Unidad longitudinal
   importancia: Recomendado
   campo_guia: '45'
@@ -1908,6 +1928,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: D112
 - codigo_prisma: caVoluArt
+  cabecera: 'Volumen.'
   nombre: Volumen
   importancia: Recomendado
   campo_guia: '46'
@@ -1918,6 +1939,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: cdUnidVoluArt
+  cabecera: 'Unidad de volumen.'
   nombre: Unidad de volumen
   importancia: Recomendado
   campo_guia: '47'
@@ -1928,6 +1950,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: D112
 - codigo_prisma: cdCtrlUniArt
+  cabecera: 'Código control unitario.'
   nombre: Código control unitario
   importancia: Obligatorio
   campo_guia: '60'
@@ -1938,7 +1961,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: D113
 - codigo_prisma: snCtrlVidaArt
+  cabecera: 'Control de vida (S/N)'
   nombre: Control de vida (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '63'
   tipo: Carácter
@@ -1948,7 +1973,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: D114
 - codigo_prisma: snMtN1Art
+  cabecera: 'Manto. individual escalón 1º (S/N)'
   nombre: Manto. individual escalón 1º (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '58'
   tipo: Carácter
@@ -1958,7 +1985,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: snMtN2Art
+  cabecera: 'Manto. individual escalón 2º (S/N)'
   nombre: Manto. individual escalón 2º (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '58'
   tipo: Carácter
@@ -1968,7 +1997,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: snMtN3Art
+  cabecera: 'Manto. individual escalón 3º (S/N)'
   nombre: Manto. individual escalón 3º (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '58'
   tipo: Carácter
@@ -1978,7 +2009,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: snMtN4Art
+  cabecera: 'Manto. individual escalón 4º (S/N)'
   nombre: Manto. individual escalón 4º (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '58'
   tipo: Carácter
@@ -1988,6 +2021,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: vaUsoArt
+  cabecera: 'Coste en € / hora de uso.'
   nombre: Coste en € / hora de uso
   importancia: Recomendado
   campo_guia: '56'
@@ -1998,7 +2032,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: snCnfgArt
+  cabecera: 'Control de configuración (S/N)'
   nombre: Control de configuración (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '57'
   tipo: Carácter
@@ -2008,7 +2044,9 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: snMtPreArt
+  cabecera: 'Mantenimiento preventivo (S/N)'
   nombre: Mantenimiento preventivo (S/N)
+  valores: [S, N]
   importancia: Obligatorio
   campo_guia: '53'
   tipo: Carácter
@@ -2018,6 +2056,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: cdUniVidaA
+  cabecera: 'Código Unidad Vida'
   nombre: Código Unidad Vida
   importancia: Obligatorio
   campo_guia: '64'
@@ -2028,6 +2067,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: D114
 - codigo_prisma: caVidaArt
+  cabecera: 'Cantidad Vida'
   nombre: Cantidad Vida
   importancia: Obligatorio
   campo_guia: '65'
@@ -2038,6 +2078,7 @@ campos_articulo:
   suministrado_por_contratista: S
   tabla_referencia: null
 - codigo_prisma: cdPolEl
+  cabecera: 'Código POL.'
   nombre: Código POL
   importancia: Obligatorio
   campo_guia: N/A
