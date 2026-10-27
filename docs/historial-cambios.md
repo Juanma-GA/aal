@@ -715,3 +715,14 @@ falló por `test_module_seed`, corregido en el siguiente) y `9420a9c` (revisión
 casos del §9.1.8, las cifras del §2.3, la entrega bloqueada y en verde, el análisis sin bloqueos y 714 filas en < 3 s).
 `verify-validation`, `verify-navigation` y `verify-confunfis` en verde; `verify-validation-real`: NOT RUN sin
 `private/CON_FUN_FIS2_ejemplo.xlsx` (flujo probado con un libro sintético).
+
+## E16 — Fleco: el backend no arrancaba en Windows
+
+- `validation_report.py` resolvía `ZoneInfo("Europe/Madrid")` al importarse; Windows no trae base de zonas horarias y
+  el backend no arrancaba (`ZoneInfoNotFoundError`). La CI en Linux no lo veía.
+- **Arreglo:** `tzdata` en `pyproject.toml` y en los dos lockfiles (con hash, sin marcador de plataforma: `npm run
+  update` lo instala al cambiar el lockfile, también en Windows); la zona es el ajuste `TIMEZONE` (por defecto
+  `Europe/Madrid`), se resuelve al usarse (`app/core/timezone.py`) y se comprueba al arrancar con un mensaje claro (HR7).
+- **Para que no se repita:** `tests/unit/test_timezone.py` simula Windows (sin base de zonas del sistema, y también sin
+  `tzdata`) y un job nuevo de la CI en `windows-latest` instala el lockfile, importa `app.main` y pasa los tests
+  unitarios. Los unitarios ya no limpian `login_failure` al acabar (no tocan la base), así que corren sin ella.

@@ -160,10 +160,14 @@ if _TEST_DB is not None:
         return {"Authorization": f"Bearer {token}"}
 
     @pytest_asyncio.fixture(autouse=True)
-    async def _no_login_failures_left():
+    async def _no_login_failures_left(request):
         """Failed logins of one test never count in the next one (the per
-        address limit is shared: every test client is 127.0.0.1)."""
+        address limit is shared: every test client is 127.0.0.1). Not after a
+        unit test: those never touch the database (the Windows job of the CI
+        runs them without one)."""
         yield
+        if "unit" in request.node.path.parts:
+            return
         async with async_session_factory() as session:
             await session.execute(_delete(LoginFailure))
             await session.commit()

@@ -245,7 +245,8 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   subcategorías (aplicar ya valida), valida otra vez midiendo el tiempo (< 3 s, `VALIDATION_REAL_MAX_S`) y coteja CF-002 = 2,
   CF-007 = 6, CF-008 = 46, CF-012 = 52, CF-014 = 52, CF-015 = 21. Sin el fichero, 2 (NOT RUN). No está en la CI.
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
-  contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
+  contra el fichero de checksums de la release); un job en `windows-latest` (E16) que instala el lockfile, arranca el
+  backend (`import app.main`) y pasa `tests/unit` sin base de datos (los tests unitarios nunca la tocan); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
   job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) + `verify-articles` + `verify-articles-perf` + `verify-confunfis` (tras
   `seed_demo_articles.py` y `seed_demo_confunfis.py`, después de `verify-materials`) + `verify-validation` con Chrome contra
@@ -465,7 +466,8 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   zip) responde 409 `delivery_blocked` con los motivos si no hay validación, está desactualizada o tiene bloqueantes; punto
   de extensión `DELIVERY_GUARDS` (E17: baseline). Las exportaciones de trabajo (Anexo XI, Libro AAL, Maestro AAL) empiezan
   con la hoja ESTADO DE VALIDACIÓN. Informe en Excel y PDF (`validation_report.py`, reportlab). Textos del backend desde
-  `es.json` (`app/core/texts.py`). Pantalla `/materiales/:materialId/validacion` (migración 0017); "Ir a" abre la fila en
+  `es.json` (`app/core/texts.py`) y fechas en la zona del ajuste `TIMEZONE` (`app/core/timezone.py`, por defecto
+  `Europe/Madrid`; en Windows la da el paquete `tzdata`), comprobados ambos al arrancar. Pantalla `/materiales/:materialId/validacion` (migración 0017); "Ir a" abre la fila en
   el árbol (`?fila&buscar&campo`). Equivalencias de los códigos antiguos:
 
   | Antes (E13–E15) | Ahora (E16) | Antes | Ahora |

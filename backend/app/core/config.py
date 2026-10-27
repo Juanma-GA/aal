@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     # read their Spanish texts from the frontend's locale: one source for
     # the screen and the documents. A relative path is taken from backend/.
     i18n_es_path: str = "../src/i18n/locales/es.json"
+    # The time zone the documents write their dates in (an IANA name). On
+    # Windows its data comes from the `tzdata` package (the system has none).
+    timezone: str = "Europe/Madrid"
 
     @field_validator("cors_origins")
     @classmethod

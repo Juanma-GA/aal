@@ -28,12 +28,15 @@ from app.core.config import get_settings
 from app.core.errors import SanitizedErrorMiddleware, validation_error_handler
 from app.core.logging import configure_logging
 from app.core.texts import check as check_texts
+from app.core.timezone import check as check_timezone
 from app.version import app_version
 
 settings = get_settings()
 configure_logging(settings.log_level)
 # The documents' texts (E16) come from the frontend's es.json: fail now, not on the first export.
 check_texts()
+# And their time zone (E16; on Windows, from tzdata): a clear message now, never a 500 later (HR7).
+check_timezone()
 
 app = FastAPI(title="AAL API", version=app_version())
 

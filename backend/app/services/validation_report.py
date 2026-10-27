@@ -13,7 +13,6 @@
 import io
 from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -27,6 +26,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.texts import text
+from app.core.timezone import zone
 from app.io_excel.writer import excel_text
 from app.models import Material, ValidationFinding, ValidationRun
 from app.validacion.catalog import BY_CODE, CATALOG
@@ -35,11 +35,10 @@ _FONT = Font(bold=True, color="FFFFFF")
 _FILL = PatternFill("solid", fgColor="2F3A4C")
 # The traffic light, in the document (not a screen: no theme tokens).
 _LIGHT = {"red": "B42318", "amber": "B54708", "green": "067647", "none": "667085"}
-_ZONE = ZoneInfo("Europe/Madrid")
 
 
 def when(at: datetime | None) -> str:
-    return at.astimezone(_ZONE).strftime("%d/%m/%Y %H:%M") if at else ""
+    return at.astimezone(zone()).strftime("%d/%m/%Y %H:%M") if at else ""
 
 
 def message(f: ValidationFinding, field_names: dict[str, str]) -> str:

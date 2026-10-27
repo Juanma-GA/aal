@@ -42,6 +42,35 @@ jobs:
           tar -xzf "$archive" gitleaks
           ./gitleaks git --redact --verbose --exit-code 1 .
 
+  # Windows is the development machine (D17): the backend must start there
+  # (E16: no zone database of its own, the tzdata package) and its unit tests
+  # pass. No database: the app is only imported and the unit tests never
+  # touch one (the URLs below are never reached).
+  windows:
+    runs-on: windows-latest
+    env:
+      DATABASE_URL: postgresql+asyncpg://aal:aal@localhost:5432/aal
+      TEST_DATABASE_URL: postgresql+asyncpg://aal:aal@localhost:5432/aal_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Backend virtualenv (hashed lockfile)
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python.exe -m pip install --upgrade pip
+          .venv\Scripts\python.exe -m pip install --require-hashes -r requirements-dev.lock.txt
+      - name: The backend starts (import of app.main)
+        run: |
+          .venv\Scripts\python.exe scripts\generate_rsa_keypair.py
+          .venv\Scripts\python.exe -c "import app.main; print('app.main OK')"
+      - name: Unit tests
+        run: .venv\Scripts\python.exe -m pytest -q tests/unit
+
   check:
     runs-on: ubuntu-latest
     services:
