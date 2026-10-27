@@ -638,3 +638,80 @@ migración auditaba el origen en `origin` y un `before` fijo. Todo arreglado.
 **Tests.** `npm run check:all` verde (383 tests de backend); `test-contrast` AA en todos los pares con las tres
 variantes; los nueve `verify-*` de la CI en verde sobre `e971a2b`, y `verify-navigation`, `verify-confunfis` y
 `verify-articles` otra vez sobre `5aaba0c`.
+
+## E16 — RF-03: validador NT 10/17 de la CONFUNFIS, con informe y bloqueo de la entrega
+
+- **Flecos:**
+  - El análisis del libro Anexo XI se hace en memoria (`anexo_xi_dry.py`, la misma pasada del `Runner` sobre copias),
+    dentro de una transacción `REPEATABLE READ READ ONLY`: no escribe ni bloquea. Un test lo comprueba con las filas y
+    los artículos bloqueados por otra sesión; el umbral de 714 filas está en un test.
+  - "Partes compartidas" solo nombra los CUF que el usuario puede abrir (test pendiente de E15).
+  - El informe de importación se lee mejor: antes/después con contraste AA y el cambio resaltado, nombre del
+    artículo, leyenda de la clave, diálogo ancho o a pantalla completa (también en el asistente de E03).
+  - El 500 "ha fallado" venía de un P/N de más de 32 caracteres: ahora es una fila rechazada. Hay aviso de CUF sin
+    subcategorías y la referencia del error se puede buscar en el log.
+  - Los nombres de módulo del sidebar van en dos líneas, con tooltip.
+- **Motor:**
+  - `app/validacion/` tiene un catálogo de 30 reglas (CF-001…CF-021, TP-001, PF-001, AR-001…AR-007) y comprobaciones
+    puras sobre una instantánea, la de lo guardado o la que dejaría una importación.
+  - Se configuran en `validation_rule` (migración 0016; Ajustes → Reglas de validación, auditado).
+  - Ejecuciones y hallazgos con huella de datos y hash de reglas: cualquier cambio posterior las deja "desactualizadas".
+  - Avisos aceptados con justificación.
+  - Validación automática al aplicar un libro.
+- **Entrega:**
+  - "Exportar para entrega" (Anexo XI y Fichero Carga en un zip) responde 409 con los motivos si hay bloqueantes o la
+    validación está desactualizada. Queda el punto `DELIVERY_GUARDS` para E17.
+  - Las exportaciones de trabajo empiezan con la hoja ESTADO DE VALIDACIÓN.
+  - Informes en Excel y PDF (reportlab).
+- **Pantallas:**
+  - Validación NT 10/17 (migración 0017): semáforo, resumen por regla, hallazgos con filtros, "Ir a" a la fila del
+    árbol con su ficha y el campo señalado, aceptar aviso e informes.
+  - CONFUNFIS: "n errores · n avisos", badges con el código de la regla, filtro por severidad y botón de entrega.
+  - Panel con el semáforo.
+- Los códigos OF-*, OP-*, OPF-* y OI-* pasan a las reglas nuevas. La tabla de equivalencias está en CLAUDE.md, y
+  `refresh_findings.py` (lo lanza `npm run update`) recalcula los hallazgos guardados.
+
+**Decisiones.**
+- **reportlab** para el PDF: licencia BSD, Python puro, sin dependencias de sistema (ni navegador, ni Cairo); está
+  en los lockfiles con hash.
+- **Permisos:**
+  - Validar pide `confunfis.ver` y aceptar avisos `confunfis.editar`, como dice el encargo. La matriz ya tenía
+    `validacion.ejecutar` (sin el Observador): queda a decisión de Juanma pasarlo a ese permiso.
+  - La entrega pide `exportar`, el permiso de la matriz para exportar, porque el encargo no lo fija.
+- **OF-009 y OPF-002** (el nombre o la designación distintos de los del maestro) desaparecen: no son reglas de la NT.
+- **CF-015** marca solo la segunda aparición de un duplicado. Así sale la cifra del §2.3.
+- **Hallazgos AR:** cuentan los de los artículos de las filas y los de los artículos de sus partes.
+- **Textos de los documentos del backend:** salen del mismo `es.json` (`I18N_ES_PATH`). Sin ese fichero, el backend no
+  arranca.
+
+**Cifras (§2.3).** Con la demo recién sembrada salen exactas:
+- bloqueantes de la CONFUNFIS: CF-001, 002, 007, 012, 014 y 015 (1 cada una);
+- PF-001: 1 (ZZ);
+- CF-017: 1 (el neumático);
+- AR-002, 003 y 006 (bloqueantes), y AR-001 y 007 (avisos);
+- TP-001 y el resto de reglas: 0.
+
+En total, 10 bloqueantes y 3 avisos.
+
+**Revisión (AACF).** Sin bloqueantes. Corregido:
+- el PDF fallaba con una justificación o un texto largos (filas que se parten y textos cortados a 300 caracteres);
+- los parámetros de una regla se comprueban por tipo;
+- la huella incluye los hallazgos AR de los artículos y los códigos de las tablas de productos;
+- el reloj del análisis en memoria va siempre después de lo guardado;
+- análisis y validación cuentan las mismas partes;
+- las ubicaciones de los hallazgos salen de `es.json`;
+- el backend comprueba al arrancar que tiene sus textos;
+- en Ajustes, los cambios de regla van de uno en uno.
+
+Queda anotado: no hay límite de validaciones por CUF.
+
+**Por qué.** Encargo E16 (`docs/encargos/E16.md`): "lo que no cumple la norma no sale de la herramienta" (hito de demo 2).
+
+**Commits.** `3b0abb2` (parte 1, flecos), `2c24db5` (parte 2, backend), `727c48a` (parte 3, pantallas; su CI
+falló por `test_module_seed`, corregido en el siguiente) y `9420a9c` (revisión). **Commit de cierre: `9420a9c`**
+(CI en verde).
+
+**Tests.** `npm run check:all` verde (425 tests de backend, entre ellos cada regla con su caso bueno y malo y los tres
+casos del §9.1.8, las cifras del §2.3, la entrega bloqueada y en verde, el análisis sin bloqueos y 714 filas en < 3 s).
+`verify-validation`, `verify-navigation` y `verify-confunfis` en verde; `verify-validation-real`: NOT RUN sin
+`private/CON_FUN_FIS2_ejemplo.xlsx` (flujo probado con un libro sintético).
