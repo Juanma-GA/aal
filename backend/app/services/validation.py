@@ -21,6 +21,8 @@
 - `delivery_problems()`: why "Exportar para entrega" is refused (no run, a
   run with blocking findings, a run out of date) and the extension point
   DELIVERY_GUARDS (E17: a reviewed baseline).
+- `prune()` (E17): after each run, only the latest `validation.keep_runs`
+  are kept, and every run a baseline holds (RETAINED_RUNS).
 """
 
 import hashlib
@@ -30,7 +32,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.texts import text
@@ -50,6 +52,7 @@ from app.models import (
 from app.services import audit, confunfis, cuf
 from app.services import confunfis_extras as extras
 from app.services.confunfis_graph import key_text
+from app.services.parameters import get_parameter
 from app.services.reference import codes_by_state
 from app.validacion import engine
 from app.validacion.catalog import ARTICLE, BLOCKING, BY_CODE, CUF, EXTRA, INCOMPATIBILITY, OFF, PART, PRODUCT, ROW, WARNING
@@ -57,6 +60,9 @@ from app.validacion.catalog import ARTICLE, BLOCKING, BY_CODE, CUF, EXTRA, INCOM
 # E17: a reviewed baseline before the delivery. Each guard returns its problems ({"code", "params"}).
 DeliveryGuard = Callable[[AsyncSession, Material], Awaitable[list[dict[str, Any]]]]
 DELIVERY_GUARDS: list[DeliveryGuard] = []
+# E17: the runs never purged (a baseline's). Each returns the ids it keeps for the material.
+RetainedRuns = Callable[[AsyncSession, Material], Awaitable[set[uuid.UUID]]]
+RETAINED_RUNS: list[RetainedRuns] = []
 
 
 # ── the rules' configuration ─────────────────────────────────────────────
@@ -215,7 +221,29 @@ async def validate(db: AsyncSession, material: Material, user: User | None, trig
         after={"run": str(run.id), "trigger": trigger, **counts, "rules_hash": run.rules_hash}, ip=ip,
     )
     await db.flush()
+    await prune(db, material, user, ip)
     return run
+
+
+async def prune(db: AsyncSession, material: Material, user: User | None = None, ip: str | None = None) -> int:
+    """E17 fleco 3: the CUF keeps its latest `validation.keep_runs` runs and every
+    one a baseline holds (RETAINED_RUNS); the others go (with their findings), audited."""
+    keep = max(1, int((await get_parameter(db, "validation"))["keep_runs"]))
+    ids = list((await db.execute(
+        select(ValidationRun.id).where(ValidationRun.material_id == material.id).order_by(ValidationRun.created_at.desc(), ValidationRun.id)
+    )).scalars())
+    held: set[uuid.UUID] = set()
+    for retained in RETAINED_RUNS:
+        held |= await retained(db, material)
+    gone = [i for i in ids[keep:] if i not in held]
+    if not gone:
+        return 0
+    await db.execute(delete(ValidationRun).where(ValidationRun.id.in_(gone)))
+    audit.record(
+        db, action="validation.runs_purged", entity_type="material", entity_id=str(material.id), user_id=user.id if user else None,
+        material_id=material.id, after={"runs": [str(i) for i in gone], "keep_runs": keep}, ip=ip,
+    )
+    return len(gone)
 
 
 async def latest(db: AsyncSession, material: Material) -> ValidationRun | None:

@@ -140,7 +140,7 @@ export function PanelPage(): React.JSX.Element {
           </CardContent>
         </Card>
 
-        {material.permissions.includes('confunfis.ver') ? <ValidationCard materialId={material.id} when={when} /> : null}
+        {material.permissions.includes('validacion.ver') ? <ValidationCard materialId={material.id} when={when} /> : null}
 
         <Card data-testid="panel-team">
           <CardHeader>

@@ -17,12 +17,15 @@ from helpers import bearer, login
 # test checks the database against the spec, not against itself.
 VIEW = ["material.ver", "catalogo.ver", "confunfis.ver", "articulos.ver", "candidatos.ver", "tareas.ver", "validacion.ver"]
 EDIT = ["material.editar", "confunfis.editar", "articulos.editar", "candidatos.editar", "tareas.editar"]
+# E17 (migration 0018): the delivery, the baselines and the change authorizations.
+E17_ANALYST = ["confunfis.entregar", "baseline.crear", "autorizacion.solicitar"]
+E17_REVIEWER = ["confunfis.entregar", "baseline.revisar", "autorizacion.aprobar"]
 EXPECTED = {
-    "analista": set(VIEW + EDIT + ["revision.enviar", "validacion.ejecutar", "exportar"]),
-    "revisor": set(VIEW + ["revision.aprobar", "validacion.ejecutar", "exportar"]),
+    "analista": set(VIEW + EDIT + ["revision.enviar", "validacion.ejecutar", "exportar"] + E17_ANALYST),
+    "revisor": set(VIEW + ["revision.aprobar", "validacion.ejecutar", "exportar"] + E17_REVIEWER),
     "observador": set(VIEW + ["exportar"]),
 }
-ALL = sorted(set(VIEW + EDIT + ["revision.enviar", "revision.aprobar", "validacion.ejecutar", "exportar"]))
+ALL = sorted(set(VIEW + EDIT + ["revision.enviar", "revision.aprobar", "validacion.ejecutar", "exportar"] + E17_ANALYST + E17_REVIEWER))
 
 _probe = APIRouter(prefix="/api/_test/permission")
 for _code in ALL:

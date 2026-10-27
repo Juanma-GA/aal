@@ -115,7 +115,7 @@ async def test_the_rules_configuration(client, demo):
 
 async def test_accepting_a_warning(client, demo):
     analyst, observer = demo["people"]["analista"], demo["people"]["observador"]
-    report = await validate(client, demo, observer)  # validating is confunfis.ver
+    report = await validate(client, demo, analyst)
     tyre = next(f for f in report["findings"] if f["rule_code"] == "CF-017")
     blocking = next(f for f in report["findings"] if f["severity"] == "bloqueante")
     accept = f"{url(demo)}/findings/{tyre['id']}/accept"
@@ -283,20 +283,10 @@ async def test_the_rows_filter_by_rule_and_severity(client, demo):
 
 
 async def test_review_fixes(client, demo):
-    """The E16 review: the delivery is the matrix's "exportar"; a rule's
+    """The E16 review: a rule's
     parameter of another type is refused; a long justification does not break the PDF; and the
     analysis's copy of a row's removal follows every ROW_REMOVAL_EXTENSIONS."""
-    admin, analyst, observer = demo["people"]["admin"], demo["people"]["analista"], demo["people"]["observador"]
-    # The matrix decides (D5): without "exportar", no delivery.
-    async with async_session_factory() as session:
-        await session.execute(delete(RolePermission).where(RolePermission.role_code == "observador", RolePermission.permission_code == "exportar"))
-        await session.commit()
-    try:
-        assert (await client.get(f"{base(demo)}/delivery", headers=observer)).status_code == 403
-    finally:
-        async with async_session_factory() as session:
-            session.add(RolePermission(role_code="observador", permission_code="exportar"))
-            await session.commit()
+    admin, analyst = demo["people"]["admin"], demo["people"]["analista"]
     rule = next(r for r in (await client.get("/api/validation-rules", headers=admin)).json() if r["code"] == "CF-019")
     bad = await client.patch("/api/validation-rules/CF-019", json={"version": rule["version"], "params": {"field": []}}, headers=admin)
     assert (bad.status_code, bad.json()["detail"]["code"]) == (422, "validation_rule_param_invalid")
@@ -309,3 +299,50 @@ async def test_review_fixes(client, demo):
 
     # anexo_xi_dry.Dry.delete_row does what these do: a new one must be copied there too.
     assert [e.__name__ for e in confunfis.ROW_REMOVAL_EXTENSIONS] == ["_remove_with_row"]
+
+
+async def test_e17_permissions_of_validating_and_delivering(client, demo):
+    """E17 flecos 1 and 2: the observer reads the report (validacion.ver) but does not run it
+    (validacion.ejecutar) nor take the delivery out (confunfis.entregar); the working export
+    ("exportar") stays theirs. The matrix decides (D5): given confunfis.entregar, they may."""
+    analyst, observer, reviewer = demo["people"]["analista"], demo["people"]["observador"], demo["people"]["revisor"]
+    assert (await client.post(url(demo), headers=observer)).status_code == 403
+    await validate(client, demo, reviewer)
+    assert (await client.get(url(demo), headers=observer)).json()["state"] == "red"
+    assert (await client.get(f"{url(demo)}/report", params={"format": "pdf"}, headers=observer)).status_code == 200
+    assert (await client.get(f"{base(demo)}/export", params={"kind": "anexo"}, headers=observer)).status_code == 200
+    assert (await client.get(f"{base(demo)}/delivery", headers=observer)).status_code == 403
+    assert (await client.get(f"{base(demo)}/delivery", headers=analyst)).status_code == 409  # allowed, but red
+    async with async_session_factory() as session:
+        session.add(RolePermission(role_code="observador", permission_code="confunfis.entregar"))
+        await session.commit()
+    try:
+        assert (await client.get(f"{base(demo)}/delivery", headers=observer)).status_code == 409
+    finally:
+        async with async_session_factory() as session:
+            await session.execute(delete(RolePermission).where(RolePermission.role_code == "observador", RolePermission.permission_code == "confunfis.entregar"))
+            await session.commit()
+
+
+async def test_e17_only_the_latest_runs_are_kept(client, demo):
+    """E17 fleco 3: validation.keep_runs runs per CUF (here 2); the rest go, audited."""
+    from app.models import AppParameter, ValidationRun
+
+    analyst = demo["people"]["analista"]
+    mid = demo["materials"][TRAMONTANA].id
+    async with async_session_factory() as session:
+        session.add(AppParameter(key="validation", value={"keep_runs": 2}))
+        await session.commit()
+    try:
+        runs = [(await validate(client, demo, analyst))["run_id"] for _ in range(4)]
+        async with async_session_factory() as session:
+            left = set(str(i) for i in (await session.execute(select(ValidationRun.id).where(ValidationRun.material_id == mid))).scalars())
+            purged = (await session.execute(
+                select(AuditLog).where(AuditLog.action == "validation.runs_purged", AuditLog.material_id == mid).order_by(AuditLog.created_at)
+            )).scalars().all()
+        assert left == set(runs[-2:])
+        assert sorted(r for a in purged for r in a.after["runs"]) == sorted(runs[:2])
+    finally:
+        async with async_session_factory() as session:
+            await session.execute(delete(AppParameter).where(AppParameter.key == "validation"))
+            await session.commit()

@@ -599,7 +599,12 @@
     "validacion.ejecutar": "Ejecutar la validación NT 10/17",
     "revision.enviar": "Enviar a revisión",
     "revision.aprobar": "Aprobar o devolver una revisión",
-    "exportar": "Exportar"
+    "exportar": "Exportar",
+    "confunfis.entregar": "Exportar la CONFUNFIS para entrega",
+    "baseline.crear": "Crear una baseline (congelar la configuración)",
+    "baseline.revisar": "Aprobar o rechazar una baseline",
+    "autorizacion.solicitar": "Solicitar una autorización de cambio",
+    "autorizacion.aprobar": "Aprobar o rechazar una autorización de cambio"
   },
   "areas": {
     "material": "Material",
@@ -610,7 +615,9 @@
     "tareas": "Requisitos de tarea",
     "validacion": "Validación",
     "revision": "Revisión",
-    "exportacion": "Exportación"
+    "exportacion": "Exportación",
+    "baseline": "Baselines",
+    "autorizacion": "Autorizaciones de cambio"
   },
   "settings": {
     "title": "Ajustes",
@@ -721,7 +728,8 @@
         "catalog": "Configuración funcional normalizada",
         "ui": "Interfaz",
         "articles": "Artículos",
-        "confunfis": "Configuración funcional física"
+        "confunfis": "Configuración funcional física",
+        "validation": "Validación NT 10/17"
       },
       "labels": {
         "sidebar_width.min": "Ancho mínimo del panel lateral (px)",
@@ -757,7 +765,8 @@
         "detail_panel_width.max": "Ancho máximo de la ficha acoplada (px)",
         "detail_panel_width.default": "Ancho inicial de la ficha acoplada (px)",
         "template.list_rows": "Plantilla vacía: filas con listas desplegables",
-        "template.max_sns_list": "Plantilla vacía: máximo de SNS con lista desplegable"
+        "template.max_sns_list": "Plantilla vacía: máximo de SNS con lista desplegable",
+        "keep_runs": "Validaciones que se conservan por CUF (además de las de cada baseline)"
       }
     },
     "modules": {
@@ -866,7 +875,8 @@
       "validation.run": "Validación NT ejecutada",
       "validation.finding_accepted": "Aviso de validación aceptado",
       "validation.rule_updated": "Regla de validación cambiada",
-      "confunfis.delivery_exported": "Exportación para entrega"
+      "confunfis.delivery_exported": "Exportación para entrega",
+      "validation.runs_purged": "Validaciones antiguas purgadas"
     },
     "entities": {
       "article": "Artículo",

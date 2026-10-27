@@ -5,9 +5,9 @@
   with another configuration is "desactualizado").
 - `/api/materials/{id}/validation`: the latest validation of a CUF (its
   traffic light, its findings, why the delivery is refused), "Validar
-  ahora" (confunfis.ver), accepting a warning (confunfis.editar, with a
+  ahora" (validacion.ejecutar; reading it, validacion.ver), accepting a warning (confunfis.editar, with a
   justification) and the report as Excel or PDF.
-- `/api/materials/{id}/confunfis/delivery`: "Exportar para entrega" -- the
+- `/api/materials/{id}/confunfis/delivery`: "Exportar para entrega" (confunfis.entregar) -- the
   CUF's Anexo XI and the Fichero Carga of its articles, refused (409, with
   the reasons) without an up-to-date validation free of blocking findings.
 """
@@ -40,9 +40,11 @@ from app.validacion.catalog import BY_CODE, CATALOG
 rules_router = APIRouter(prefix="/api/validation-rules", tags=["validation"])
 router = APIRouter(prefix="/api/materials/{material_id}", tags=["validation"])
 
-READ, EDIT = "confunfis.ver", "confunfis.editar"
-# The delivery is an export (the matrix's "exportar", D5): not every reader may take it out.
-EXPORT = "exportar"
+# E17 fleco 1: reading the report is validacion.ver (everyone); running it, validacion.ejecutar
+# (not the observer); accepting a warning, confunfis.editar.
+READ, RUN, EDIT = "validacion.ver", "validacion.ejecutar", "confunfis.editar"
+# E17 fleco 2: the delivery has its own permission (the working exports stay "exportar").
+DELIVER = "confunfis.entregar"
 
 
 def _rule_out(r: ValidationRule) -> RuleOut:
@@ -144,7 +146,7 @@ async def get_validation(access: MaterialAccess = Depends(require_material_permi
 
 @router.post("/validation", response_model=ValidationOut)
 async def run_validation(
-    request: Request, access: MaterialAccess = Depends(require_material_permission(READ)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
+    request: Request, access: MaterialAccess = Depends(require_material_permission(RUN)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ) -> ValidationOut:
     """"Validar ahora": a full run, kept (the latest is the CUF's state).
     Always run: the fingerprint does not see everything the rules read (the
@@ -203,7 +205,7 @@ async def validation_report_file(
 
 @router.get("/confunfis/delivery")
 async def delivery(
-    request: Request, access: MaterialAccess = Depends(require_material_permission(EXPORT)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
+    request: Request, access: MaterialAccess = Depends(require_material_permission(DELIVER)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ) -> Response:
     """The CUF's Anexo XI and the Fichero Carga of its articles (the rows' and their parts'), in a zip."""
     material = access.material

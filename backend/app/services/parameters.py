@@ -98,6 +98,9 @@ PARAMETER_DEFAULTS: dict[str, dict[str, Any]] = {
         # The detail panel docked on the right (E15): its width in pixels, dragged by its edge.
         "detail_panel_width": {"min": 320, "max": 960, "default": 480},
     },
+    # The NT 10/17 validator (E16, E17 fleco 3): the latest runs kept per CUF; older ones
+    # are purged (audited), never one a baseline was frozen with.
+    "validation": {"keep_runs": 50},
     # Settings -> Auditoría.
     "audit": {
         "page_size": 50,

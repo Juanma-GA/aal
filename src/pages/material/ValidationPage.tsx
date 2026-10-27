@@ -2,7 +2,8 @@
 // traffic light, the summary by rule (pressing one filters), the findings
 // with their filters and search, "Ir a" the row (or the article, the
 // product), accepting a warning with a justification, and the report as
-// PDF or Excel. Validating needs confunfis.ver; accepting, confunfis.editar.
+// PDF or Excel. Reading it needs validacion.ver; validating, validacion.ejecutar;
+// accepting, confunfis.editar.
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -61,6 +62,8 @@ export function ValidationPage(): React.JSX.Element {
   const accept = useAcceptFinding(material.id);
   const message = useFindingMessage();
   const canAccept = material.permissions.includes('confunfis.editar');
+  // E17 fleco 1: the observer reads the report but does not run it.
+  const canRun = material.permissions.includes('validacion.ejecutar');
   const [rule, setRule] = useState(ALL);
   const [severity, setSeverity] = useState(ALL);
   const [scope, setScope] = useState(ALL);
@@ -103,9 +106,11 @@ export function ValidationPage(): React.JSX.Element {
               <div className="flex flex-wrap items-center gap-4">
                 <TrafficLight validation={data} />
                 <div className="flex flex-wrap gap-2 sm:ml-auto">
-                  <Button onClick={() => run.mutate()} disabled={run.isPending} data-testid="validation-run">
-                    {run.isPending ? t('validation.page.running') : t('validation.page.run')}
-                  </Button>
+                  {canRun ? (
+                    <Button onClick={() => run.mutate()} disabled={run.isPending} data-testid="validation-run">
+                      {run.isPending ? t('validation.page.running') : t('validation.page.run')}
+                    </Button>
+                  ) : null}
                   <Button variant="outline" disabled={data.state === 'none'} onClick={() => download('pdf')} data-testid="validation-export-pdf">{t('validation.page.exportPdf')}</Button>
                   <Button variant="outline" disabled={data.state === 'none'} onClick={() => download('xlsx')} data-testid="validation-export-xlsx">{t('validation.page.exportXlsx')}</Button>
                 </div>

@@ -459,10 +459,12 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   AR-001…AR-007 son las de los artículos (E12). Configuración en `validation_rule` (activa, severidad, parámetros, ayuda;
   `PATCH /api/validation-rules/{código}`, admin, con versión y auditoría; Ajustes → Reglas de validación). Una ejecución
   (`validation_run` + `validation_finding`, `app/services/validation.py`) guarda la huella de los datos y el hash de las
-  reglas: cualquier cambio posterior la deja "desactualizada". Validar pide `confunfis.ver`; aceptar un aviso,
-  `confunfis.editar` y una justificación (`finding_acceptance`, vale para las ejecuciones siguientes; un bloqueante nunca
+  reglas: cualquier cambio posterior la deja "desactualizada". Leer el informe pide `validacion.ver`; validar,
+  `validacion.ejecutar` (E17: no el Observador); "Exportar para entrega", `confunfis.entregar` (E17; las exportaciones de
+  trabajo siguen con `exportar`); aceptar un aviso, `confunfis.editar` y una justificación (`finding_acceptance`, vale para las ejecuciones siguientes; un bloqueante nunca
   se acepta). Se valida a mano, tras aplicar un libro y, en cada edición, los hallazgos de las filas se recalculan
-  (`refresh_observations`). "Exportar para entrega" (`GET …/confunfis/delivery`: Anexo XI + Fichero Carga de sus artículos,
+  (`refresh_observations`). Se conservan las últimas `validation.keep_runs` ejecuciones por CUF (parámetro, 50) y las
+  de cada baseline (`RETAINED_RUNS`); el resto se purga, auditado (`validation.runs_purged`). "Exportar para entrega" (`GET …/confunfis/delivery`: Anexo XI + Fichero Carga de sus artículos,
   zip) responde 409 `delivery_blocked` con los motivos si no hay validación, está desactualizada o tiene bloqueantes; punto
   de extensión `DELIVERY_GUARDS` (E17: baseline). Las exportaciones de trabajo (Anexo XI, Libro AAL, Maestro AAL) empiezan
   con la hoja ESTADO DE VALIDACIÓN. Informe en Excel y PDF (`validation_report.py`, reportlab). Textos del backend desde
