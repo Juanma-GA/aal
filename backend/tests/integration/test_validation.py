@@ -12,10 +12,10 @@ import zipfile
 from collections import Counter
 
 import openpyxl
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from app.db.base import async_session_factory
-from app.models import AuditLog, Material, PhysicalPosition, ValidationRule
+from app.models import AuditLog, Material, PhysicalPosition, RolePermission, ValidationRule
 from integration.test_anexo_xi import _jobs, analysed, apply  # noqa: F401
 from integration.test_catalog import catalog, imported  # noqa: F401
 from integration.test_confunfis import PUESTO, TRAMONTANA, all_rows, base, demo, find  # noqa: F401
@@ -280,3 +280,32 @@ async def test_the_rows_filter_by_rule_and_severity(client, demo):
     assert [r["sns"] for r in (await all_rows(client, demo, analyst, observation="CF-007"))["items"]] == ["A24110"]
     res = await client.get(f"{base(demo)}/rows", params={"severity": "otra"}, headers=analyst)
     assert res.status_code == 422
+
+
+async def test_review_fixes(client, demo):
+    """The E16 review: the delivery is the matrix's "exportar"; a rule's
+    parameter of another type is refused; a long justification does not break the PDF; and the
+    analysis's copy of a row's removal follows every ROW_REMOVAL_EXTENSIONS."""
+    admin, analyst, observer = demo["people"]["admin"], demo["people"]["analista"], demo["people"]["observador"]
+    # The matrix decides (D5): without "exportar", no delivery.
+    async with async_session_factory() as session:
+        await session.execute(delete(RolePermission).where(RolePermission.role_code == "observador", RolePermission.permission_code == "exportar"))
+        await session.commit()
+    try:
+        assert (await client.get(f"{base(demo)}/delivery", headers=observer)).status_code == 403
+    finally:
+        async with async_session_factory() as session:
+            session.add(RolePermission(role_code="observador", permission_code="exportar"))
+            await session.commit()
+    rule = next(r for r in (await client.get("/api/validation-rules", headers=admin)).json() if r["code"] == "CF-019")
+    bad = await client.patch("/api/validation-rules/CF-019", json={"version": rule["version"], "params": {"field": []}}, headers=admin)
+    assert (bad.status_code, bad.json()["detail"]["code"]) == (422, "validation_rule_param_invalid")
+    first = await validate(client, demo, analyst)
+    tyre = next(f for f in first["findings"] if f["rule_code"] == "CF-017")
+    assert (await client.post(f"{url(demo)}/findings/{tyre['id']}/accept", json={"justification": "x" * 2000}, headers=analyst)).status_code == 200
+    pdf = await client.get(f"{url(demo)}/report", params={"format": "pdf"}, headers=analyst)
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+    from app.services import confunfis
+
+    # anexo_xi_dry.Dry.delete_row does what these do: a new one must be copied there too.
+    assert [e.__name__ for e in confunfis.ROW_REMOVAL_EXTENSIONS] == ["_remove_with_row"]

@@ -19,7 +19,16 @@ _PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 @lru_cache(maxsize=1)
 def _locale() -> dict[str, Any]:
-    return json.loads(backend_path(get_settings().i18n_es_path).read_text(encoding="utf-8"))
+    path = backend_path(get_settings().i18n_es_path)
+    if not path.is_file():
+        # Never a 500 halfway through an export (HR7): the app does not start without it.
+        raise RuntimeError(f"No está el fichero de textos {path} (I18N_ES_PATH): el backend lo lee para sus documentos.")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def check() -> None:
+    """At startup (app/main.py): the texts are there and readable."""
+    _locale()
 
 
 def lookup(key: str) -> Any:

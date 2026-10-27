@@ -32,6 +32,7 @@ export function ValidationRulesTab(): React.JSX.Element {
   const rules = useValidationRules();
   const update = useUpdateValidationRule();
   if (!rules.data) return <Skeleton className="h-60 w-full" />;
+  // One change at a time: the next one goes with the version the server gave back.
   const change = (rule: ValidationRule, patch: Parameters<typeof update.mutate>[0]['patch']) => update.mutate({ rule, patch });
   return (
     <div className="flex flex-col gap-4">
@@ -62,11 +63,11 @@ export function ValidationRulesTab(): React.JSX.Element {
                 <TableCell className="align-top">
                   <Switch
                     checked={rule.active} aria-label={t('settings.validationRules.activeOf', { code: rule.code })}
-                    onCheckedChange={(active) => change(rule, { active })} data-testid={`rule-active-${rule.code}`}
+                    disabled={update.isPending} onCheckedChange={(active) => change(rule, { active })} data-testid={`rule-active-${rule.code}`}
                   />
                 </TableCell>
                 <TableCell className="align-top">
-                  <Select value={rule.severity} onValueChange={(v) => change(rule, { severity: v as Severity })} disabled={!rule.active}>
+                  <Select value={rule.severity} onValueChange={(v) => change(rule, { severity: v as Severity })} disabled={!rule.active || update.isPending}>
                     <SelectTrigger className="w-36" aria-label={t('settings.validationRules.severityOf', { code: rule.code })} data-testid={`rule-severity-${rule.code}`}>
                       <SelectValue />
                     </SelectTrigger>

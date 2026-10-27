@@ -136,3 +136,10 @@ fichero de autoridades públicas del sistema vale igual: en Linux
   (desarrollo) o `requirements.lock.txt` (servidor). Los lockfiles se generan
   con uv `--universal --generate-hashes`, así que los mismos hashes valen en
   Windows y en Linux.
+
+## Textos de los documentos del backend (E16)
+
+El informe de validación (Excel y PDF) y la hoja ESTADO DE VALIDACIÓN de las exportaciones toman sus textos del
+mismo `es.json` que la pantalla: `I18N_ES_PATH` (por defecto `../src/i18n/locales/es.json`, relativo a `backend/`).
+Un despliegue del backend sin la carpeta `src/` copia ese fichero y apunta `I18N_ES_PATH` a él; si falta, el backend
+no arranca y lo dice (nunca un 500 a mitad de una exportación).

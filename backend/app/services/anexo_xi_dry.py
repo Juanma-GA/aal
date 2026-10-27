@@ -77,6 +77,9 @@ class Dry:
         self.products = {p.id: p for p in await extras.live_products(self.db, mid)}
         self.extras = {e.id: e for e in await extras.live_extras(self.db, mid)}
         self.incompatibilities = {i.id: i for i in await extras.live_incompatibilities(self.db, mid)}
+        # Newer than anything stored (clock_timestamp on apply): even a record of this very second, or a database clock ahead.
+        stored = [x.created_at for group in (self.rows, self.products, self.extras, self.incompatibilities) for x in group.values() if x.created_at]
+        self._clock = max([self._clock, *stored])
 
     # ── the article master, read-only ────────────────────────────────────
 
@@ -198,7 +201,8 @@ class Dry:
         self.rows[out.id] = out
 
     def delete_row(self, row: Any) -> None:
-        """With what hangs from it (ROW_REMOVAL_EXTENSIONS)."""
+        """With what hangs from it: what confunfis.ROW_REMOVAL_EXTENSIONS do on apply
+        (E14 `_remove_with_row`; a test counts them, so a new one comes here too)."""
         self.rows.pop(row.id, None)
         for e in [e for e in self.extras.values() if e.position_id == row.id]:
             self.extras.pop(e.id)
@@ -334,7 +338,8 @@ class Dry:
             if p.part_article_id:
                 edges[p.parent_article_id].add(p.part_article_id)
         in_cuf = {r.article_id for r in rows if r.article_id}
-        parts = [p for p in every.values() if p.parent_article_id in in_cuf | parents]
+        # The parts of the CUF's articles, as its validation counts them (app/services/validation.context).
+        parts = [p for p in every.values() if p.parent_article_id in in_cuf]
         ids = in_cuf | {p.part_article_id for p in parts if p.part_article_id} | {p.parent_article_id for p in parts}
         stored_ids = ids - set(self.new_articles)
         articles: dict[Any, Article] = {a.id: a for a in (await db.execute(select(Article).where(Article.id.in_(stored_ids)))).scalars()} if stored_ids else {}

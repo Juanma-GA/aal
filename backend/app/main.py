@@ -27,10 +27,13 @@ from app.api.routes.validation import rules_router as validation_rules_router
 from app.core.config import get_settings
 from app.core.errors import SanitizedErrorMiddleware, validation_error_handler
 from app.core.logging import configure_logging
+from app.core.texts import check as check_texts
 from app.version import app_version
 
 settings = get_settings()
 configure_logging(settings.log_level)
+# The documents' texts (E16) come from the frontend's es.json: fail now, not on the first export.
+check_texts()
 
 app = FastAPI(title="AAL API", version=app_version())
 

@@ -33,6 +33,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.texts import text
 from app.models import (
     Article,
     ArticlePart,
@@ -115,6 +116,13 @@ async def fingerprint(db: AsyncSession, material: Material) -> str:
     parts += sorted((str(i), v) for i, v in (await db.execute(
         select(ArticleReference.id, ArticleReference.version).where(ArticleReference.article_id.in_(used), ArticleReference.deleted_at.is_(None))
     )).all())
+    # What changes without a version: the AR findings of the articles (and of their parts' articles; a
+    # revalidation, E13) and the codes the products are checked against.
+    of_parts = select(ArticlePart.part_article_id).where(ArticlePart.parent_article_id.in_(used), ArticlePart.deleted_at.is_(None))
+    parts += sorted((str(i), tuple(c or ())) for i, c in (await db.execute(
+        select(Article.id, Article.finding_codes).where(Article.id.in_(used) | Article.id.in_(of_parts))
+    )).all())
+    parts += sorted((table, tuple(sorted(codes))) for table, codes in (await product_codes(db)).items())
     return hashlib.sha256(repr(parts).encode()).hexdigest()
 
 
@@ -129,23 +137,23 @@ def locate(f: engine.Finding, ctx: engine.Context, material: Material, ordinal: 
     """Where a finding is, in words a person finds it by ("fila 23 · A24110 01 00 · FILTRO DE AIRE")."""
     row = ctx.by_id.get(f.row_id) if f.row_id else None
     if f.entity_type == ROW and row is not None:
-        return f"fila {ordinal[str(row.id)]} · {_row_label(row)}"
+        return text("validation.location.row", n=ordinal[str(row.id)], row=_row_label(row))
     if f.entity_type == CUF:
         return material.name
     if f.entity_type == ARTICLE:
         article = ctx.articles.get(uuid.UUID(f.entity_id)) if f.entity_id else None
         name = getattr(article, "nombre", "") or ""
         noc = getattr(article, "noc", None)
-        return f"artículo {noc + ' · ' if noc else ''}{name}"
+        return text("validation.location.article", article=f"{noc + ' · ' if noc else ''}{name}")
     if f.entity_type == PART:
         part = next((p for p in ctx.parts if str(p.id) == f.entity_id), None)
         parent = ctx.articles.get(part.parent_article_id) if part is not None else None
-        return f"parte {part.cop}/{part.alp} de {getattr(parent, 'nombre', '')}" if part is not None else f.entity_id
+        return text("validation.location.part", cop=part.cop, alp=part.alp, parent=getattr(parent, "nombre", "")) if part is not None else f.entity_id
     if f.entity_type == PRODUCT:
         product = next((p for p in ctx.products if str(p.id) == f.entity_id), None)
-        return f"producto funcional · {product.pol_code or '—'} · {product.designation}" if product is not None else f.entity_id
+        return text("validation.location.product", pol=product.pol_code or "—", name=product.designation) if product is not None else f.entity_id
     if f.entity_type == EXTRA and row is not None:
-        return f"fila {ordinal[str(row.id)]} · {_row_label(row)} · función adicional {f.params.get('sns', '')}"
+        return text("validation.location.extra", n=ordinal[str(row.id)], row=_row_label(row), sns=f.params.get("sns", ""))
     if f.entity_type == INCOMPATIBILITY:
         item = next((i for i in ctx.incompatibilities if str(i.id) == f.entity_id), None)
         if item is not None:

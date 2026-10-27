@@ -41,6 +41,8 @@ rules_router = APIRouter(prefix="/api/validation-rules", tags=["validation"])
 router = APIRouter(prefix="/api/materials/{material_id}", tags=["validation"])
 
 READ, EDIT = "confunfis.ver", "confunfis.editar"
+# The delivery is an export (the matrix's "exportar", D5): not every reader may take it out.
+EXPORT = "exportar"
 
 
 def _rule_out(r: ValidationRule) -> RuleOut:
@@ -64,9 +66,14 @@ async def update_rule(code: str, body: RuleUpdate, request: Request, user: User 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail("validation_rule_not_found"))
     if rule.version != body.version:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("version_conflict", current=rule.version))
-    unknown = set(body.params or {}) - set(BY_CODE[code].params)
+    defaults = BY_CODE[code].params
+    unknown = set(body.params or {}) - set(defaults)
     if unknown:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("validation_rule_param_unknown", params=", ".join(sorted(unknown))))
+    # A value of another type (or a huge one) would break every validation (HR7): the catalog's type, at most 200 characters.
+    wrong = sorted(k for k, v in (body.params or {}).items() if type(v) is not type(defaults[k]) or len(str(v)) > 200)
+    if wrong:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error_detail("validation_rule_param_invalid", params=", ".join(wrong)))
     before = {"active": rule.active, "severity": rule.severity, "params": rule.params, "help": rule.help}
     sent = body.model_fields_set
     if "active" in sent and body.active is not None:
@@ -139,7 +146,9 @@ async def get_validation(access: MaterialAccess = Depends(require_material_permi
 async def run_validation(
     request: Request, access: MaterialAccess = Depends(require_material_permission(READ)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ) -> ValidationOut:
-    """"Validar ahora": a full run, kept (the latest is the CUF's state)."""
+    """"Validar ahora": a full run, kept (the latest is the CUF's state).
+    Always run: the fingerprint does not see everything the rules read (the
+    CUF mounted in another one, a cycle across the whole master, new rules)."""
     # One validation of a CUF at a time, after any edit that holds it.
     await db.execute(select(Material.id).where(Material.id == access.material.id).with_for_update())
     await validation.validate(db, access.material, user, "manual", client_ip(request))
@@ -194,7 +203,7 @@ async def validation_report_file(
 
 @router.get("/confunfis/delivery")
 async def delivery(
-    request: Request, access: MaterialAccess = Depends(require_material_permission(READ)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
+    request: Request, access: MaterialAccess = Depends(require_material_permission(EXPORT)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ) -> Response:
     """The CUF's Anexo XI and the Fichero Carga of its articles (the rows' and their parts'), in a zip."""
     material = access.material

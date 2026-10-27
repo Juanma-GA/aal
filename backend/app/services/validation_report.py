@@ -175,8 +175,9 @@ def pdf(material: Material, run: ValidationRun, found: list[ValidationFinding], 
     detail = [[text("validation.report.rule"), text("validation.report.severity"), text("validation.report.location"), text("validation.report.message"),
                text("validation.report.accepted")]]
     for f in found:
-        accepted = (text("validation.report.yes") + (f": {justifications.get(f.acceptance_id, '')}" if f.acceptance_id else "")) if f.acceptance_id else ""
-        detail.append([cell(f.rule_code), cell(text(f"validation.severity.{f.severity}")), cell(f.location), cell(message(f, field_names)), cell(accepted)])
+        # A long justification is cut here (the Excel report has it whole): a row taller than a page cannot be laid out.
+        accepted = (text("validation.report.yes") + f": {_short(justifications.get(f.acceptance_id, ''))}") if f.acceptance_id else ""
+        detail.append([cell(f.rule_code), cell(text(f"validation.severity.{f.severity}")), cell(_short(f.location)), cell(_short(message(f, field_names))), cell(accepted)])
     if len(detail) > 1:
         story.append(_table(detail, [18 * mm, 22 * mm, 75 * mm, 105 * mm, 50 * mm]))
 
@@ -192,8 +193,16 @@ def _escape(value: str) -> str:
     return (value or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+PDF_TEXT_MAX = 300
+
+
+def _short(value: str) -> str:
+    return value if len(value) <= PDF_TEXT_MAX else value[: PDF_TEXT_MAX - 1] + "…"
+
+
 def _table(rows: list[list[Any]], widths: list[float]) -> Table:
-    table = Table(rows, colWidths=widths, repeatRows=1)
+    # splitInRow: a row taller than what is left of the page goes on over the next one.
+    table = Table(rows, colWidths=widths, repeatRows=1, splitInRow=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2F3A4C")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 8), ("VALIGN", (0, 0), (-1, -1), "TOP"),

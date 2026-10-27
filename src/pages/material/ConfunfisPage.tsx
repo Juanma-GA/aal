@@ -159,7 +159,7 @@ export function ConfunfisPage(): React.JSX.Element {
         ) : null}
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {canEdit ? null : <p className="text-sm text-muted-foreground">{t('confunfis.readOnly')}</p>}
-          <DeliveryButton materialId={material.id} />
+          {material.permissions.includes('exportar') ? <DeliveryButton materialId={material.id} /> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" data-testid="confunfis-export">{t('confunfisBook.export')}</Button>

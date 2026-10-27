@@ -150,7 +150,8 @@
     "validation_not_run": "Este CUF aún no se ha validado: pulsa \"Validar ahora\".",
     "validation_finding_not_found": "Ese hallazgo ya no está en la última validación: vuelve a cargar el informe.",
     "finding_blocking_cannot_be_accepted": "Un error bloqueante no se puede aceptar: hay que corregirlo.",
-    "finding_already_accepted": "Ese aviso ya estaba aceptado."
+    "finding_already_accepted": "Ese aviso ya estaba aceptado.",
+    "validation_rule_param_invalid": "Valor no válido para estos parámetros: {{params}} (el tipo del valor por defecto, como mucho 200 caracteres)."
   },
   "actions": {
     "retry": "Reintentar",
@@ -540,6 +541,13 @@
       "justificationHint": "Obligatoria. Queda en la auditoría y en el informe; el aviso sigue saliendo como aceptado.",
       "refAndSeverity": "Referencia: {{ref}} · {{severity}}",
       "code": "Código"
+    },
+    "location": {
+      "row": "fila {{n}} · {{row}}",
+      "article": "artículo {{article}}",
+      "part": "parte {{cop}}/{{alp}} de {{parent}}",
+      "product": "producto funcional · {{pol}} · {{name}}",
+      "extra": "fila {{n}} · {{row}} · función adicional {{sns}}"
     }
   },
   "header": {
