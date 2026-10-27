@@ -240,7 +240,7 @@ export function ConfunfisPage(): React.JSX.Element {
         />
       ) : null}
       {form ? (
-        <RowFormDialog materialId={material.id} row={form.row} onClose={() => setForm(null)} onSaved={(saved) => { setForm(null); go({ fila: saved.id }); }} />
+        <RowFormDialog materialId={material.id} row={form.row} blocked={gate.reason} onClose={() => setForm(null)} onSaved={(saved) => { setForm(null); go({ fila: saved.id }); }} />
       ) : null}
       <BookImportDialog
         materialId={material.id} materialName={material.name} book={importing ?? 'anexo'} isAdmin={Boolean(me.data?.is_admin)}

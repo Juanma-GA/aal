@@ -10,10 +10,10 @@ import { useUiStore } from '@/stores/uiStore';
 
 const NONE = '-';
 
-export function ConfigurationBand({ materialId, canRequest }: { materialId: string; canRequest: boolean }): React.JSX.Element | null {
+export function ConfigurationBand({ materialId, canRequest, enabled = true }: { materialId: string; canRequest: boolean; enabled?: boolean }): React.JSX.Element | null {
   const { t } = useTranslation();
-  const state = useConfigurationState(materialId);
-  const active = useActiveAuthorization(materialId);
+  const state = useConfigurationState(materialId, enabled);
+  const active = useActiveAuthorization(materialId, enabled);
   const choose = useUiStore((s) => s.setChangeAuthorization);
   const s = state.data;
   if (!s || (!s.reviewed && !s.in_review)) return null;

@@ -69,6 +69,8 @@ class _Request:
     authorization: str | None = None
     # The authorizations the guard used in this request, by id (for the audit rows).
     used: dict[uuid.UUID, str] = field(default_factory=dict)
+    # What the request already linked to an authorization (one row each, across its flushes).
+    linked: set[tuple[uuid.UUID, str, str]] = field(default_factory=set)
 
 
 _REQUEST: ContextVar[_Request | None] = ContextVar("change_request", default=None)
@@ -229,12 +231,11 @@ def _check(session: Session, touched: list[tuple[Any, str]]) -> None:
                 own = authorization is not None and authorization.material_id == material_id
                 raise ChangeBlocked("authorization_not_usable", authorization=authorization.code if own else "")
             request.used[authorization.id] = authorization.code
-            seen: set[tuple[str, str]] = set()
             for obj, action in items:
                 entity_type, entity_id = _entity(obj)
-                if (entity_type, entity_id) in seen:
+                if (authorization.id, entity_type, entity_id) in request.linked:
                     continue
-                seen.add((entity_type, entity_id))
+                request.linked.add((authorization.id, entity_type, entity_id))
                 session.add(AuthorizationChange(
                     id=uuid.uuid4(), authorization_id=authorization.id, material_id=material_id, entity_type=entity_type,
                     entity_id=entity_id, action=action, user_id=request.user_id,

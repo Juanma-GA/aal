@@ -147,7 +147,7 @@ export function ExtraFunctionsSection({ materialId, row, gate }: { materialId: s
           <ErrorText error={create.error} />
           <div className="flex gap-2">
             <Button
-              size="sm" disabled={!sns || !criterion || create.isPending} data-testid="extra-function-save"
+              size="sm" disabled={!sns || !criterion || create.isPending || Boolean(gate.reason)} title={gate.reason ?? undefined} data-testid="extra-function-save"
               onClick={() => sns && create.mutate({ position_id: row.id, sns: sns.sns, criterion, comment: comment || null }, { onSuccess: reset })}
             >
               {t('actions.save')}
@@ -236,7 +236,7 @@ export function IncompatibilitiesSection({ materialId, row, gate, onOpen }: { ma
           <ErrorText error={create.error} />
           <div className="flex gap-2">
             <Button
-              size="sm" disabled={!other || !reason.trim() || create.isPending} data-testid="incompatibility-save"
+              size="sm" disabled={!other || !reason.trim() || create.isPending || Boolean(gate.reason)} title={gate.reason ?? undefined} data-testid="incompatibility-save"
               onClick={() => other && create.mutate({ row_a_id: row.id, row_b_id: other.id, kind, reason: reason.trim() }, { onSuccess: reset })}
             >
               {t('actions.save')}

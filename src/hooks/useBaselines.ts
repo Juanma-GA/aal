@@ -113,9 +113,9 @@ export function useAuthorizationStep(materialId: string) {
 }
 
 /** The authorization chosen for this CUF's edits, while it is still usable (approved, open). */
-export function useActiveAuthorization(materialId: string): ChangeAuthorization | null {
+export function useActiveAuthorization(materialId: string, enabled = true): ChangeAuthorization | null {
   const chosen = useUiStore((s) => s.changeAuthorizations[materialId]);
-  const state = useConfigurationState(materialId);
+  const state = useConfigurationState(materialId, enabled);
   return state.data?.usable_authorizations.find((a) => a.id === chosen) ?? null;
 }
 
@@ -125,7 +125,7 @@ export function useActiveAuthorization(materialId: string): ChangeAuthorization 
 export function useEditGate(materialId: string, permitted: boolean, canRequest = false): Gate & { canEdit: boolean } {
   const { t } = useTranslation();
   const state = useConfigurationState(materialId, permitted);
-  const active = useActiveAuthorization(materialId);
+  const active = useActiveAuthorization(materialId, permitted);
   const page = `/materiales/${materialId}/baselines`;
   const s = state.data;
   let gate: Gate = { permitted, reason: null, unlock: null };

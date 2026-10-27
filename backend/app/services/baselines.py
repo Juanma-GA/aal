@@ -486,8 +486,8 @@ def diff(before: dict[str, Any], after: dict[str, Any]) -> list[dict[str, Any]]:
                 fields = [{"field": f, "before": a.get(f, ""), "after": b.get(f, "")} for f in sorted(set(a) | set(b), key=list({**a, **b}).index) if a.get(f, "") != b.get(f, "")]
                 if fields:
                     out.append({"entity": entity, "id": key, "label": _label(entity, after, key, new[key]), "change": "modified", "fields": fields})
-    # The CUF itself: its identity, subcategories and catalog version are not change-controlled (they are the
-    # material's, edited with material.editar), but a change to them shows here.
+    # The CUF itself: its subcategories and catalog version are change-controlled (E17b, changes.py), its
+    # identity is not; a change to any of them shows here.
     a, b = _material_fields(before.get("material", {})), _material_fields(after.get("material", {}))
     fields = [{"field": f, "before": a[f], "after": b[f]} for f in a if a[f] != b[f]]
     if fields:

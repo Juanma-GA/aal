@@ -65,13 +65,14 @@ export function MaterialCufPage(): React.JSX.Element {
   const canEdit = material.permissions.includes('material.editar');
   // E17b: subcategories and catalog version are change-controlled after a baseline (the band chooses the authorization).
   const canRequest = material.permissions.includes('autorizacion.solicitar');
-  const subcategoriesGate = useEditGate(material.id, canEdit, canRequest);
-  const versionGate = useEditGate(material.id, isAdmin, canRequest);
+  const canSeeState = material.permissions.includes('confunfis.ver');
+  const subcategoriesGate = useEditGate(material.id, canEdit && canSeeState, canRequest);
+  const versionGate = useEditGate(material.id, isAdmin && canSeeState, canRequest);
   const title = t('cuf.title');
   return (
     <div className="flex flex-col gap-6" data-testid="cuf-page">
       <PageHeader crumbs={[{ label: material.name, to: `/materiales/${material.id}` }, { label: title }]} title={title} />
-      <ConfigurationBand materialId={material.id} canRequest={canRequest} />
+      <ConfigurationBand materialId={material.id} canRequest={canRequest} enabled={material.permissions.includes('confunfis.ver')} />
       {cuf.isError ? (
         <p className="text-sm text-destructive" role="alert">
           {describeApiError(cuf.error, t).message}

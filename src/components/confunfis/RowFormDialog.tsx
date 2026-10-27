@@ -48,11 +48,13 @@ const blank = (v: string): string | null => v.trim() || null;
  *  (the next free CO), the article is found in the master (NOC, P/N or
  *  name) or given by its data (the server links it, or creates a
  *  provisional one), and the CS is chosen from the rows (the CUF if none). */
-export function RowFormDialog({ materialId, row, onClose, onSaved }: {
+export function RowFormDialog({ materialId, row, onClose, onSaved, blocked = null }: {
   materialId: string;
   row: PositionRow | null;
   onClose: () => void;
   onSaved: (row: RowDetail) => void;
+  /** E17b: why it cannot be saved now (the authorization was cleared while it was open). */
+  blocked?: string | null;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const create = useCreateRow(materialId);
@@ -209,7 +211,7 @@ export function RowFormDialog({ materialId, row, onClose, onSaved }: {
         {generalError ? <p className="text-sm text-destructive" role="alert">{generalError}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('actions.cancel')}</Button>
-          <Button disabled={pending || !form.sns || !form.co || form.cs === '?'} onClick={save} data-testid="row-form-save">{t('actions.save')}</Button>
+          <Button disabled={pending || !form.sns || !form.co || form.cs === '?' || Boolean(blocked)} title={blocked ?? undefined} onClick={save} data-testid="row-form-save">{t('actions.save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
