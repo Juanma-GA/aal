@@ -60,7 +60,7 @@ export interface ConfigurationState {
   edit: EditState;
 }
 
-export type DiffEntity = 'row' | 'product' | 'extra' | 'incompatibility' | 'article' | 'part';
+export type DiffEntity = 'row' | 'product' | 'extra' | 'incompatibility' | 'article' | 'part' | 'material';
 
 export interface DiffEntry {
   entity: DiffEntity;

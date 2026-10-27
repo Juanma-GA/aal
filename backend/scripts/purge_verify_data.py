@@ -69,7 +69,7 @@ from pathlib import Path
 
 from _common import utf8_output
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.core.config import get_settings
 from app.db.base import async_session_factory, engine
@@ -316,12 +316,17 @@ async def purge(
     runs: list[uuid.UUID] = (), accepted: list[uuid.UUID] = (), baselines: list[uuid.UUID] = (), authorizations: list[uuid.UUID] = (),
 ) -> int:
     async with async_session_factory() as db:
-        if authorizations:
-            deleted = await db.execute(delete(ChangeAuthorization).where(ChangeAuthorization.id.in_(authorizations)))
-            print(f"Autorizaciones de cambio eliminadas: {deleted.rowcount}")
-        if baselines:
-            deleted = await db.execute(delete(Baseline).where(Baseline.id.in_(baselines)))
-            print(f"Baselines eliminadas: {deleted.rowcount}")
+        if baselines or authorizations:
+            # Only what the check made (E17: a baseline is never deleted otherwise): a baseline that holds one of
+            # its validations (--validation-runs), an authorization requested after the first of them.
+            since = await db.scalar(select(func.min(ValidationRun.created_at)).where(ValidationRun.id.in_(runs))) if runs else None
+            if since is None:
+                print("--baselines / --authorizations necesitan las --validation-runs del verify.", file=sys.stderr)
+                return 1
+            deleted = await db.execute(delete(ChangeAuthorization).where(ChangeAuthorization.id.in_(authorizations), ChangeAuthorization.requested_at >= since))
+            print(f"Autorizaciones de cambio eliminadas: {deleted.rowcount} de {len(authorizations)}")
+            deleted = await db.execute(delete(Baseline).where(Baseline.id.in_(baselines), Baseline.validation_run_id.in_(runs)))
+            print(f"Baselines eliminadas: {deleted.rowcount} de {len(baselines)}")
         if accepted:
             # The acceptances given to these findings (E16), before their runs go.
             ids = [a for a in (await db.execute(select(ValidationFinding.acceptance_id).where(ValidationFinding.id.in_(accepted)))).scalars() if a]

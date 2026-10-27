@@ -98,7 +98,7 @@ class AuthorizationRef(BaseModel):
 
 
 class DiffEntry(BaseModel):
-    entity: Literal["row", "product", "extra", "incompatibility", "article", "part"]
+    entity: Literal["row", "product", "extra", "incompatibility", "article", "part", "material"]
     id: str
     label: str
     change: Literal["added", "removed", "modified"]

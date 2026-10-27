@@ -163,7 +163,7 @@
     "baseline_reject_needs_comment": "Para rechazar una baseline hace falta un comentario.",
     "baseline_withdraw_not_author": "Solo quien creó la baseline (o un administrador) puede retirarla.",
     "authorization_not_found": "Esa autorización de cambio no existe.",
-    "authorization_kind_invalid": "El tipo de autorización «{{kind}}» no está en la tabla TIPO_AUTORIZACION.",
+    "authorization_kind_invalid": "Ese tipo de autorización no está en la tabla TIPO_AUTORIZACION (o está desactivado).",
     "authorization_state_invalid": "La autorización está {{state}}: ya no admite ese paso.",
     "authorization_decide_own": "Nadie aprueba ni rechaza su propia autorización: tiene que decidirla otra persona.",
     "authorization_reject_needs_comment": "Para rechazar una autorización hace falta un comentario.",
@@ -1970,7 +1970,8 @@
       "extra": "Función adicional",
       "incompatibility": "Incompatibilidad",
       "article": "Artículo",
-      "part": "Parte"
+      "part": "Parte",
+      "material": "Material (CUF)"
     },
     "changes": {
       "added": "Añadido",
@@ -2010,7 +2011,11 @@
       "parent": "Artículo padre",
       "cop": "COP",
       "alp": "ALP",
-      "part_name": "Nombre de la parte"
+      "part_name": "Nombre de la parte",
+      "name": "Nombre",
+      "part_number": "P/N del CUF",
+      "subcategories": "Subcategorías",
+      "catalog_version_id": "Versión del catálogo"
     },
     "title": "Baselines y cambios",
     "version": "v{{number}}",

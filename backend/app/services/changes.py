@@ -33,7 +33,7 @@ from typing import Any
 from sqlalchemy import event, inspect, select
 from sqlalchemy.orm import Session
 
-from app.models import AuthorizationChange, Baseline, ChangeAuthorization, ExtraFunction, FunctionalProduct, Incompatibility, PhysicalPosition
+from app.models import AuditLog, AuthorizationChange, Baseline, ChangeAuthorization, ExtraFunction, FunctionalProduct, Incompatibility, Material, PhysicalPosition
 
 GUARDED: dict[type, str] = {
     PhysicalPosition: "physical_position",
@@ -141,18 +141,38 @@ def _guard(session: Session, _context: Any, _instances: Any) -> None:
     if _UNGUARDED.get():
         return
     touched = _touched(session)
-    if not touched:
+    if touched:
+        _check(session, touched)
+    _note_audit_rows(session)
+
+
+def _note_audit_rows(session: Session) -> None:
+    """Every audit row of the request names the authorizations it used, a removal's too
+    (its row is staged before the flush that finds the authorization)."""
+    note = audit_note()
+    if note is None:
         return
+    for obj in session.new:
+        if isinstance(obj, AuditLog) and not (obj.after or {}).get("change_authorization"):
+            obj.after = {**(obj.after or {}), **note}
+
+
+def _check(session: Session, touched: list[tuple[Any, str]]) -> None:
     by_material: dict[uuid.UUID, list[tuple[Any, str]]] = {}
     for obj, action in touched:
         by_material.setdefault(obj.material_id, []).append((obj, action))
     request = _REQUEST.get() or _Request()
     with session.no_autoflush:
+        # FOR SHARE on the CUF: "Crear baseline" (FOR UPDATE on it) waits for this change to commit
+        # and then finds its validation outdated, or this change waits and then finds the baseline.
+        session.execute(select(Material.id).where(Material.id.in_(by_material)).with_for_update(read=True))
         states: dict[uuid.UUID, set[str]] = {}
+        # FOR SHARE: a baseline being reviewed, withdrawn or an authorization being closed (FOR UPDATE)
+        # waits for this change, or this change for it -- never a change under a state just left.
         for material_id, state in session.execute(
             select(Baseline.material_id, Baseline.state).where(
                 Baseline.material_id.in_(by_material), Baseline.scope == "confunfis", Baseline.state.in_(("en_revision", "revisada"))
-            )
+            ).with_for_update(read=True)
         ).all():
             states.setdefault(material_id, set()).add(state)
         for material_id, items in by_material.items():
@@ -164,9 +184,11 @@ def _guard(session: Session, _context: Any, _instances: Any) -> None:
             wanted = _parse(request.authorization)
             if wanted is None:
                 raise ChangeBlocked("authorization_required")
-            authorization = session.get(ChangeAuthorization, wanted)
+            authorization = session.get(ChangeAuthorization, wanted, with_for_update={"read": True})
             if authorization is None or authorization.material_id != material_id or authorization.state != "aprobada":
-                raise ChangeBlocked("authorization_not_usable", authorization=authorization.code if authorization else "")
+                # Another CUF's authorization is not named: its code carries that CUF's P/N.
+                own = authorization is not None and authorization.material_id == material_id
+                raise ChangeBlocked("authorization_not_usable", authorization=authorization.code if own else "")
             request.used[authorization.id] = authorization.code
             for obj, action in items:
                 session.add(AuthorizationChange(

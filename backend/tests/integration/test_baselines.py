@@ -267,3 +267,24 @@ async def test_the_reset_leaves_the_demo_as_it_came(client, corrected):
     assert (await client.get(b_url(demo, "authorizations"), headers=analyst)).json() == []
     found = await validate(client, demo, analyst)
     assert dict(Counter(f["rule_code"] for f in found["findings"])) == DEMO_FIGURES
+
+
+async def test_a_removal_under_an_authorization_names_it(client, corrected):
+    """Review finding: the audit row of a removal is staged before the flush that finds the authorization."""
+    demo = corrected
+    analyst, reviewer = demo["people"]["analista"], demo["people"]["revisor"]
+    await validate(client, demo, analyst)
+    v1 = await _create(client, demo, analyst)
+    await _review(client, demo, reviewer, v1)
+    ac = (await client.post(b_url(demo, "authorizations"), json={"kind": "diseno", "description": "Quitar la radio", "reason": "y"}, headers=analyst)).json()
+    ac = (await client.post(b_url(demo, f"authorizations/{ac['id']}/approve"), json={"version": ac["version"]}, headers=reviewer)).json()
+    harness = await _row(client, demo, analyst, "D53000")
+    gone = await client.delete(f"{base(demo)}/rows/{harness['id']}", params={"version": harness["version"], "confirm": True}, headers={**analyst, HEADER: ac["id"]})
+    assert gone.status_code in (200, 204), gone.text
+    async with async_session_factory() as session:
+        [logged] = (await session.execute(select(AuditLog).where(AuditLog.action == "confunfis.row_deleted", AuditLog.entity_id == harness["id"]))).scalars().all()
+    assert logged.after["change_authorization"][0]["code"] == ac["code"]
+    diff = (await client.get(b_url(demo, "baselines/diff"), params={"before": v1["id"]}, headers=analyst)).json()
+    assert [(e["entity"], e["change"], [a["code"] for a in e["authorizations"]]) for e in diff["entries"]] == [
+        ("row", "removed", [ac["code"]]), ("article", "removed", []),  # its article no longer in the CUF
+    ]

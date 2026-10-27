@@ -73,7 +73,7 @@ def record(
             raise ValueError(f"audit.record needs a non-empty {name}")
     # E17: a change made under an authorization says which (app/services/changes.py).
     note = changes.audit_note()
-    if note is not None and (isinstance(after, dict) or (after is None and before is None)):
+    if note is not None and (isinstance(after, dict) or after is None):
         after = {**(after or {}), **note}
     source = _ORIGIN.get()
     if source is not None:

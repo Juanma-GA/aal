@@ -124,7 +124,7 @@ async def snapshot(db: AsyncSession, material: Material, *, book: bool = True) -
     used = {r.article_id for r in rows if r.article_id}
     parts = [p for p in await extras.live_parts(db) if p.parent_article_id in used]
     ids = used | {p.part_article_id for p in parts if p.part_article_id}
-    articles = list((await db.execute(select(Article).where(Article.id.in_(ids)).order_by(Article.nombre, Article.noc, Article.id))).scalars()) if ids else []
+    articles = list((await db.execute(select(Article).where(Article.id.in_(ids), Article.deleted_at.is_(None)).order_by(Article.nombre, Article.noc, Article.id))).scalars()) if ids else []
     doc: dict[str, Any] = {
         "format": FORMAT,
         "material": {
@@ -321,7 +321,7 @@ async def request_authorization(
 ) -> ChangeAuthorization:
     kinds = await codes_by_state(db, KIND_TABLE)
     if not kinds.get(kind):
-        raise BaselineError("authorization_kind_invalid", 422, kind=kind)
+        raise BaselineError("authorization_kind_invalid", 422)
     await db.execute(select(Material.id).where(Material.id == material.id).with_for_update())
     number = ((await db.scalar(select(func.max(ChangeAuthorization.number)).where(ChangeAuthorization.material_id == material.id))) or 0) + 1
     item = ChangeAuthorization(
@@ -482,7 +482,20 @@ def diff(before: dict[str, Any], after: dict[str, Any]) -> list[dict[str, Any]]:
                 fields = [{"field": f, "before": a.get(f, ""), "after": b.get(f, "")} for f in sorted(set(a) | set(b), key=list({**a, **b}).index) if a.get(f, "") != b.get(f, "")]
                 if fields:
                     out.append({"entity": entity, "id": key, "label": _label(entity, after, key, new[key]), "change": "modified", "fields": fields})
+    # The CUF itself: its identity, subcategories and catalog version are not change-controlled (they are the
+    # material's, edited with material.editar), but a change to them shows here.
+    a, b = _material_fields(before.get("material", {})), _material_fields(after.get("material", {}))
+    fields = [{"field": f, "before": a[f], "after": b[f]} for f in a if a[f] != b[f]]
+    if fields:
+        out.append({"entity": "material", "id": "material", "label": after.get("material", {}).get("name") or "", "change": "modified", "fields": fields})
     return out
+
+
+def _material_fields(m: dict[str, Any]) -> dict[str, str]:
+    return {
+        "name": m.get("name") or "", "noc": m.get("noc") or "", "part_number": m.get("part_number") or "", "ncage": m.get("ncage") or "",
+        "subcategories": ", ".join(m.get("subcategories") or []), "catalog_version_id": _shown(decode(m.get("catalog_version_id"))) if m.get("catalog_version_id") else "",
+    }
 
 
 async def with_authorizations(db: AsyncSession, material: Material, entries: list[dict[str, Any]], since: datetime, until: datetime | None) -> list[dict[str, Any]]:
@@ -551,7 +564,9 @@ async def import_guard(db: AsyncSession, material: Material, job: Any) -> None:
         if item is None:
             raise HTTPException(status_code=409, detail=error_detail("authorization_required"))
         if item.material_id != material.id or item.state != "aprobada":
-            raise HTTPException(status_code=409, detail=error_detail("authorization_not_usable", authorization=item.code))
+            # Another CUF's authorization is not named: its code carries that CUF's P/N.
+            own = item.code if item.material_id == material.id else ""
+            raise HTTPException(status_code=409, detail=error_detail("authorization_not_usable", authorization=own))
 
 
 def _register_import_guard() -> None:
