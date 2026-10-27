@@ -762,3 +762,22 @@ Linux y Windows).
 **Tests.** `npm run check:all` verde (438 tests de backend; `test_baselines.py` recorre el flujo del §2.3 entero más
 inmutabilidad, cuatro ojos, estados ilegales, copia sin baselines, retención, permisos y `--reset`). `verify-baselines`,
 `verify-validation`, `verify-confunfis` y `verify-reference-tables` en verde.
+
+## E17b — Flecos de las pruebas de E17
+
+- **Admin:** tiene todos los permisos del catálogo en todos los materiales; lo único que se le niega son los cuatro ojos. Con
+  el código de E17 ya era así (no se reprodujo el "Crear baseline" que faltaba: probablemente una sesión abierta antes de `npm
+  run update`); ahora lo vigilan un test que recorre el catálogo de la base, también con un rol propio, y otro de los cuatro ojos.
+- **Botones, para toda la app:** ocultos solo sin permiso; con permiso y una condición pendiente, deshabilitados con el motivo y
+  el enlace que lo desbloquea (`GatedButton` / `BlockedReason`): ficha de fila, funciones adicionales e incompatibilidades,
+  productos funcionales, subcategorías y versión del catálogo del CUF, Crear / Aprobar / Rechazar / Retirar y las autorizaciones.
+  La tarjeta Partes no cambia (las partes son globales y no se bloquean).
+- **Material tras una baseline revisada:** subcategorías y versión del catálogo piden una autorización (la misma guarda),
+  quedan ligadas a ella y salen en el diff; nombre, descripción y Grupo-Clase, libres.
+
+**Por qué.** Encargo E17b (`docs/encargos/E17b.md`), correcciones de Juanma al probar E17.
+
+**Commits.** `0b40202` y `6037d6d` (revisión). **Commit de cierre: `6037d6d`** (CI en verde en Linux y Windows).
+
+**Tests.** `npm run check:all` verde (441 tests de backend). `verify-baselines` (ampliado), `verify-materials`,
+`verify-confunfis` y `verify-validation` en verde.
