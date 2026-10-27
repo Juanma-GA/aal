@@ -729,3 +729,36 @@ casos del §9.1.8, las cifras del §2.3, la entrega bloqueada y en verde, el an�
 
 **Commit:** `9f84447`, con la CI en verde en sus tres jobs (`secrets`, `windows` y `check`). `npm run check:all` pasó
 en verde, con 428 tests de backend. En `windows-latest`, el backend arranca y pasan los 217 tests unitarios.
+
+## E17 — Baselines, revisión y autorización de cambios de la CONFUNFIS (cierra el hito de demo 2)
+
+- **Flecos de E16:** validar pide `validacion.ejecutar`; "Exportar para entrega", `confunfis.entregar` (el Observador conserva
+  `exportar`); se conservan las últimas `validation.keep_runs` validaciones por CUF (50) y las de cada baseline, el resto se
+  purga con auditoría. El job de Windows no había fallado: nada que corregir.
+- **Baselines** (migraciones 0018–0020): vN inmutable, instantánea en **un documento JSONB por baseline** con su SHA-256
+  (filas, productos, funciones adicionales, incompatibilidades, artículos y partes, y las hojas ya calculadas del Anexo XI y
+  del Fichero Carga: la entrega es exactamente lo aprobado); cuatro ojos (nunca el autor, ni siendo admin); rechazar con
+  comentario; aprobar cierra las autorizaciones incluidas.
+- **Control de cambios** en un solo sitio (`app/services/changes.py`, `before_flush`): en revisión, solo lectura; tras una
+  revisada, cada cambio de filas, productos, funciones adicionales, incompatibilidades, libro o copia necesita una autorización
+  aprobada del CUF (`X-Change-Authorization`), que queda ligada a cada registro y en la auditoría. Partes y artículos, globales,
+  no se bloquean: salen en el diff y "Dónde se usa" avisa.
+- **Autorizaciones** `AC-<CUF>-NNN` (tipos en `TIPO_AUTORIZACION`), **diff** por entidad y campo (también a Excel), **entrega** de
+  la última revisada con "ENTREGA — baseline vN revisada por …" y el aviso de cambios no incluidos.
+- **Pantallas:** módulo "Baselines y cambios", banda y selector de autorización en la CONFUNFIS (botones deshabilitados con su
+  motivo), historial de la fila con autorización y baseline, Panel con el estado de configuración.
+- **Demo:** `demo_corregir_hallazgos.py` (10 bloqueantes, `--dejar CF-007`) y `seed_demo_confunfis.py --reset`.
+- **Revisión:** la carrera entre "Crear baseline" y una edición (bloqueos FOR SHARE), la auditoría de las bajas, la fuga del
+  código de una autorización de otro CUF y el alcance de `purge_verify_data.py`, corregidos.
+- **Interpretación:** rechazar una baseline levanta el solo lectura; si ya había una revisada, sigue haciendo falta autorización.
+  Subcategorías y versión del catálogo del CUF no se bloquean (son del material), pero salen en el diff.
+
+**Por qué.** Encargo E17 (`docs/encargos/E17.md`).
+
+**Commits.** `973e1b2` (parte 1; su CI falló por `test_parameters`, corregido en la parte 2), `75855a3` (parte 2, backend),
+`d741136` (parte 3, pantallas y `verify-baselines`) y `a624726` (revisión). **Commit de cierre: `a624726`** (CI en verde en
+Linux y Windows).
+
+**Tests.** `npm run check:all` verde (438 tests de backend; `test_baselines.py` recorre el flujo del §2.3 entero más
+inmutabilidad, cuatro ojos, estados ilegales, copia sin baselines, retención, permisos y `--reset`). `verify-baselines`,
+`verify-validation`, `verify-confunfis` y `verify-reference-tables` en verde.
