@@ -61,6 +61,8 @@ function refresh(queryClient: QueryClient, materialId: string, gone?: string): v
   if (gone) queryClient.removeQueries({ queryKey: rowKey(materialId, gone) });
   void queryClient.invalidateQueries({ queryKey: confunfisKey(materialId) });
   void queryClient.invalidateQueries({ queryKey: ['articles'] });
+  // The validation's "desactualizado" (E16) follows every change.
+  void queryClient.invalidateQueries({ queryKey: ['validation', materialId] });
 }
 
 /** Editing a row: shown at once in the table and the tree (HR20), the

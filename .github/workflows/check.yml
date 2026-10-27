@@ -99,7 +99,7 @@ jobs:
           .venv/bin/python scripts/seed_dev_data.py
       - name: npm run check:all
         run: npm run check:all
-      - name: verify-health, verify-auth-settings, verify-navigation, verify-reference-tables, verify-conf-fun, verify-materials, verify-articles, verify-articles-perf and verify-confunfis (real Chromium, backend and Vite)
+      - name: verify-health, verify-auth-settings, verify-navigation, verify-reference-tables, verify-conf-fun, verify-materials, verify-articles, verify-articles-perf, verify-confunfis and verify-validation (real Chromium, backend and Vite)
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
           SHOTS_DIR: ${{ runner.temp }}/shots
@@ -127,6 +127,8 @@ jobs:
           # verify-materials (which removes 0102 when no CONFUNFIS uses it).
           (cd backend && .venv/bin/python scripts/seed_demo_articles.py && .venv/bin/python scripts/seed_demo_confunfis.py)
           node scripts/verify-confunfis.mjs
+          # verify-validation (E16): the same demo, left as it was by verify-confunfis.
+          node scripts/verify-validation.mjs
       - name: Screenshots
         if: always()
         uses: actions/upload-artifact@v4

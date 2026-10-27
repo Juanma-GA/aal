@@ -119,6 +119,9 @@ export interface ConfunfisSummary {
   sns_covered: number;
   sns_in_config: number;
   with_observations: number;
+  /** Findings kept on the rows, by the rules' severity (E16). */
+  errors: number;
+  warnings: number;
   by_observation: Partial<Record<ObservationCode, number>>;
   sns_covered_by_extra: number;
   products: number;
@@ -130,6 +133,7 @@ export interface RowFilters {
   sns?: string;
   q?: string;
   with_observations?: boolean;
+  severity?: 'bloqueante' | 'aviso';
   observation?: ObservationCode;
   ct_sigle?: 'S' | 'N';
   orphans?: boolean;

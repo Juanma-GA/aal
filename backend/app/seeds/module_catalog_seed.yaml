@@ -195,7 +195,8 @@ modulos:
   nombre: Validación NT 10/17
   orden: 8
   fase: '1'
-  estado: planificado
+  estado: disponible
+  ruta: /materiales/:materialId/validacion
   encargo: E16
   objetivo: Validar la configuración con las reglas de la NT 10/17 y emitir un informe de errores antes de exportar.
   requisitos:

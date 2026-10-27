@@ -58,9 +58,11 @@ interface Props {
   materialId: string;
   selected: string | null;
   onSelect: (row: PositionRow) => void;
+  /** A search to start with (E16 "Ir a": the finding's position); its hit is the selected row when it is one. */
+  initialSearch?: string;
 }
 
-export function PhysicalTree({ materialId, selected, onSelect }: Props): React.JSX.Element {
+export function PhysicalTree({ materialId, selected, onSelect, initialSearch }: Props): React.JSX.Element {
   const { t } = useTranslation();
   // Open nodes by their path (a row may hang from two CS: two paths).
   const [open, setOpen] = useState<Set<string>>(() => new Set([ROOT_KEY]));
@@ -72,15 +74,20 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
   const queryClient = useQueryClient();
 
   // The search, and the hit shown.
-  const [text, setText] = useState('');
-  const [q, setQ] = useState('');
-  const [current, setCurrent] = useState(0);
+  const [text, setText] = useState(initialSearch ?? '');
+  const [q, setQ] = useState(initialSearch ?? '');
+  const [chosen, setChosen] = useState<number | null>(null);
+  const searched = useRef(initialSearch ?? '');
   useEffect(() => {
-    const timer = setTimeout(() => { setQ(text.trim()); setCurrent(0); }, DEBOUNCE_MS);
+    // Only a new text starts again from the first hit (not the search a finding came with).
+    if (text.trim() === searched.current) return;
+    const timer = setTimeout(() => { searched.current = text.trim(); setQ(text.trim()); setChosen(0); }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [text]);
   const found = useQuery({ queryKey: ['confunfis', materialId, 'search', q], queryFn: () => searchTree(materialId, q), enabled: q.length > 0 });
   const hits = q && found.data ? found.data.hits : [];
+  // Coming from a finding (nothing chosen yet), the hit shown is its row: a position may have several (duplicates, two CS).
+  const current = chosen ?? Math.max(0, initialSearch ? hits.findIndex((h) => h.row.id === selected) : 0);
 
   const hit = hits.length ? hits[Math.min(current, hits.length - 1)] : null;
   const topLevel = queryClient.getQueryData<TreeLevel>(['confunfis', materialId, 'tree', TOP]);
@@ -169,7 +176,7 @@ export function PhysicalTree({ materialId, selected, onSelect }: Props): React.J
     if (expandAll) setClosed(update);
     else setOpen(update);
   };
-  const go = (step: number) => setCurrent((c) => (hits.length ? (c + step + hits.length) % hits.length : 0));
+  const go = (step: number) => setChosen(hits.length ? (current + step + hits.length) % hits.length : 0);
   const first = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
   const last = Math.min(lines.length, Math.ceil((scrollTop + VIEW_HEIGHT) / ROW_HEIGHT) + OVERSCAN);
 

@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfunfisRow, useDeleteRow, useDuplicateAlternative, useResetAl } from '@/hooks/useConfunfis';
 import { ARTICLES_PATH } from '@/pages/articles/ArticlePage';
+import { cn } from '@/lib/utils';
 import { chainText, observationText } from '@/lib/confunfisText';
 import { csOf, positionOf, type PositionRow } from '@/types/confunfis';
 import { ObservationBadges } from './ObservationBadges';
@@ -31,14 +32,18 @@ interface Props {
   onOpen: (rowId: string | null) => void;
   onEdit: (row: PositionRow) => void;
   onAlternativeCs: (row: PositionRow) => void;
+  /** The field a finding points to (E16 "Ir a"), marked. */
+  highlight?: string | null;
 }
+
+const ARTICLE_FIELDS = new Set(['noc', 'pn', 'ncage']);
 
 /** A row of the CONFUNFIS (E13), in the docked detail panel (E15): its fields, the article
  *  (to its card), the CS and the rows hanging from it (each opens its own
  *  card), the total in the CUF with how it comes out, its observations and
  *  history; and, with confunfis.editar, edit, duplicate as alternative,
  *  add an alternative CS and remove. */
-export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlternativeCs }: Props): React.JSX.Element {
+export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlternativeCs, highlight }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
   // Once its removal is confirmed the card stops reading its row: closing
   // may take a render, and a read of a removed row is a 404.
@@ -53,8 +58,9 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
   const row = detail.data;
   const leavesSingle = Boolean(row && row.hueco_als.length === 2 && row.hueco_als.includes(row.al) && !row.hueco_als.includes('00'));
   const when = (iso: string) => new Intl.DateTimeFormat(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
-  const field = (label: string, value: React.ReactNode) => (
-    <div className="grid grid-cols-[9rem_1fr] gap-2 text-sm">
+  const marked = (key: string) => (key === highlight || (key === 'article' && ARTICLE_FIELDS.has(highlight ?? '')) ? 'rounded-sm ring-2 ring-ring ring-offset-2 ring-offset-background' : '');
+  const field = (label: string, value: React.ReactNode, key = '') => (
+    <div className={cn('grid grid-cols-[9rem_1fr] gap-2 text-sm', key && marked(key))} data-testid={key && key === highlight ? 'row-field-marked' : undefined}>
       <dt className="text-muted-foreground">{label}</dt>
       <dd>{value ?? '—'}</dd>
     </div>
@@ -94,18 +100,18 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
               </div>
             ) : null}
             <dl className="flex flex-col gap-1" data-testid="row-fields">
-              {field(t('confunfis.fields.qty'), row.qty)}
+              {field(t('confunfis.fields.qty'), row.qty, 'qty')}
               {field(t('confunfis.fields.total'), <span data-testid="row-total">{row.total ?? t('confunfis.card.noTotal')}</span>)}
               {row.chains.length ? field(t('confunfis.card.calculation'), (
                 <ul data-testid="row-calculation">{row.chains.map((c, i) => <li key={i} className="font-mono text-xs">{chainText(c, row.chains.length === 1 ? row.total : null)}</li>)}</ul>
               )) : null}
-              {field(t('confunfis.fields.article_name'), row.article_name)}
-              {field(t('confunfis.fields.function_text'), row.function_text)}
-              {field(t('confunfis.fields.ct_sigle'), row.ct_sigle)}
+              {field(t('confunfis.fields.article_name'), row.article_name, 'article_name')}
+              {field(t('confunfis.fields.function_text'), row.function_text, 'function_text')}
+              {field(t('confunfis.fields.ct_sigle'), row.ct_sigle, 'ct_sigle')}
               {field(t('confunfis.fields.source'), t(`confunfis.sources.${row.source}`))}
             </dl>
             <Separator />
-            <section className="flex flex-col gap-1 text-sm" data-testid="row-article">
+            <section className={cn('flex flex-col gap-1 text-sm', marked('article'))} data-testid="row-article">
               <h3 className="font-medium">{t('confunfis.card.article')}</h3>
               {row.article ? (
                 <>
@@ -122,7 +128,7 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
                 </Link>
               ) : null}
             </section>
-            <section className="flex flex-col gap-1 text-sm">
+            <section className={cn('flex flex-col gap-1 text-sm', marked('cs'))} data-testid={highlight === 'cs' ? 'row-field-marked' : undefined}>
               <h3 className="font-medium">{t('confunfis.card.cs')}</h3>
               {row.parents.length ? row.parents.map((p) => <RowLink key={p.id} row={p} onOpen={onOpen} />) : (
                 <span className="font-mono text-xs">{row.orphan ? t(`confunfis.card.orphan.${row.orphan}`, { cs: csOf(row) ?? '' }) : csOf(row) ?? t('confunfis.theCuf')}</span>

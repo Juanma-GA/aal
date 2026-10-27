@@ -26,14 +26,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { confunfisKey, useAlternativeCs, useConfunfisSummary } from '@/hooks/useConfunfis';
 import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
 import { useMe } from '@/hooks/useSession';
+import { useValidation } from '@/hooks/useValidation';
 import { saveFile } from '@/lib/download';
 import { notifyError } from '@/lib/notify';
 import { describeApiError } from '@/services/apiErrors';
 import { exportBook } from '@/services/confunfisBookApi';
+import { exportDelivery } from '@/services/validationApi';
 import type { BookExport } from '@/types/confunfisBook';
 import { positionOf, type PositionRow } from '@/types/confunfis';
 
 const EXPORTS: BookExport[] = ['anexo', 'aal', 'plantilla'];
+
+/** "Exportar para entrega" (E16): the CUF's Anexo XI and the Fichero Carga
+ *  of its articles, only with an up-to-date validation free of blocking
+ *  findings; disabled otherwise, saying why (the server refuses it too). */
+function DeliveryButton({ materialId }: { materialId: string }): React.JSX.Element {
+  const { t } = useTranslation();
+  const validation = useValidation(materialId);
+  const problems = validation.data?.delivery_problems ?? [];
+  const why = problems.map((p) => t(`validation.delivery.${p.code}`, p.params)).join(' ');
+  const blocked = !validation.data || problems.length > 0;
+  const go = () => {
+    exportDelivery(materialId)
+      .then(({ blob, fileName }) => saveFile(blob, fileName ?? 'ENTREGA.zip'))
+      .catch((error: unknown) => notifyError(error, t));
+  };
+  return (
+    <span className="flex items-center gap-2">
+      {/* A disabled button gets no hover: its reason is written next to it. */}
+      <span title={blocked ? why : undefined}>
+        <Button variant="outline" disabled={blocked} onClick={go} aria-describedby={blocked ? 'delivery-why' : undefined} data-testid="confunfis-delivery">
+          {t('validation.page.delivery')}
+        </Button>
+      </span>
+      {blocked && why ? <span id="delivery-why" className="max-w-64 text-xs text-muted-foreground" data-testid="confunfis-delivery-why">{why}</span> : null}
+    </span>
+  );
+}
 const TABS = ['arbol', 'funcional', 'tabla', 'partes', 'productos'] as const;
 type Tab = (typeof TABS)[number];
 
@@ -119,13 +148,18 @@ export function ConfunfisPage(): React.JSX.Element {
             <Badge variant="secondary">{t('confunfis.summary.covered', { covered: summary.data.sns_covered, total: summary.data.sns_in_config })}</Badge>
             {summary.data.multifunction_rows ? <Badge variant="outline">{t('confunfis.summary.multifunction', { count: summary.data.multifunction_rows })}</Badge> : null}
             {summary.data.incompatibility_rows ? <Badge variant="outline">{t('confunfis.summary.incompatible', { count: summary.data.incompatibility_rows })}</Badge> : null}
-            {summary.data.with_observations ? (
-              <Badge variant="warning">{t('confunfis.summary.observations', { count: summary.data.with_observations })}</Badge>
+            {summary.data.errors || summary.data.warnings ? (
+              <Badge variant="outline" className="gap-1" data-testid="confunfis-summary-findings">
+                <span className={summary.data.errors ? 'text-destructive' : undefined}>{t('confunfis.summary.errors', { count: summary.data.errors })}</span>
+                ·
+                <span>{t('confunfis.summary.warnings', { count: summary.data.warnings })}</span>
+              </Badge>
             ) : null}
           </>
         ) : null}
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {canEdit ? null : <p className="text-sm text-muted-foreground">{t('confunfis.readOnly')}</p>}
+          <DeliveryButton materialId={material.id} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" data-testid="confunfis-export">{t('confunfisBook.export')}</Button>
@@ -167,7 +201,7 @@ export function ConfunfisPage(): React.JSX.Element {
           ))}
         </TabsList>
         <TabsContent value="arbol">
-          <PhysicalTree materialId={material.id} selected={rowId} onSelect={open} />
+          <PhysicalTree key={params.get('buscar') ?? ''} materialId={material.id} selected={rowId} onSelect={open} initialSearch={params.get('buscar') ?? undefined} />
         </TabsContent>
         <TabsContent value="funcional">
           <FunctionalView materialId={material.id} onSelect={open} />
@@ -184,7 +218,7 @@ export function ConfunfisPage(): React.JSX.Element {
       </Tabs>
       {rowId ? (
         <RowSheet
-          materialId={material.id} rowId={rowId} canEdit={canEdit}
+          materialId={material.id} rowId={rowId} canEdit={canEdit} highlight={params.get('campo')}
           onOpen={(id) => go({ fila: id })} onEdit={(row) => setForm({ row })} onAlternativeCs={setAltCs}
         />
       ) : null}

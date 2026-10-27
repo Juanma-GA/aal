@@ -14,6 +14,8 @@ import { ObservationBadges } from './ObservationBadges';
 
 const ALL = '__all__';
 const ANY = '__any__';
+const BLOCKING = '__bloqueante__';
+const WARNING = '__aviso__';
 const DEBOUNCE_MS = 300;
 
 /** The CONFUNFIS as the Anexo XI's columns (E13): a search (SNS, NOC, P/N,
@@ -35,7 +37,8 @@ export function RowsTable({ materialId, onSelect }: { materialId: string; onSele
   const filters: RowFilters = {
     q: q || undefined,
     with_observations: observation === ANY ? true : undefined,
-    observation: observation !== ALL && observation !== ANY ? (observation as ObservationCode) : undefined,
+    severity: observation === BLOCKING ? 'bloqueante' : observation === WARNING ? 'aviso' : undefined,
+    observation: OBSERVATION_CODES.includes(observation as ObservationCode) ? (observation as ObservationCode) : undefined,
     ct_sigle: ct === 'S' || ct === 'N' ? ct : undefined,
     orphans: orphans || undefined,
     mounted: mounted || undefined,
@@ -60,6 +63,8 @@ export function RowsTable({ materialId, onSelect }: { materialId: string; onSele
             <SelectContent>
               <SelectItem value={ALL}>{t('confunfis.table.all')}</SelectItem>
               <SelectItem value={ANY}>{t('confunfis.table.withObservations')}</SelectItem>
+              <SelectItem value={BLOCKING}>{t('confunfis.table.withErrors')}</SelectItem>
+              <SelectItem value={WARNING}>{t('confunfis.table.withWarnings')}</SelectItem>
               {OBSERVATION_CODES.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c} · {findingTitle(t, c)}

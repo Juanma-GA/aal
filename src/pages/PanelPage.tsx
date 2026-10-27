@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ModuleStatusIcon } from '@/components/modules/ModuleStatus';
+import { TrafficLight } from '@/components/validation/TrafficLight';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -11,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useCuf } from '@/hooks/useCuf';
 import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
 import { moduleHref, useModules } from '@/hooks/useModules';
+import { useValidation } from '@/hooks/useValidation';
 import { catalogLabel } from '@/lib/labels';
 import { fetchSummary } from '@/services/confunfisApi';
 import { fetchActivity, fetchTeam } from '@/services/modulesApi';
@@ -21,6 +23,26 @@ const STATUSES: ModuleStatus[] = ['disponible', 'en_desarrollo', 'planificado'];
 
 function countBy(modules: ModuleBrief[], status: ModuleStatus): number {
   return modules.filter((m) => m.status === status).length;
+}
+
+/** The traffic light of the CUF's latest validation (E16), to its report. */
+function ValidationCard({ materialId, when }: { materialId: string; when: (iso: string) => string }): React.JSX.Element {
+  const { t } = useTranslation();
+  const validation = useValidation(materialId);
+  return (
+    <Card className="h-fit" data-testid="panel-validation">
+      <CardHeader>
+        <CardTitle>{t('validation.page.title')}</CardTitle>
+        <CardDescription>{validation.data?.at ? t('validation.page.lastRun', { at: when(validation.data.at) }) : t('validation.page.never')}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {validation.data ? <TrafficLight validation={validation.data} compact /> : <Skeleton className="h-6 w-48" />}
+        <Link to={`/materiales/${materialId}/validacion`} className="text-link text-sm underline-offset-2 hover:underline" data-testid="panel-validation-link">
+          {t('validation.page.openReport')}
+        </Link>
+      </CardContent>
+    </Card>
+  );
 }
 
 /** The material's Panel: its CUF, the user's role, the team, how far the
@@ -117,6 +139,8 @@ export function PanelPage(): React.JSX.Element {
             </div>
           </CardContent>
         </Card>
+
+        {material.permissions.includes('confunfis.ver') ? <ValidationCard materialId={material.id} when={when} /> : null}
 
         <Card data-testid="panel-team">
           <CardHeader>

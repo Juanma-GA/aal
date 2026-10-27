@@ -7,6 +7,7 @@ import { ArticlesPage } from '@/pages/articles/ArticlesPage';
 import { CATALOG_PATH, CatalogPage } from '@/pages/catalog/CatalogPage';
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage';
 import { MaterialLayout } from '@/layouts/MaterialLayout';
+import { ValidationPage } from '@/pages/material/ValidationPage';
 import { ConfunfisPage } from '@/pages/material/ConfunfisPage';
 import { MaterialCufPage } from '@/pages/material/MaterialCufPage';
 import { ModulePage } from '@/pages/ModulePage';
@@ -18,6 +19,7 @@ import { LoginPage } from '@/pages/LoginPage';
 import { AuditTab } from '@/pages/settings/AuditTab';
 import { MaterialsTab } from '@/pages/settings/MaterialsTab';
 import { ModulesTab } from '@/pages/settings/ModulesTab';
+import { ValidationRulesTab } from '@/pages/settings/ValidationRulesTab';
 import { ParametersTab } from '@/pages/settings/ParametersTab';
 import { ArticleFieldsTab, ReferenceTablesTab } from '@/pages/settings/ReferenceTablesTab';
 import { RolesTab } from '@/pages/settings/RolesTab';
@@ -48,6 +50,7 @@ export function App(): React.JSX.Element {
                 <Route path="ficha" element={<MaterialCufPage />} />
                 <Route path="confunfis" element={<ConfunfisPage />} />
                 <Route path="confunfis/:tab" element={<ConfunfisPage />} />
+                <Route path="validacion" element={<ValidationPage />} />
                 <Route path="modulos/:code" element={<ModulePage />} />
               </Route>
               <Route path={CHANGE_PASSWORD_PATH} element={<ChangePasswordPage />} />
@@ -69,6 +72,7 @@ export function App(): React.JSX.Element {
                   <Route path="tablas-referencia/:code" element={<ReferenceTablesTab />} />
                   <Route path="campos-articulo" element={<ArticleFieldsTab />} />
                   <Route path="parametros" element={<ParametersTab />} />
+                  <Route path="reglas-validacion" element={<ValidationRulesTab />} />
                 </Route>
               </Route>
               <Route path="*" element={<NotFoundPage />} />

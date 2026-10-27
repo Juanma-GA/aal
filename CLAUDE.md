@@ -91,7 +91,9 @@ también al propio shell (el patrón está en su línea de órdenes).
 **Tras un `git pull`** (E15): `npm run update` (`scripts/update.mjs`) hace solo lo necesario desde la última vez
 (sello en `.aal-update/`, ignorado; si no, `ORIG_HEAD`): `npm ci` si cambió `package-lock.json`, `pip install
 --require-hashes` (o `uv pip` si el venv no tiene pip) si cambió un lockfile, `alembic upgrade head` siempre y
-`npm run test:db:create` si hay migraciones nuevas; `-- --check` añade `check:all`. Resumen al final.
+`npm run test:db:create` si hay migraciones nuevas y `backend/scripts/refresh_findings.py` (E16: recalcula los hallazgos
+guardados en filas, productos, partes e incompatibilidades) si cambian las migraciones o las reglas; `-- --check` añade
+`check:all`. Resumen al final.
 
 **Base de datos de tests**: `npm run test:db:create` (crea `aal_test` en el mismo servidor, la migra
 y la primera vez añade `TEST_DATABASE_URL` a `backend/.env`).
@@ -178,8 +180,8 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   borra su usuario (dominio `@verify.aal-dev.es`) con `backend/scripts/purge_verify_data.py`, que
   también borra los materiales `[verify] …`; solo quedan sus filas de `audit_log`, que es de solo añadir.
 - **`verify-navigation.mjs`** (E02): el analista de desarrollo aterriza en el Panel de su material,
-  recorre tres grupos del sidebar, "Configuración funcional física", "Tabla de partes" (E14) y la ficha de "Validación NT
-  10/17" (planificado), un material ajeno da
+  recorre dos grupos del sidebar, "Configuración funcional física", "Tabla de partes" (E14), "Validación NT 10/17" (E16,
+  su página) y la ficha de "Candidatos AAL" (planificado), un material ajeno da
   404, el admin cambia FTA a "en desarrollo" y el analista lo ve; también el plegado de grupos tras
   recargar y la vista móvil. Credenciales por entorno: `VERIFY_ADMIN_EMAIL`, `VERIFY_ADMIN_PASSWORD` y
   `DEV_ANALISTA_PASSWORD`. Deja la base como estaba (material `[verify] …` borrado, FTA de vuelta a
@@ -228,16 +230,26 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   cargada, comprueba que 0102 no se puede quitar y que la copia lleva la CONFUNFIS; sin ella, lo de E11.
   (E15) La ficha de fila queda acoplada con el árbol pulsable al lado (ancho guardado y restaurado); exporta el Anexo XI
   del Tramontana, lo importa en "Fusionar" (0 nuevos, 0 modificados, 0 bajas; "Sustituir" no se le ofrece al analista),
-  lo aplica y descarga la plantilla vacía (su `import_job` se borra con `--import-jobs`).
+  lo aplica y descarga la plantilla vacía (su `import_job` se borra con `--import-jobs` y, E16, la validación que lanza al aplicar con `--validation-runs`).
 - **`verify-confunfis-real.mjs`** (E15): importa `private/CON_FUN_FIS2_ejemplo.xlsx` (714 filas, sin partes;
   `CONFUNFIS_REAL_ROWS` si es otro) en un CUF `[verify] …` temporal con todas las subcategorías, confirma el CUF distinto,
   aplica, exporta y compara celda a celda (`backend/scripts/compare_books.py`), reimporta esperando 0 cambios y da los
   tiempos. Sin el fichero, 2 (NOT RUN). No está en la CI. Deja la base como estaba (CUF y artículos).
+- **`verify-validation.mjs`** (E16): con la demo cargada, el analista valida el Tramontana desde el sidebar (rojo: los 6
+  bloqueantes de CONFUNFIS CF-001, 002, 007, 012, 014 y 015 más los AR), pulsa CF-007 → "Ir a" (el filtro de aire en el
+  árbol, con su ficha y el CS señalado), le pone el CS A20000 01 00 (el informe queda "desactualizado"; revalidado, CF-007
+  desaparece), ve "Exportar para entrega" deshabilitado con el motivo, acepta CF-017 con justificación y descarga el PDF; el
+  admin desactiva CF-018 en Ajustes → Reglas de validación (desactualizado por reglas) y la vuelve a activar. Deja la base
+  como estaba (`purge_verify_data.py --save-confunfis` / `--restore-confunfis`, `--accepted-findings`, `--validation-runs`).
+- **`verify-validation-real.mjs`** (E16): importa `private/CON_FUN_FIS2_ejemplo.xlsx` en un CUF `[verify] …` con todas las
+  subcategorías (aplicar ya valida), valida otra vez midiendo el tiempo (< 3 s, `VALIDATION_REAL_MAX_S`) y coteja CF-002 = 2,
+  CF-007 = 6, CF-008 = 46, CF-012 = 52, CF-014 = 52, CF-015 = 21. Sin el fichero, 2 (NOT RUN). No está en la CI.
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
   job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) + `verify-articles` + `verify-articles-perf` + `verify-confunfis` (tras
-  `seed_demo_articles.py` y `seed_demo_confunfis.py`, después de `verify-materials`) con Chrome contra uvicorn y Vite.
+  `seed_demo_articles.py` y `seed_demo_confunfis.py`, después de `verify-materials`) + `verify-validation` con Chrome contra
+  uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
 
@@ -396,8 +408,8 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   cuentan una vez—, huérfanas, ciclos) se calcula, nunca se guarda (`app/services/confunfis_graph.py`, puro). Guardar
   (`app/services/confunfis.py`, `save_row`): en pantalla, estricto (formatos y SNS de la configuración normalizada);
   desde fichero, flexible; enlaza con el maestro por NOC → P/N + NCAGE → nombre exacto → provisional (`article.origin
-  = 'confunfis'`), añade la referencia que falte y nunca pisa datos SIGLE. Observaciones provisionales OF-001…OF-011
-  (hasta las reglas CF de E16) guardadas en la fila y recalculadas tras cada cambio (`refresh_observations`); rangos
+  = 'confunfis'`), añade la referencia que falte y nunca pisa datos SIGLE. Hallazgos de las reglas CF de E16 (antes
+  OF-*) guardados en la fila y recalculados tras cada cambio (`refresh_observations`, con el motor de `app/validacion/`); rangos
   de CO/AL en el parámetro `confunfis`. Permisos `confunfis.ver` / `confunfis.editar` (la matriz). Puntos de
   extensión rellenos: copia (`MATERIAL_COPIERS`), guarda de subcategorías, `cuf.IMPACT_EXTENSIONS` (filas cuyo SNS
   desaparece), "dónde se usa" (`confunfis`, solo materiales accesibles). CUF montado: el artículo es el CUF de otro
@@ -405,8 +417,8 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   (`app/services/confunfis_sheet.py`, base de E15). Pantalla `/materiales/:materialId/confunfis` (?tab, ?fila).
 - **Resto de RF-02 (E14)**: `article_part` (la tabla de partes es **del artículo**, global como el maestro; COP 01–99,
   ALP 00–99, rangos en el parámetro `confunfis`), `functional_product`, `extra_function` e `incompatibility` (del CUF),
-  todas con versión, borrado lógico y auditoría y sin restricción única (los errores son observaciones provisionales
-  OP-*, OPF-*, OI-* hasta E16). Servicio `app/services/confunfis_extras.py`: se cuelga de los puntos de extensión de
+  todas con versión, borrado lógico y auditoría y sin restricción única (sus errores son las reglas TP-001, PF-001 y
+  CF-021 de E16, guardadas en cada registro). Servicio `app/services/confunfis_extras.py`: se cuelga de los puntos de extensión de
   `confunfis.py` (`COPY_EXTENSIONS`: copia remapeada a las filas copiadas, las partes no se copian;
   `ROW_REMOVAL_EXTENSIONS`: la baja de una fila se lleva sus funciones adicionales e incompatibilidades;
   `REFRESH_EXTENSIONS`: observaciones tras cada cambio), de la guarda de subcategorías y de "dónde se usa" (`parts`,
@@ -421,8 +433,9 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
 - **Libro CONFUNFIS (E15, Anexo XI)**: plantillas de las hojas en `app/services/anexo_xi_sheets.py` (solo `CON_FUN_FIS`
   obligatoria; las desconocidas se ignoran y se avisan; las dos variantes de cabecera de productos; cabecera validada por la
   fila 2; el Libro AAL añade `FUNCIONES ADICIONALES` e `INCOMPATIBILIDADES`, con la fila nombrada por SNS+CO+AL+CS).
-  Importación `app/services/anexo_xi_import.py` (`AnexoXiTarget`, `Runner`): el análisis es una pasada real que el motor
-  deshace (de ahí salen observaciones, provisionales, P/N nuevos y partes compartidas); "Fusionar" (`confunfis.editar`)
+  Importación `app/services/anexo_xi_import.py` (`AnexoXiTarget`, `Runner`): el análisis (E16) es la misma pasada en memoria
+  (`anexo_xi_dry.py`, transacción `REPEATABLE READ READ ONLY`: no escribe ni bloquea), y de ahí salen los hallazgos del
+  validador sobre el CUF como quedaría, los provisionales, los P/N nuevos y las partes compartidas; "Fusionar" (`confunfis.editar`)
   nunca da de baja, "Sustituir" (admin, nombre del CUF tecleado) da de baja lo que no está (las partes, solo de los padres
   del fichero); claves fila SNS+CO+AL+CS (duplicados por orden), producto POL+N/A/E+unidad, parte padre+COP+ALP; CUF del
   fichero distinto → `confirm_cuf`; huella de lo guardado tomada al analizar (409 `import_book_stale` si cambió, y otra vez tras escribir si el resultado no es el del informe); una
@@ -438,6 +451,34 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   origen en `import_origin` (no pisa el `origin` de la entidad); toda celda de texto exportada es texto (`data_type = "s"`,
   nunca una fórmula). Los registros de la CONFUNFIS toman `clock_timestamp()` como `created_at` (migración 0014): el orden
   de los duplicados es el de creación. Límites de la plantilla en el parámetro `confunfis.template`.
+- **Validador NT 10/17 (E16, RF-03)**: un solo motor y una sola lista de códigos. Catálogo de reglas en
+  `app/validacion/catalog.py` (código, ámbito, severidad por defecto, referencia NT, parámetros) y comprobaciones puras en
+  `app/validacion/engine.py` (`@rule("CF-001")` sobre un `Context`: las filas, sus artículos y referencias, partes,
+  productos, funciones adicionales e incompatibilidades; vale para lo guardado y para lo que dejaría una importación). Las
+  AR-001…AR-007 son las de los artículos (E12). Configuración en `validation_rule` (activa, severidad, parámetros, ayuda;
+  `PATCH /api/validation-rules/{código}`, admin, con versión y auditoría; Ajustes → Reglas de validación). Una ejecución
+  (`validation_run` + `validation_finding`, `app/services/validation.py`) guarda la huella de los datos y el hash de las
+  reglas: cualquier cambio posterior la deja "desactualizada". Validar pide `confunfis.ver`; aceptar un aviso,
+  `confunfis.editar` y una justificación (`finding_acceptance`, vale para las ejecuciones siguientes; un bloqueante nunca
+  se acepta). Se valida a mano, tras aplicar un libro y, en cada edición, los hallazgos de las filas se recalculan
+  (`refresh_observations`). "Exportar para entrega" (`GET …/confunfis/delivery`: Anexo XI + Fichero Carga de sus artículos,
+  zip) responde 409 `delivery_blocked` con los motivos si no hay validación, está desactualizada o tiene bloqueantes; punto
+  de extensión `DELIVERY_GUARDS` (E17: baseline). Las exportaciones de trabajo (Anexo XI, Libro AAL, Maestro AAL) empiezan
+  con la hoja ESTADO DE VALIDACIÓN. Informe en Excel y PDF (`validation_report.py`, reportlab). Textos del backend desde
+  `es.json` (`app/core/texts.py`). Pantalla `/materiales/:materialId/validacion` (migración 0017); "Ir a" abre la fila en
+  el árbol (`?fila&buscar&campo`). Equivalencias de los códigos antiguos:
+
+  | Antes (E13–E15) | Ahora (E16) | Antes | Ahora |
+  |---|---|---|---|
+  | OF-001 | CF-001 | OF-010 | CF-010 |
+  | OF-002 | CF-002 | OF-011 | CF-012 `pn_taken` |
+  | OF-003 | CF-007 | OF-012 | CF-004 `alone` |
+  | OF-004 | CF-015 (solo la segunda) | OP-001…OP-007 | TP-001 (`self`, `cycle`, `duplicate`, `quantity`, `in_confunfis`, `alone`, `pn_taken`) |
+  | OF-005 | CF-003 / CF-004 | OPF-001, 003–006 | PF-001 (`pol`, `nae`, `supply_unit`, `unit`, `duplicate`) |
+  | OF-006 | CF-005 / CF-006 | OPF-002 (designación distinta del maestro) | retirada |
+  | OF-007 | CF-012 | OI-001 | CF-021 `excluye_without_alternatives` |
+  | OF-008 | CF-014 | OI-002 | CF-021 `requiere_removed` |
+  | OF-009 (nombre distinto del maestro) | retirada | OI-003 | CF-021 `requiere_cycle` |
 - **Ficha lateral acoplada (E15)**: toda ficha de detalle es un `DetailPanel` (`src/components/layout/DetailPanel.tsx`):
   desde 1024 px se acopla a la derecha del contenido (un hueco de `AppLayout` al lado de `<main>`, vía `uiStore.detailSlot`),
   sin fondo oscurecido, y la lista sigue pulsable; por debajo, el `sheet` de shadcn. Ancho arrastrando el borde, el mismo para

@@ -12,6 +12,7 @@ const SETTINGS_TABS = [
   { path: 'tablas-referencia', label: 'settings.tabs.referenceTables' },
   { path: 'campos-articulo', label: 'settings.tabs.articleFields' },
   { path: 'parametros', label: 'settings.tabs.parameters' },
+  { path: 'reglas-validacion', label: 'settings.tabs.validationRules' },
 ] as const;
 
 export function SettingsLayout(): React.JSX.Element {

@@ -268,3 +268,15 @@ async def test_the_analysis_writes_and_locks_nothing(client, demo):
     # What it saw is what applying does.
     done = await apply(client, demo, admin, job, confirm_name=TRAMONTANA)
     assert done.status_code == 200, done.text
+
+
+async def test_the_rows_filter_by_rule_and_severity(client, demo):
+    """The CONFUNFIS table's filter (E16): a rule's code, or "con errores bloqueantes" / "con avisos"."""
+    analyst = demo["people"]["analista"]
+    blocking = (await all_rows(client, demo, analyst, severity="bloqueante"))["items"]
+    assert sorted(f"{r['sns']} {r['co']}" for r in blocking) == ["A22140 02", "A24110 01", "B31010 01", "B32020 01", "B35010 01", "D53000 01"]
+    warned = (await all_rows(client, demo, analyst, severity="aviso"))["items"]
+    assert [r["sns"] for r in warned] == ["B33011"]
+    assert [r["sns"] for r in (await all_rows(client, demo, analyst, observation="CF-007"))["items"]] == ["A24110"]
+    res = await client.get(f"{base(demo)}/rows", params={"severity": "otra"}, headers=analyst)
+    assert res.status_code == 422

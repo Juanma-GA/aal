@@ -23,7 +23,8 @@
 // Leaves the database as it was: every CONFUNFIS row (with its products,
 // extra functions and incompatibilities) and every article (with its parts)
 // are saved before and put back after (backend/scripts/purge_verify_data.py
-// --save-confunfis / --save-articles); only audit rows stay.
+// --save-confunfis / --save-articles), and the validation the import ran (E16)
+// is removed (--validation-runs); only audit rows stay.
 //
 // Needs Vite (BASE_URL, default http://localhost:5173) and uvicorn running.
 // Credentials from the environment, never arguments (D17):
@@ -84,6 +85,7 @@ const startCuf = await admin('GET', `/materials/${tramontana.id}/cuf`);
 
 const purge = path.join('scripts', 'purge_verify_data.py');
 const importJobs = [];
+const validationRuns = [];
 if (runBackendScript(python, 'save the CONFUNFIS', [purge, '--save-confunfis', '--snapshot', ROWS_SNAPSHOT]) !== 0) notRun('could not save the CONFUNFIS rows.');
 if (runBackendScript(python, 'save the articles', [purge, '--save-articles', '--snapshot', ARTICLES_SNAPSHOT]) !== 0) notRun('could not save the articles.');
 
@@ -336,6 +338,9 @@ try {
     page.getByTestId('book-apply').click(),
   ]);
   assert(applied.status() === 200, 'applying it is accepted');
+  // (E16) Applying validates the CUF: that run goes in the cleanup.
+  const run = await analystApi('GET', `/materials/${tramontana.id}/validation`);
+  if (run.trigger === 'import' && run.run_id) validationRuns.push(run.run_id);
   await page.getByTestId('book-done').waitFor();
   await page.getByTestId('book-close').click();
   const after7 = await admin('GET', `/materials/${tramontana.id}/confunfis/summary`);
@@ -357,6 +362,7 @@ try {
 } finally {
   await browser.close();
   if (importJobs.length) runBackendScript(python, 'cleanup', [purge, '--import-jobs', ...importJobs]);
+  if (validationRuns.length) runBackendScript(python, 'cleanup', [purge, '--validation-runs', ...validationRuns]);
   runBackendScript(python, 'cleanup', [purge, '--restore-confunfis', '--snapshot', ROWS_SNAPSHOT]);
   runBackendScript(python, 'cleanup', [purge, '--restore-articles', '--snapshot', ARTICLES_SNAPSHOT]);
   await analystApi('PUT', '/me/ui-preferences', { detail_panel_width: panelWidth }).catch(() => undefined);

@@ -54,6 +54,7 @@ from app.services.confunfis_graph import ROOT, Graph, key_text, well_formed
 from app.services.parameters import get_parameter
 from app.services.permissions import MaterialAccess, accessible_materials
 from app.services.snapshots import client_ip
+from app.validacion.catalog import BY_CODE
 
 router = APIRouter(prefix="/api/materials/{material_id}/confunfis", tags=["confunfis"])
 
@@ -231,7 +232,8 @@ async def summary(access: MaterialAccess = Depends(require_material_permission(R
         for code in r.observation_codes:
             by_code[code] = by_code.get(code, 0) + 1
         for o in r.observations:
-            severity = validation.severity_of(rules.get(o.get("code", "")), o["code"]) if o.get("code") in rules else None
+            code = o.get("code")
+            severity = validation.severity_of(rules.get(code), code) if code in BY_CODE else None
             if severity in severities:
                 severities[severity] += 1
     return Summary(errors=severities["bloqueante"], warnings=severities["aviso"],
@@ -327,7 +329,8 @@ async def list_rows(
     sns: str | None = Query(default=None, max_length=40),
     q: str | None = Query(default=None, max_length=100),
     with_observations: bool | None = None,
-    observation: str | None = Query(default=None, pattern=r"^OF-\d{3}$"),
+    observation: str | None = Query(default=None, pattern=r"^[A-Z]{2}-\d{3}$"),
+    severity: str | None = Query(default=None, pattern="^(bloqueante|aviso)$"),
     ct_sigle: str | None = Query(default=None, pattern="^[SN]$"),
     orphans: bool | None = None,
     mounted: bool | None = None,
@@ -359,6 +362,10 @@ async def list_rows(
         rows = [r for r in rows if bool(r.observation_codes) == with_observations]
     if observation:
         rows = [r for r in rows if observation in r.observation_codes]
+    if severity:
+        # The rows with a finding of that severity (E16: the rules' configuration).
+        rules = await validation.settings(db)
+        rows = [r for r in rows if any(validation.severity_of(rules.get(c), c) == severity for c in r.observation_codes if c in BY_CODE)]
     if ct_sigle:
         rows = [r for r in rows if r.ct_sigle == ct_sigle]
     if orphans is not None:

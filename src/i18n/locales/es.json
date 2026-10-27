@@ -481,6 +481,65 @@
       "delivery_not_validated": "Falta validar el CUF.",
       "delivery_outdated": "La validación está desactualizada: hay cambios posteriores o han cambiado las reglas.",
       "delivery_blocking": "Hay {{count}} errores bloqueantes."
+    },
+    "page": {
+      "title": "Validación NT 10/17",
+      "hint": "Comprueba la CONFUNFIS del CUF, sus artículos, partes y productos funcionales con las reglas de la NT 10/17. Lo que tiene errores bloqueantes no se puede exportar para entrega.",
+      "blocking_one": "{{count}} bloqueante",
+      "blocking_other": "{{count}} bloqueantes",
+      "blocking": "{{count}} bloqueantes",
+      "warnings_one": "{{count}} aviso",
+      "warnings_other": "{{count}} avisos",
+      "warnings": "{{count}} avisos",
+      "accepted_one": "{{count}} aceptado",
+      "accepted_other": "{{count}} aceptados",
+      "accepted": "{{count}} aceptados",
+      "acceptedShort_one": "{{count}} aceptado",
+      "acceptedShort_other": "{{count}} aceptados",
+      "acceptedShort": "{{count}} aceptados",
+      "findings_one": "{{count}} hallazgo",
+      "findings_other": "{{count}} hallazgos",
+      "findings": "{{count}} hallazgos",
+      "outdated": "Desactualizado",
+      "outdatedData": "la CONFUNFIS ha cambiado desde entonces",
+      "outdatedRules": "las reglas han cambiado desde entonces",
+      "run": "Validar ahora",
+      "running": "Validando…",
+      "exportPdf": "Informe PDF",
+      "exportXlsx": "Informe Excel",
+      "when": "Validado el {{at}} por {{by}} ({{trigger}})",
+      "system": "el sistema",
+      "trigger": {
+        "manual": "a mano",
+        "import": "tras importar el libro"
+      },
+      "never": "Este CUF aún no se ha validado.",
+      "lastRun": "Última validación: {{at}}",
+      "openReport": "Ver el informe de validación",
+      "deliveryBlocked": "No se puede exportar para entrega",
+      "deliveryReady": "Se puede exportar para entrega",
+      "delivery": "Exportar para entrega",
+      "byRule": "Resumen por regla",
+      "byRuleHint": "Pulsa una regla para ver solo sus hallazgos.",
+      "ruleText": "Regla",
+      "search": "Buscar",
+      "scope": "Ámbito",
+      "acceptedFilter": "Aceptados",
+      "onlyAccepted": "Solo aceptados",
+      "notAccepted": "Sin aceptar",
+      "all": "Todos",
+      "where": "Dónde",
+      "what": "Qué pasa",
+      "isAccepted": "Aceptado",
+      "acceptedBy": "Aceptado por {{by}} el {{at}}: {{text}}",
+      "goTo": "Ir a",
+      "accept": "Aceptar aviso",
+      "noFindings": "Ningún hallazgo con estos filtros.",
+      "acceptTitle": "Aceptar el aviso {{code}}",
+      "justification": "Justificación",
+      "justificationHint": "Obligatoria. Queda en la auditoría y en el informe; el aviso sigue saliendo como aceptado.",
+      "refAndSeverity": "Referencia: {{ref}} · {{severity}}",
+      "code": "Código"
     }
   },
   "header": {
@@ -555,7 +614,8 @@
       "parameters": "Parámetros",
       "modules": "Módulos",
       "referenceTables": "Tablas de referencia",
-      "articleFields": "Campos del artículo"
+      "articleFields": "Campos del artículo",
+      "validationRules": "Reglas de validación"
     },
     "users": {
       "search": "Buscar por nombre o email",
@@ -707,6 +767,20 @@
       "changeHint": "Un módulo disponible necesita su ruta; en otro estado, la ruta se quita.",
       "routeHint": "Ruta de la app que empieza por /; :materialId se sustituye por el material, p. ej. /materiales/:materialId/confunfis.",
       "openCard": "Abrir la ficha de {{name}}"
+    },
+    "validationRules": {
+      "hint": "Las reglas del validador NT 10/17. Desactivar una regla o cambiar su severidad queda en la auditoría y deja desactualizadas las validaciones hechas hasta ahora. Un error bloqueante no se puede aceptar: si no aplica, se cambia aquí su severidad.",
+      "active": "Activa",
+      "activeOf": "Regla {{code}} activa",
+      "severityOf": "Severidad de {{code}}",
+      "helpOf": "Ayuda de {{code}}",
+      "params": "Parámetros",
+      "noParams": "Sin parámetros",
+      "help": "Ayuda propia",
+      "paramNames": {
+        "field": "Campo del artículo (código PRISMA)"
+      },
+      "defaultIs": "Por defecto: {{severity}}"
     }
   },
   "audit": {
@@ -1466,15 +1540,15 @@
   },
   "confunfis": {
     "title": "Configuración funcional física",
-    "hint": "La CONFUNFIS del CUF (NT 10/17 §9, Anexo XI): cada componente físico en su posición funcional (SNS), con su código de componente (CO), sus alternativos (AL), su cantidad por unidad del conjunto superior (QTY) y su conjunto superior (CS). Las observaciones son avisos provisionales hasta el validador NT.",
+    "hint": "La CONFUNFIS del CUF (NT 10/17 §9, Anexo XI): cada componente físico en su posición funcional (SNS), con su código de componente (CO), sus alternativos (AL), su cantidad por unidad del conjunto superior (QTY) y su conjunto superior (CS). Los hallazgos son los del validador NT 10/17 (código de la regla en cada fila).",
     "readOnly": "Solo lectura: tu rol no edita la CONFUNFIS de este material.",
     "newRow": "Nueva fila",
     "noName": "Sin nombre",
     "theCuf": "El CUF",
     "yes": "S · Sí",
     "no": "N · No",
-    "observationsCount_one": "{{count}} observación",
-    "observationsCount_other": "{{count}} observaciones",
+    "observationsCount_one": "{{count}} hallazgo",
+    "observationsCount_other": "{{count}} hallazgos",
     "tabs": {
       "arbol": "Árbol físico",
       "funcional": "Vista funcional",
@@ -1501,7 +1575,13 @@
       "multifunction": "{{count}} filas multifunción",
       "incompatible_one": "{{count}} fila con incompatibilidades",
       "incompatible_other": "{{count}} filas con incompatibilidades",
-      "incompatible": "{{count}} filas con incompatibilidades"
+      "incompatible": "{{count}} filas con incompatibilidades",
+      "errors_one": "{{count}} error",
+      "errors_other": "{{count}} errores",
+      "errors": "{{count}} errores",
+      "warnings_one": "{{count}} aviso",
+      "warnings_other": "{{count}} avisos",
+      "warnings": "{{count}} avisos"
     },
     "fields": {
       "sns": "SNS",
@@ -1579,9 +1659,9 @@
     "table": {
       "search": "Buscar",
       "searchHint": "SNS, NOC, P/N, nombre o función",
-      "observations": "Observaciones",
+      "observations": "Hallazgos",
       "all": "Todas",
-      "withObservations": "Con alguna observación",
+      "withObservations": "Con hallazgos",
       "orphans": "Huérfanas",
       "mounted": "CUF montado",
       "total_one": "{{count}} fila",
@@ -1589,7 +1669,9 @@
       "previous": "Anterior",
       "next": "Siguiente",
       "page": "Página {{page}} de {{pages}}",
-      "total": "{{count}} filas"
+      "total": "{{count}} filas",
+      "withErrors": "Con errores bloqueantes",
+      "withWarnings": "Con avisos"
     },
     "card": {
       "title": "Fila de la CONFUNFIS",
@@ -1609,7 +1691,7 @@
       "cs": "Conjunto superior",
       "children_one": "Cuelga {{count}} fila",
       "children_other": "Cuelgan {{count}} filas",
-      "observations": "Observaciones",
+      "observations": "Hallazgos de la validación NT",
       "history": "Historial",
       "orphan": {
         "malformed": "{{cs}} (mal formado)",
@@ -1663,7 +1745,7 @@
       "part_identity_required": "Indica el artículo de la parte: NOC, P/N o al menos su nombre.",
       "pn_invalid": "Demasiado largo para un P/N."
     },
-    "observationsCount": "{{count}} observaciones",
+    "observationsCount": "{{count}} hallazgos",
     "parts": {
       "count_one": "{{count}} parte",
       "count_other": "{{count}} partes",
@@ -1676,9 +1758,9 @@
       "count_one": "{{count}} producto funcional",
       "count_other": "{{count}} productos funcionales",
       "count": "{{count}} productos funcionales",
-      "withObservations_one": "{{count}} con observaciones",
-      "withObservations_other": "{{count}} con observaciones",
-      "withObservations": "{{count}} con observaciones",
+      "withObservations_one": "{{count}} con hallazgos",
+      "withObservations_other": "{{count}} con hallazgos",
+      "withObservations": "{{count}} con hallazgos",
       "hint": "Agrupados por código POL: N (normal), A (alternativo) y E (emergencia) del mismo código juntos.",
       "new": "Nuevo producto",
       "edit": "Editar el producto",
@@ -1796,7 +1878,7 @@
     },
     "result": {
       "title": "Resultado",
-      "observations": "Observaciones que tendría el CUF",
+      "observations": "Hallazgos que tendría el CUF",
       "times_one": "{{count}} vez",
       "times_other": "{{count}} veces",
       "provisional": "Artículos provisionales que se crearían",

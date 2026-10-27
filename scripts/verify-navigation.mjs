@@ -6,9 +6,10 @@
 //      counts (the same as /api/modules) and recent activity.
 //   3. Three sidebar groups (Base común, PAAL, PRAMT) open their module
 //      cards; (E13) "Configuración funcional física" opens the CONFUNFIS,
-//      (E14) "Tabla de partes" its tab, and the card of "Validación NT
-//      10/17" shows RF-03, its dependencies with their state and the
-//      "planned" notice, with breadcrumbs and the tab title.
+//      (E14) "Tabla de partes" its tab, (E16) "Validación NT 10/17" its
+//      page, and the card of "Candidatos AAL" shows RF-05, its dependencies
+//      with their state and the "planned" notice, with breadcrumbs and the
+//      tab title.
 //   4. The URL of a material the analyst is not in -> the humanized 404.
 //   5. The admin changes a module (FTA) to "en desarrollo" in Ajustes ->
 //      Módulos.
@@ -124,8 +125,8 @@ try {
   assert((await page.title()).startsWith(es.panel.title), 'tab title of the Panel');
   await page.screenshot({ path: shot('verify-navigation-1-panel.png'), fullPage: true });
 
-  // ── 3. Three groups of the sidebar, and the Validación NT 10/17 card ───
-  for (const [group, module] of [['base', 'validacion'], ['paal', 'candidatos'], ['pramt', 'amfec']]) {
+  // ── 3. Groups of the sidebar, and the Candidatos AAL card ──────────────
+  for (const [group, module] of [['paal', 'candidatos'], ['pramt', 'amfec']]) {
     await page.getByTestId(`sidebar-group-${group}`).waitFor();
     await page.getByTestId(`sidebar-module-${module}`).click();
     await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/${module}`);
@@ -149,10 +150,15 @@ try {
   await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/confunfis/partes`);
   await page.getByTestId('confunfis-parts').waitFor();
   assert(true, 'base: "Tabla de partes" opens the CONFUNFIS on its tab');
+  // (E16) "Validación NT 10/17" is on: its page, inside the material.
   await page.getByTestId('sidebar-module-validacion').click();
-  await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/validacion`);
-  await page.locator('main h2', { hasText: 'Validación NT 10/17' }).waitFor();
-  assert((await page.getByTestId('module-requirements').textContent()).includes('RF-03'), 'the card shows RF-03');
+  await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/validacion`);
+  await page.getByTestId('validation-page').waitFor();
+  assert(true, 'base: "Validación NT 10/17" opens the validation of the material');
+  await page.getByTestId('sidebar-module-candidatos').click();
+  await page.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/candidatos`);
+  await page.locator('main h2', { hasText: 'Candidatos AAL' }).waitFor();
+  assert((await page.getByTestId('module-requirements').textContent()).includes('RF-05'), 'the card shows RF-05');
   const deps = await page.getByTestId('module-depends-on').textContent();
   assert(deps.includes('Configuración funcional física'), 'the card shows its dependency');
   // The CONFUNFIS (E13) and the articles (E12) are available.
@@ -161,8 +167,8 @@ try {
   assert((await page.getByTestId('module-planned').textContent()).includes(es.modules.planned), 'the planned notice');
   assert((await page.getByTestId('module-card').getByRole('button').count()) === 0, 'no button on a planned module');
   const crumbs = await page.getByRole('navigation', { name: es.nav.breadcrumb }).textContent();
-  assert(crumbs.includes(MATERIAL_NAME) && crumbs.includes('Base común') && crumbs.includes('Validación NT 10/17'), 'breadcrumbs material › group › module');
-  assert((await page.title()).startsWith('Validación NT 10/17'), 'tab title of the card');
+  assert(crumbs.includes(MATERIAL_NAME) && crumbs.includes('PAAL') && crumbs.includes('Candidatos AAL'), 'breadcrumbs material › group › module');
+  assert((await page.title()).startsWith('Candidatos AAL'), 'tab title of the card');
   await page.screenshot({ path: shot('verify-navigation-2-card.png'), fullPage: true });
 
   // Folding a group is kept on the server: it survives a reload.
@@ -259,11 +265,11 @@ try {
   await mobile.waitForTimeout(400);
   assert(true, 'phone: the menu opens as a side panel');
   await mobile.screenshot({ path: shot('verify-navigation-5-mobile-menu.png') });
-  await mobile.getByRole('dialog').getByTestId('sidebar-module-validacion').click();
-  await mobile.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/validacion`);
+  await mobile.getByRole('dialog').getByTestId('sidebar-module-candidatos').click();
+  await mobile.waitForURL(`${BASE_URL}/materiales/${devMaterial.id}/modulos/candidatos`);
   await mobile.getByRole('dialog').waitFor({ state: 'hidden', timeout: 5000 });
   assert(true, 'phone: choosing a module closes the panel');
-  await mobile.locator('main h2', { hasText: 'Validación NT 10/17' }).waitFor();
+  await mobile.locator('main h2', { hasText: 'Candidatos AAL' }).waitFor();
   await mobile.screenshot({ path: shot('verify-navigation-6-mobile-card.png'), fullPage: true });
 
   const unexpected = consoleErrors.filter((e) => !/\b(401|404)\b/.test(e));

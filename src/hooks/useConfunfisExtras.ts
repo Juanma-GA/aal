@@ -45,6 +45,7 @@ function useRefresh() {
     if (materialId) void queryClient.invalidateQueries({ queryKey: confunfisKey(materialId) });
     else void queryClient.invalidateQueries({ queryKey: ['confunfis'] });
     void queryClient.invalidateQueries({ queryKey: ['articles'] });
+    void queryClient.invalidateQueries({ queryKey: ['validation'] });
   };
 }
 

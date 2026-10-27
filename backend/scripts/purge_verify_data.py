@@ -47,6 +47,10 @@ the functional products, extra functions and incompatibilities.
 
     python scripts/purge_verify_data.py --save-confunfis --snapshot FICHERO
     python scripts/purge_verify_data.py --restore-confunfis --snapshot FICHERO
+
+The validations a check ran (E16) and the warnings it accepted go too:
+
+    python scripts/purge_verify_data.py --accepted-findings <finding id> --validation-runs <run id>
 """
 
 import argparse
@@ -72,6 +76,7 @@ from app.models import (
     ArticleRevalidation,
     CatalogVersion,
     ExtraFunction,
+    FindingAcceptance,
     FunctionalProduct,
     ImportJob,
     Incompatibility,
@@ -86,6 +91,8 @@ from app.models import (
     SnsRequest,
     SubcategorySns,
     User,
+    ValidationFinding,
+    ValidationRun,
 )
 
 _VALUE_COLUMNS = ("description", "definition", "attributes", "is_active", "sort_order", "version")
@@ -297,8 +304,20 @@ async def purge_catalog_versions(db, versions: list[uuid.UUID]) -> int:
     return 0
 
 
-async def purge(emails: list[str], materials: list[str], jobs: list[uuid.UUID], versions: list[uuid.UUID], requests: list[uuid.UUID]) -> int:
+async def purge(
+    emails: list[str], materials: list[str], jobs: list[uuid.UUID], versions: list[uuid.UUID], requests: list[uuid.UUID],
+    runs: list[uuid.UUID] = (), accepted: list[uuid.UUID] = (),
+) -> int:
     async with async_session_factory() as db:
+        if accepted:
+            # The acceptances given to these findings (E16), before their runs go.
+            ids = [a for a in (await db.execute(select(ValidationFinding.acceptance_id).where(ValidationFinding.id.in_(accepted)))).scalars() if a]
+            if ids:
+                await db.execute(delete(FindingAcceptance).where(FindingAcceptance.id.in_(ids)))
+            print(f"Avisos aceptados eliminados: {len(ids)}")
+        if runs:
+            deleted = await db.execute(delete(ValidationRun).where(ValidationRun.id.in_(runs)))
+            print(f"Validaciones eliminadas: {deleted.rowcount}")
         if requests:
             deleted = await db.execute(delete(SnsRequest).where(SnsRequest.id.in_(requests)))
             print(f"Solicitudes de SNS eliminadas: {deleted.rowcount}")
@@ -335,6 +354,8 @@ def main() -> int:
     parser.add_argument("--restore-articles", action="store_true", help="devuelve los artículos guardados")
     parser.add_argument("--save-confunfis", action="store_true", help="guarda todas las filas de CONFUNFIS")
     parser.add_argument("--restore-confunfis", action="store_true", help="devuelve las filas de CONFUNFIS guardadas")
+    parser.add_argument("--validation-runs", nargs="*", default=[], type=uuid.UUID, help="ids de validaciones (E16)")
+    parser.add_argument("--accepted-findings", nargs="*", default=[], type=uuid.UUID, help="hallazgos cuya aceptación quitar (E16)")
     parser.add_argument("--snapshot", type=Path, help="fichero de --save-* / --restore-*")
     args = parser.parse_args()
     if get_settings().environment == "production":
@@ -361,7 +382,7 @@ def main() -> int:
         return asyncio.run(save_reference(args.save_reference, args.snapshot))
     if args.restore_reference:
         return asyncio.run(restore_reference(args.snapshot))
-    return asyncio.run(purge(emails, args.materials, args.import_jobs, args.catalog_versions, args.sns_requests))
+    return asyncio.run(purge(emails, args.materials, args.import_jobs, args.catalog_versions, args.sns_requests, args.validation_runs, args.accepted_findings))
 
 
 if __name__ == "__main__":
