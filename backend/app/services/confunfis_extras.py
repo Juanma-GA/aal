@@ -1,20 +1,21 @@
 """The rest of RF-02 (E14): the parts table of an article, the functional
 products, the extra functions and the incompatibilities of a CUF
-(app/models/confunfis_extras.py). Saving, the light observations (codes
-provisional until the TP / PF / CF rules of E16) and what they add to the
-extension points of E11-E13.
+(app/models/confunfis_extras.py). Saving, their findings and what they add
+to the extension points of E11-E13.
 
-Observations:
-- parts (OP-*): its own parent, a cycle of breakdowns, COP + ALP repeated,
-  quantity < 1, the part also in the CONFUNFIS of a CUF that mounts its
-  parent (the NT keeps parts out of the configuration), an ALP alone in its
-  COP, a P/N + NCAGE of another article;
-- functional products (OPF-*): POL code not in POL, designation other than
-  its POL description (a notice), N/A/E not in NAE, supply unit not in D155,
-  unit not in UNIDAD_MEDIDA_PF (E15), a row identical to another;
-- incompatibilities (OI-*): "excluye" between rows without alternatives on
-  either side (one of them would be useless), "requiere" towards a removed
-  row, a cycle of "requiere".
+Findings (E16, the validator's rules, app/validacion/engine.py), kept on
+each record for the badges and the filters:
+- parts, TP-001: its own parent, a cycle of breakdowns, COP or ALP out of
+  range, COP + ALP repeated, quantity not > 0, an ALP alone in its COP, the
+  part also in the CONFUNFIS of a CUF that mounts its parent (the NT keeps
+  parts out of the configuration), a P/N + NCAGE of another article;
+- functional products, PF-001: POL code not in POL, N/A/E not in NAE,
+  supply unit not in D155, unit not in UNIDAD_MEDIDA_PF (E15), a quantity
+  not > 0, a row identical to another;
+- incompatibilities, CF-021 (refreshed with the rows,
+  confunfis.refresh_observations): "excluye" between rows without
+  alternatives on either side, "requiere" towards a removed row, a cycle of
+  "requiere".
 
 Only impossible data stop a save: types, the COP / ALP format from the
 screen, a reference to a row of another CUF, an extra SNS outside the CUF's
@@ -51,12 +52,10 @@ from app.services.confunfis_graph import Graph
 from app.services.parameters import get_parameter
 from app.services.permissions import accessible_materials
 from app.services.reference import codes_by_state
+from app.validacion import engine
 
 _TWO_DIGITS = re.compile(r"^[0-9]{2}$")
 CRITERIA_TABLE = "CRITERIO_MULTIFUNCION"
-PART_CODES = ("OP-001", "OP-002", "OP-003", "OP-004", "OP-005", "OP-006", "OP-007")
-PRODUCT_CODES = ("OPF-001", "OPF-002", "OPF-003", "OPF-004", "OPF-005", "OPF-006")
-INCOMPATIBILITY_CODES = ("OI-001", "OI-002", "OI-003")
 PART_FIELDS = ("cop", "alp", "part_name", "quantity")
 PRODUCT_FIELDS = ("designation", "pol_code", "nae", "noc", "supply_unit", "quantity", "unit")
 
@@ -238,7 +237,7 @@ async def save_part(
     if link is not None:
         part.part_article_id = link.article.id
         part.article_reference_id = link.reference.id if link.reference else None
-        part.link_notes = [{**n, "code": "OP-007"} for n in link.notes]
+        part.link_notes = list(link.notes)
         if not part.part_name:
             part.part_name = link.article.nombre
     await db.flush()
@@ -271,8 +270,8 @@ async def reset_alone_alp(db: AsyncSession, parent: Article, cop: str, user_id: 
 
 async def refresh_parts(db: AsyncSession, articles: set[uuid.UUID] | None = None) -> None:
     """The parts' observations: those of `articles` (as parent or part),
-    those on a cycle and those already marked with one that may go (OP-002,
-    OP-005); every part when None. A cycle can cross any breakdown, so the
+    those on a cycle and those already marked with one that may go (a cycle,
+    "in a CONFUNFIS"); every part when None. A cycle can cross any breakdown, so the
     edges are all read; the CONFUNFIS rows, only for those parts."""
     every = await live_parts(db)
     if not every:
@@ -285,7 +284,7 @@ async def refresh_parts(db: AsyncSession, articles: set[uuid.UUID] | None = None
     parts = every if articles is None else [
         p for p in every
         if {p.parent_article_id, p.part_article_id} & articles or on_cycle(cyclic, p.parent_article_id, p.part_article_id)
-        or {"OP-002", "OP-005"} & set(p.observation_codes)
+        or {"cycle", "in_confunfis"} & {o.get("problem") for o in p.observations}
     ]
     # Materials each article sits in (its CONFUNFIS rows).
     ids = {p.parent_article_id for p in parts} | {p.part_article_id for p in parts if p.part_article_id}
@@ -294,30 +293,19 @@ async def refresh_parts(db: AsyncSession, articles: set[uuid.UUID] | None = None
         select(PhysicalPosition.article_id, PhysicalPosition.material_id).where(PhysicalPosition.article_id.in_(ids), PhysicalPosition.deleted_at.is_(None))
     ):
         in_materials[article_id].add(material_id)
-    # Repeated COP + ALP and lone ALP are within a breakdown: all its parts count.
-    parents = {p.parent_article_id for p in parts}
-    keys: dict[tuple, list[uuid.UUID]] = defaultdict(list)
-    alps: dict[tuple, set[str]] = defaultdict(set)
-    for p in (x for x in every if x.parent_article_id in parents):
-        keys[(p.parent_article_id, p.cop, p.alp)].append(p.id)
-        alps[(p.parent_article_id, p.cop)].add(p.alp)
+    # TP-001 (E16), over these parts with every breakdown for the cycles; a part
+    # "in a CONFUNFIS" here is in any CUF that has its parent too (stored on the
+    # part, which is global; a CUF's validation asks it of that CUF alone).
+    ctx = engine.Context(
+        rows=[], config=set(), params=await get_parameter(db, "confunfis"), parts=parts, part_edges=edges,
+        part_in_confunfis=lambda x: bool(in_materials[x.part_article_id] & in_materials[x.parent_article_id]),
+    )
+    found: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for f in engine.part_problems(ctx):
+        found[f.entity_id].append(f.as_json())
     for p in parts:
-        found: list[dict[str, Any]] = []
-        if p.part_article_id == p.parent_article_id:
-            found.append({"code": "OP-001", "params": {}})
-        elif p.part_article_id and on_cycle(cyclic, p.parent_article_id, p.part_article_id):
-            found.append({"code": "OP-002", "params": {}})
-        if len(keys[(p.parent_article_id, p.cop, p.alp)]) > 1:
-            found.append({"code": "OP-003", "params": {"cop": p.cop, "alp": p.alp}})
-        if p.quantity is None or p.quantity < 1:
-            found.append({"code": "OP-004", "params": {"quantity": "" if p.quantity is None else str(p.quantity)}})
-        if p.part_article_id and in_materials[p.part_article_id] & in_materials[p.parent_article_id]:
-            found.append({"code": "OP-005", "params": {}})
-        if p.alp != "00" and len(alps[(p.parent_article_id, p.cop)]) == 1:
-            found.append({"code": "OP-006", "params": {"alp": p.alp}})
-        found += [n for n in p.link_notes or [] if n.get("code") == "OP-007"]
-        if found != p.observations:
-            await db.execute(_observed(ArticlePart, p, found))
+        if found[str(p.id)] != p.observations:
+            await db.execute(_observed(ArticlePart, p, found[str(p.id)]))
 
 
 def part_totals(graph: Graph, rows: list[PhysicalPosition], parts: list[ArticlePart]) -> dict[uuid.UUID, Decimal | None]:
@@ -420,31 +408,14 @@ async def refresh_products(db: AsyncSession, material: Material) -> None:
                 .execution_options(synchronize_session=False)
             )
             set_committed_value(p, "article_id", linked)
-    pol = await codes_by_state(db, "POL")
-    nae, d155, units = [await codes_by_state(db, t) for t in ("NAE", "D155", UNIT_TABLE)]
-    codes = {p.pol_code for p in products if p.pol_code}
-    descriptions = dict(
-        (await db.execute(select(ReferenceValue.code, ReferenceValue.description).where(ReferenceValue.table_code == "POL", ReferenceValue.code.in_(codes)))).all()
-    ) if codes else {}
-    same: dict[tuple, list[uuid.UUID]] = defaultdict(list)
+    codes = {table: {code for code, active in (await codes_by_state(db, table)).items() if active} for table in PRODUCT_TABLES}
+    ctx = engine.Context(rows=[], config=set(), params=await get_parameter(db, "confunfis"), products=products, codes=codes)
+    found: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for f in engine.RULES["PF-001"](ctx, {}):
+        found[f.entity_id].append(f.as_json())
     for p in products:
-        same[tuple(_plain(getattr(p, f)) for f in PRODUCT_FIELDS)].append(p.id)
-    for p in products:
-        found: list[dict[str, Any]] = []
-        if p.pol_code and p.pol_code not in pol:
-            found.append({"code": "OPF-001", "params": {"pol": p.pol_code}})
-        elif p.pol_code and _name_key(descriptions.get(p.pol_code)) != _name_key(p.designation):
-            found.append({"code": "OPF-002", "params": {"pol": p.pol_code, "description": descriptions.get(p.pol_code) or ""}})
-        if p.nae and p.nae not in nae:
-            found.append({"code": "OPF-003", "params": {"nae": p.nae}})
-        if p.supply_unit and p.supply_unit not in d155:
-            found.append({"code": "OPF-004", "params": {"unit": p.supply_unit}})
-        if p.unit and p.unit not in units:
-            found.append({"code": "OPF-005", "params": {"unit": p.unit}})
-        if len(same[tuple(_plain(getattr(p, f)) for f in PRODUCT_FIELDS)]) > 1:
-            found.append({"code": "OPF-006", "params": {}})
-        if found != p.observations:
-            await db.execute(_observed(FunctionalProduct, p, found))
+        if found[str(p.id)] != p.observations:
+            await db.execute(_observed(FunctionalProduct, p, found[str(p.id)]))
 
 
 # ── extra functions (§9.1.1) ─────────────────────────────────────────────
@@ -524,30 +495,6 @@ def same_incompatibility(i: Incompatibility, a: uuid.UUID, b: uuid.UUID, kind: s
     return (i.row_a_id, i.row_b_id) == (a, b) or (kind == "excluye" and (i.row_a_id, i.row_b_id) == (b, a))
 
 
-async def refresh_incompatibilities(db: AsyncSession, material: Material, rows: list[PhysicalPosition], graph: Graph) -> None:
-    items = await live_incompatibilities(db, material.id)
-    if not items:
-        return
-    live = {str(r.id) for r in rows}
-    requires: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
-    for i in items:
-        if i.kind == "requiere":
-            requires[i.row_a_id].add(i.row_b_id)
-    cyclic = _cycles(requires)
-    for i in items:
-        found: list[dict[str, Any]] = []
-        a, b = graph.rows.get(str(i.row_a_id)), graph.rows.get(str(i.row_b_id))
-        if i.kind == "excluye" and a and b and not graph.is_alternative(a) and not graph.is_alternative(b):
-            found.append({"code": "OI-001", "params": {}})
-        if i.kind == "requiere" and str(i.row_b_id) not in live:
-            found.append({"code": "OI-002", "params": {}})
-        if i.kind == "requiere" and on_cycle(cyclic, i.row_a_id, i.row_b_id):
-            found.append({"code": "OI-003", "params": {}})
-        if found != i.observations:
-            await db.execute(_observed(Incompatibility, i, found))
-
-
-confunfis.REFRESH_EXTENSIONS.append(refresh_incompatibilities)
 
 
 async def _refresh_parts(db: AsyncSession, material: Material, rows: list[PhysicalPosition], graph: Graph) -> None:

@@ -87,7 +87,7 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
                   {t('confunfis.card.duplicateAlternative')}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => onAlternativeCs(row)} data-testid="row-alternative-cs">{t('confunfis.card.alternativeCs')}</Button>
-                {row.observation_codes.includes('OF-012') ? (
+                {row.observations.some((o) => o.code === 'CF-004' && o.problem === 'alone') ? (
                   <Button size="sm" variant="outline" disabled={reset.isPending} onClick={() => reset.mutate(row)} data-testid="row-reset-al">{t('confunfis.card.resetAl')}</Button>
                 ) : null}
                 <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setRemoving(true)} data-testid="row-delete">{t('confunfis.card.remove')}</Button>

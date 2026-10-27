@@ -82,10 +82,10 @@ async def test_the_figures_of_the_demo(client, demo):
     assert page["total"] == 46 and len({r["sns"] for r in rows}) == 37
     assert (await all_rows(client, demo, demo["people"]["admin"], name=PUESTO))["total"] == 46
 
-    by_code = {code: sorted(f"{r['sns']} {r['co']}" for r in rows if code in r["observation_codes"]) for code in confunfis.OBSERVATION_CODES}
+    by_code = {code: sorted(f"{r['sns']} {r['co']}" for r in rows if code in r["observation_codes"]) for code in sorted({c for r in rows for c in r["observation_codes"]})}
     assert {k: v for k, v in by_code.items() if v} == {
-        "OF-001": ["B35010 01"], "OF-002": ["B31010 01"], "OF-003": ["A24110 01"], "OF-004": ["B32020 01", "B32020 01"],
-        "OF-007": ["A22140 02"], "OF-008": ["D53000 01"],
+        "CF-001": ["B35010 01"], "CF-002": ["B31010 01"], "CF-007": ["A24110 01"], "CF-015": ["B32020 01"],
+        "CF-012": ["A22140 02"], "CF-014": ["D53000 01"], "CF-017": ["B33011 01"],
     }
     assert sum(r["ct_sigle"] == "S" for r in rows) == 8
     assert (await all_rows(client, demo, analyst, with_observations="true"))["total"] == 7
@@ -170,7 +170,7 @@ async def test_editing_with_its_checks(client, demo):
     }, headers=analyst)
     assert res.status_code == 201, res.text
     new = res.json()
-    assert new["article"]["origin"] == "confunfis" and new["article"]["noc"] is None and new["observation_codes"] == ["OF-007"]
+    assert new["article"]["origin"] == "confunfis" and new["article"]["noc"] is None and new["observation_codes"] == ["CF-012", "CF-018"]
 
     dup = await client.post(f"{url}/{new['id']}/duplicate-alternative", json={"version": new["version"]}, headers=analyst)
     assert dup.status_code == 201, dup.text
@@ -181,7 +181,7 @@ async def test_editing_with_its_checks(client, demo):
     assert stale.status_code == 409
     original = next(r for r in rows if r["co"] == "04" and r["al"] == "01")
     res = await client.patch(f"{url}/{original['id']}", json={"version": original["version"], "qty": "1.5"}, headers=analyst)
-    assert res.status_code == 200 and "OF-006" in res.json()["observation_codes"]
+    assert res.status_code == 200 and "CF-006" in res.json()["observation_codes"]
 
     cs = await client.post(f"{url}/{original['id']}/alternative-cs", json={"version": res.json()["version"], "cs_sns": "A20000", "cs_co": "01", "cs_al": "00"}, headers=analyst)
     assert cs.status_code == 201 and cs.json()["cs_alternative"]
@@ -201,7 +201,7 @@ async def test_the_duplicate_drops_its_observation_when_one_goes(client, demo):
     first, second = find((await all_rows(client, demo, analyst))["items"], "B32020")
     await client.delete(f"{base(demo)}/rows/{second['id']}", params={"version": second["version"], "confirm": "true"}, headers=analyst)
     [left] = find((await all_rows(client, demo, analyst))["items"], "B32020")
-    assert left["id"] == first["id"] and "OF-004" not in left["observation_codes"]
+    assert left["id"] == first["id"] and "CF-015" not in left["observation_codes"]
 
 
 async def test_extension_points(client, demo):
@@ -234,9 +234,9 @@ async def test_linking_with_the_article_master(client, demo):
         # By P/N + NCAGE, without NOC.
         link = await confunfis.link_article(db, noc=None, pn="DM6-1030-02", ncage="DEMO2", name=None, user_id=None, material=material)
         assert link.article.id == piston.id
-        # A P/N + NCAGE of another article stays out (OF-011).
+        # A P/N + NCAGE of another article stays out (CF-012).
         link = await confunfis.link_article(db, noc="281533X900103", pn="DM6-1030-02", ncage="DEMO2", name=None, user_id=None, material=material)
-        assert link.reference is None and link.notes == [{"code": "OF-011", "params": {"pn": "DM6-1030-02", "ncage": "DEMO2"}}]
+        assert link.reference is None and link.notes == [{"code": "pn_taken", "params": {"pn": "DM6-1030-02", "ncage": "DEMO2"}}]
         # Nothing matches: a provisional one.
         link = await confunfis.link_article(db, noc=None, pn=None, ncage=None, name="PIEZA NUEVA", user_id=None, material=material)
         assert link.created and link.article.origin == "confunfis"
@@ -260,7 +260,7 @@ async def test_what_other_screens_change_keeps_the_rows_right(client, demo):
     res = await client.put(f"/api/materials/{mid}/subcategories", json={"version": current["version"], "codes": ["0102", "0201", "0601", "0602"]}, headers=analyst)
     assert res.status_code == 200, res.text
     [chain] = find((await all_rows(client, demo, analyst))["items"], "B35010")
-    assert "OF-001" not in chain["observation_codes"]  # 0602 brings B35010
+    assert "CF-001" not in chain["observation_codes"]  # 0602 brings B35010
 
     rows = (await all_rows(client, demo, admin))["items"]
     [piston] = find(rows, "A21030")
@@ -285,7 +285,7 @@ async def test_what_other_screens_change_keeps_the_rows_right(client, demo):
 async def test_an_alternative_left_alone_goes_back_to_al_00(client, demo):
     """E14 fleco 1 (NT §9.1.6): duplicated and its copy removed, the row
     goes back to AL 00 (with the rows hanging from it) when asked; one
-    already alone is observed (OF-012) and "Volver a AL 00" fixes it."""
+    already alone is observed (CF-004) and "Volver a AL 00" fixes it."""
     analyst = demo["people"]["analista"]
     url = f"{base(demo)}/rows"
     [radiator] = find((await all_rows(client, demo, analyst))["items"], "A22120")
@@ -298,9 +298,9 @@ async def test_an_alternative_left_alone_goes_back_to_al_00(client, demo):
     # Removed without asking: AL 01 stays, alone, observed, no "Alternativo" badge.
     assert (await client.delete(f"{url}/{copy['id']}", params={"version": copy["version"], "confirm": "true"}, headers=analyst)).status_code == 204
     [left] = find((await all_rows(client, demo, analyst))["items"], "A22120", "01", "01")
-    assert "OF-012" in left["observation_codes"] and not left["alternative"]
+    assert "CF-004" in left["observation_codes"] and not left["alternative"]
     res = await client.post(f"{url}/{left['id']}/reset-al", json={"version": left["version"]}, headers=analyst)
-    assert res.status_code == 200 and res.json()["al"] == "00" and "OF-012" not in res.json()["observation_codes"]
+    assert res.status_code == 200 and res.json()["al"] == "00" and "CF-004" not in res.json()["observation_codes"]
     assert (await client.get(f"{url}/{child['id']}", headers=analyst)).json()["cs_al"] == "00"
     again = await client.post(f"{url}/{left['id']}/reset-al", json={"version": res.json()["version"]}, headers=analyst)
     assert (again.status_code, again.json()["detail"]["code"]) == (409, "confunfis_not_single_alternative")
@@ -311,7 +311,7 @@ async def test_an_alternative_left_alone_goes_back_to_al_00(client, demo):
     res = await client.delete(f"{url}/{copy['id']}", params={"version": copy["version"], "confirm": "true", "reset_al": "true"}, headers=analyst)
     assert res.status_code == 204
     [back] = find((await all_rows(client, demo, analyst))["items"], "A22120")
-    assert back["observation_codes"] == [] or "OF-012" not in back["observation_codes"]
+    assert back["observation_codes"] == [] or "CF-004" not in back["observation_codes"]
     assert (await client.get(f"{url}/{child['id']}", headers=analyst)).json()["cs_al"] == "00"
 
 

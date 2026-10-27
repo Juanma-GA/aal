@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PAGE_SIZE, useConfunfisRows } from '@/hooks/useConfunfis';
+import { findingTitle } from '@/lib/confunfisText';
 import { OBSERVATION_CODES, csOf, type ObservationCode, type PositionRow, type RowFilters } from '@/types/confunfis';
 import { ObservationBadges } from './ObservationBadges';
 
@@ -61,7 +62,7 @@ export function RowsTable({ materialId, onSelect }: { materialId: string; onSele
               <SelectItem value={ANY}>{t('confunfis.table.withObservations')}</SelectItem>
               {OBSERVATION_CODES.map((c) => (
                 <SelectItem key={c} value={c}>
-                  {c} · {t(`confunfis.observations.${c}.short`)}
+                  {c} · {findingTitle(t, c)}
                 </SelectItem>
               ))}
             </SelectContent>

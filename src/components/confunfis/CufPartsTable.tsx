@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useCufParts } from '@/hooks/useConfunfisExtras';
+import { observationText } from '@/lib/confunfisText';
 import { ARTICLES_PATH } from '@/pages/articles/ArticlePage';
 
 export function CufPartsTable({ materialId }: { materialId: string }): React.JSX.Element {
@@ -47,7 +48,7 @@ export function CufPartsTable({ materialId }: { materialId: string }): React.JSX
                     <span className="block font-mono text-xs text-muted-foreground">{[p.article?.noc, p.article?.pn].filter(Boolean).join(' · ')}</span>
                     {p.observation_codes.length ? (
                       <span className="flex flex-wrap gap-1">
-                        {p.observation_codes.map((c) => <Badge key={c} variant="outline" className="border-warning text-warning">{t(`confunfis.observations.${c}.short`)}</Badge>)}
+                        {p.observations.map((o, i) => <Badge key={`${o.code}-${i}`} variant="outline" className="border-warning text-warning" title={observationText(t, o)}>{o.code}</Badge>)}
                       </span>
                     ) : null}
                   </TableCell>

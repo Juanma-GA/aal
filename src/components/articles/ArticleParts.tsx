@@ -118,7 +118,7 @@ export function ArticleParts({ articleId, canEdit }: { articleId: string; canEdi
                         {p.article?.origin === 'confunfis' ? <Badge variant="outline" className="border-warning text-warning">{t('confunfis.card.provisional')}</Badge> : null}
                       </span>
                       {p.observations.map((o, i) => (
-                        <span key={`${o.code}-${i}`} className="text-xs text-warning" data-testid={`part-observation-${o.code}`}>{observationText(t, o)}</span>
+                        <span key={`${o.code}-${i}`} className="text-xs text-warning" data-testid={`part-observation-${o.code}-${o.problem}`}>{observationText(t, o)}</span>
                       ))}
                     </div>
                   </TableCell>
@@ -134,7 +134,7 @@ export function ArticleParts({ articleId, canEdit }: { articleId: string; canEdi
                   <TableCell>
                     {canEdit ? (
                       <div className="flex justify-end gap-1">
-                        {p.observation_codes.includes('OP-006') ? (
+                        {p.observations.some((o) => o.problem === 'alone') ? (
                           <Button size="icon" variant="ghost" aria-label={t('articles.parts.resetAlp')} title={t('articles.parts.resetAlp')} onClick={() => reset.mutate(p)}>
                             <Undo2 aria-hidden="true" />
                           </Button>

@@ -16,7 +16,7 @@ exactly the text written.
 
 import io
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 import openpyxl
@@ -61,13 +61,17 @@ def _group_runs(columns) -> list[tuple[int, int]]:
 
 
 def write_workbook(
-    template: Template, rows: Iterable[dict[str, Any]], extra: Sequence[tuple[Template, Iterable[dict[str, Any]]]] = ()
+    template: Template, rows: Iterable[dict[str, Any]], extra: Sequence[tuple[Template, Iterable[dict[str, Any]]]] = (),
+    finish: Callable[[openpyxl.Workbook], None] | None = None,
 ) -> bytes:
-    """`rows` are field -> value (as cells.normalize returns them)."""
+    """`rows` are field -> value (as cells.normalize returns them); `finish`
+    adds what is not a template's sheet (E16: ESTADO DE VALIDACIÓN)."""
     workbook = openpyxl.Workbook()
     _write_sheet(workbook.active, template, rows)
     for other, other_rows in extra:
         _write_sheet(workbook.create_sheet(), other, other_rows)
+    if finish is not None:
+        finish(workbook)
     out = io.BytesIO()
     workbook.save(out)
     return out.getvalue()

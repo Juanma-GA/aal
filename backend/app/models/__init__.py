@@ -34,6 +34,7 @@ from app.models.reference import (
 from app.models.refresh_token import RefreshToken
 from app.models.role import Permission, Role, RolePermission, UserMaterialRole
 from app.models.user import User
+from app.models.validation import FindingAcceptance, ValidationFinding, ValidationRule, ValidationRun
 
 __all__ = [
     "ATTRIBUTE_TYPES",
@@ -85,4 +86,8 @@ __all__ = [
     "SubcategorySns",
     "User",
     "UserMaterialRole",
+    "FindingAcceptance",
+    "ValidationFinding",
+    "ValidationRule",
+    "ValidationRun",
 ]

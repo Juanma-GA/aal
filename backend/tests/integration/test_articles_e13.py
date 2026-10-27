@@ -111,7 +111,7 @@ async def test_the_maestro_carries_every_reference_and_round_trips(client, peopl
 
     data = (await client.get("/api/articles/export", params={"template": "maestro"}, headers=admin)).content
     book = openpyxl.load_workbook(io.BytesIO(data))
-    assert book.sheetnames == ["Artículo", "Referencias"]
+    assert book.sheetnames == ["ESTADO DE VALIDACIÓN", "Artículo", "Referencias"]
     refs = [tuple(c.value for c in row) for row in book["Referencias"].iter_rows(min_row=2)]
     assert [r[2:5] for r in refs if r[1] == rod["nombre"]] == [("B-1", "DEMO2", "S"), ("B-2", "DEMO2", "N")]
 

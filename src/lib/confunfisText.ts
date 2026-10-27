@@ -7,7 +7,12 @@ export function chainText(chain: ChainStep[], total: string | null): string {
   return `${factors} = ${total ?? '—'}`;
 }
 
-/** One observation as a sentence, with its data. */
-export function observationText(t: (key: string, o?: Record<string, unknown>) => string, o: Observation | { code: string; params: Record<string, string> }): string {
-  return t(`confunfis.observations.${o.code}.text`, o.params);
+/** One finding (E16) as a sentence, with its data. */
+export function observationText(t: (key: string, o?: Record<string, unknown>) => string, o: Observation): string {
+  return t(`validation.problems.${o.code}.${o.problem}`, { ...o.params, defaultValue: findingTitle(t, o.code) });
+}
+
+/** A rule's short name ("SNS fuera de la configuración del CUF"). */
+export function findingTitle(t: (key: string, o?: Record<string, unknown>) => string, code: string): string {
+  return t(`validation.rules.${code}.title`);
 }

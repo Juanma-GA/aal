@@ -11,6 +11,7 @@ import asyncio
 import re
 import uuid
 from datetime import UTC, datetime
+from functools import partial
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
@@ -45,7 +46,7 @@ from app.schemas.articles import (
     ReferenceUpdate,
 )
 from app.schemas.reference import ImportJobOut
-from app.services import audit, confunfis, import_jobs
+from app.services import audit, confunfis, import_jobs, validation_report
 from app.services import confunfis_extras as extras
 from app.services.article_fields import FieldError, coerce
 from app.services.article_import import FICHERO_CARGA, MAESTRO, build_template, export_values, reference_rows, references_template
@@ -64,6 +65,7 @@ from app.services.articles import (
     where_used,
 )
 from app.services.parameters import get_parameter
+from app.services.permissions import accessible_materials
 from app.services.snapshots import client_ip
 from app.validacion.articulos import RULES, LifeControl, autocorrect
 
@@ -289,14 +291,19 @@ async def export_summary(filters: Filters = Depends(), _user: User = Depends(cur
 async def export_articles(
     template: str = Query(pattern="^(fichero_carga|maestro)$"),
     filters: Filters = Depends(),
-    _user: User = Depends(current_user),
+    user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     kind = TEMPLATES[template]
     checker = await Checker.load(db)
     rows = (await db.execute(select(Article).where(*filters.where).order_by(Article.nombre, Article.noc, Article.id))).scalars().all()
     extra = [(references_template(), reference_rows(list(rows)))] if kind == MAESTRO else []
-    data = await asyncio.to_thread(write_workbook, build_template(checker.defs, kind), [export_values(a, kind) for a in rows], extra)
+    finish = None
+    if kind == MAESTRO:
+        # A working export (E16): the validation state of every CUF the user may open, first.
+        lines = [(a.material.name, await validation_report.status_of(db, a.material)) for a in await accessible_materials(db, user)]
+        finish = partial(validation_report.status_sheet, lines=lines)
+    data = await asyncio.to_thread(write_workbook, build_template(checker.defs, kind), [export_values(a, kind) for a in rows], extra, finish)
     name = f"{_FILE_NAMES[kind]}_{datetime.now(UTC):%Y%m%d}.xlsx"
     return Response(content=data, media_type=XLSX, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 

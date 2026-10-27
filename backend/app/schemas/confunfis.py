@@ -182,6 +182,9 @@ class Summary(BaseModel):
     sns_in_config: int
     with_observations: int
     by_observation: dict[str, int]
+    # E16: the rows' findings by the severity their rules have now (errors block the delivery).
+    errors: int = 0
+    warnings: int = 0
     # E14
     sns_covered_by_extra: int = 0
     products: int = 0

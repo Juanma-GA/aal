@@ -2,12 +2,19 @@
 import type { TreeNode } from './catalog';
 import type { CufPart, ExtraFunction, Incompatibility } from './confunfisExtras';
 
-export const OBSERVATION_CODES = ['OF-001', 'OF-002', 'OF-003', 'OF-004', 'OF-005', 'OF-006', 'OF-007', 'OF-008', 'OF-009', 'OF-010', 'OF-011', 'OF-012'] as const;
+// The NT 10/17 rules (E16, app/validacion/catalog.py) whose findings are kept on a row.
+export const OBSERVATION_CODES = [
+  'CF-001', 'CF-002', 'CF-003', 'CF-004', 'CF-005', 'CF-006', 'CF-007', 'CF-008', 'CF-009', 'CF-010', 'CF-011', 'CF-012', 'CF-013', 'CF-014', 'CF-015',
+  'CF-017', 'CF-018', 'CF-019', 'CF-020',
+] as const;
 export type ObservationCode = (typeof OBSERVATION_CODES)[number];
 
+/** A finding of a rule (E16): its code, what is wrong (`problem`) and its data. */
 export interface Observation {
-  code: ObservationCode;
+  code: string;
+  problem: string;
   params: Record<string, string>;
+  field?: string;
 }
 
 export interface ArticleBrief {

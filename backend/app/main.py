@@ -22,6 +22,8 @@ from app.api.routes.reference_tables import router as reference_tables_router
 from app.api.routes.sns_requests import router as sns_requests_router
 from app.api.routes.system import router as system_router
 from app.api.routes.users import router as users_router
+from app.api.routes.validation import router as validation_router
+from app.api.routes.validation import rules_router as validation_rules_router
 from app.core.config import get_settings
 from app.core.errors import SanitizedErrorMiddleware, validation_error_handler
 from app.core.logging import configure_logging
@@ -62,4 +64,6 @@ app.include_router(catalog_router)
 app.include_router(articles_router)
 app.include_router(article_parts_router)
 app.include_router(article_revalidations_router)
+app.include_router(validation_rules_router)
+app.include_router(validation_router)
 app.include_router(admin_router)

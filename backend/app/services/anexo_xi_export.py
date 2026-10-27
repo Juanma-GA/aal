@@ -35,7 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.io_excel.writer import excel_text
 from app.models import Article, Material, PhysicalPosition, ReferenceValue, SnsPosition
-from app.services import confunfis, cuf
+from app.services import confunfis, cuf, validation_report
 from app.services import confunfis_extras as extras
 from app.services.anexo_xi_sheets import EXTRA_SHEET, INCOMPATIBILITY_SHEET, SHEETS, SheetSpec
 from app.services.confunfis_graph import ROOT
@@ -220,7 +220,8 @@ def _table_range(code: str, count: int) -> str:
     return f"'{TABLES_SHEET}'!${col}$2:${col}${max(count, 1) + 1}"
 
 
-async def build_book(db: AsyncSession, material: Material, kind: str) -> bytes:
+async def build_book(db: AsyncSession, material: Material, kind: str, status: bool = True) -> bytes:
+    """`status`: a working export starts with ESTADO DE VALIDACIÓN (E16); the delivery and the empty template do not."""
     book = openpyxl.Workbook()
     book.remove(book.active)
     rows = await confunfis.live_rows(db, material.id)
@@ -248,6 +249,8 @@ async def build_book(db: AsyncSession, material: Material, kind: str) -> bytes:
         if kind == AAL:
             _sheet(book, specs[EXTRA_SHEET], await extra_rows(db, material, rows))
             _sheet(book, specs[INCOMPATIBILITY_SHEET], await incompatibility_rows(db, material, rows))
+    if status and kind != PLANTILLA:
+        validation_report.status_sheet(book, [(material.name, await validation_report.status_of(db, material))])
     out = io.BytesIO()
     book.save(out)
     return out.getvalue()

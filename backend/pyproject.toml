@@ -31,6 +31,8 @@ dependencies = [
     "defusedxml>=0.7",
     # FastAPI's UploadFile (the Excel imports).
     "python-multipart>=0.0.9",
+    # The validation report as PDF (E16): BSD, pure Python, no system libraries.
+    "reportlab>=4.2",
 ]
 
 [project.optional-dependencies]

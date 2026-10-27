@@ -91,7 +91,7 @@ async def test_the_demo_into_the_tramontana_changes_nothing(client, demo):
     assert sheet_counts(job, "TABLA DE PARTES") == {"new": 0, "modified": 0, "unchanged": 3, "removed": 0, "rejected": 0}
     assert report["cuf"]["differs"] is False and report["ignored_sheets"] == []
     assert report["result"]["provisional_articles"] == [] and report["result"]["new_references"] == []
-    assert report["result"]["observations"]["OPF-004"] == 1
+    assert report["result"]["observations"]["PF-001"] == 1
 
 
 def _changed_demo() -> tuple[bytes, str]:
@@ -157,7 +157,10 @@ async def test_the_exports_are_the_demo_file(client, demo):
     analyst, admin = demo["people"]["analista"], demo["people"]["admin"]
     data = (await client.get(f"{base(demo)}/export", params={"kind": "anexo"}, headers=analyst)).content
     exported, original = _book(data), _book(DEMO_BOOK.read_bytes())
-    assert exported.sheetnames == original.sheetnames
+    # A working export starts with ESTADO DE VALIDACIÓN (E16): never validated, a draft.
+    assert exported.sheetnames == ["ESTADO DE VALIDACIÓN", *original.sheetnames]
+    status = exported["ESTADO DE VALIDACIÓN"]
+    assert status["A1"].value == TRAMONTANA and status["B1"].value.startswith("BORRADOR")
     for ws in original:
         mine = _cells(exported[ws.title])
         theirs = _cells(ws)
@@ -209,7 +212,7 @@ async def test_the_reader_tolerates_the_official_book(client, demo):
 
 
 async def test_the_duplicates_are_matched_in_order(client, demo):
-    """B32020 01 00 is twice in the demo (OF-004): changing the second one's QTY modifies the second one."""
+    """B32020 01 00 is twice in the demo (CF-015): changing the second one's QTY modifies the second one."""
     book = _book(DEMO_BOOK.read_bytes())
     twins = [r for r in book["CON_FUN_FIS"].iter_rows(min_row=3) if r[4].value == "B32020"]
     assert len(twins) == 2

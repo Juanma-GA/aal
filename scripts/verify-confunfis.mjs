@@ -241,7 +241,7 @@ try {
   await page.getByTestId('sidebar-module-productos-funcionales').click();
   await page.waitForURL(`**/materiales/${tramontana.id}/confunfis/productos`);
   await page.getByTestId('products-count').filter({ hasText: /^8 / }).waitFor();
-  assert((await page.getByTestId('product-observation-OPF-004').count()) === 1, '8 functional products; one observation, the supply unit ZZ');
+  assert((await page.getByTestId('product-observation-PF-001-supply_unit').count()) === 1, '8 functional products; one observation, the supply unit ZZ');
   assert((await page.getByTestId('product-group-O-1236').count()) === 1 && (await page.getByTestId('product-O-1236-N').count()) === 1 && (await page.getByTestId('product-O-1236-E').count()) === 1,
     'O-1236 groups its N and E rows');
   await page.screenshot({ path: shot('verify-confunfis-7-products.png') });

@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { findingTitle } from '@/lib/confunfisText';
 import { humanize } from '@/lib/humanize';
 import { notifyError } from '@/lib/notify';
 import { cn } from '@/lib/utils';
@@ -158,7 +159,7 @@ function ResultReport({ result }: { result: NonNullable<BookReport['result']> })
       {section(t('confunfisBook.result.observations'), 'book-result-observations', observations.length, (
         <ul className="flex flex-col gap-0.5">
           {observations.map(([code, n]) => (
-            <li key={code}><Badge variant="outline" className="mr-2">{code}</Badge>{t(`confunfis.observations.${code}.short`)} · {t('confunfisBook.result.times', { count: n })}</li>
+            <li key={code}><Badge variant="outline" className="mr-2">{code}</Badge>{findingTitle(t, code)} · {t('confunfisBook.result.times', { count: n })}</li>
           ))}
         </ul>
       ))}

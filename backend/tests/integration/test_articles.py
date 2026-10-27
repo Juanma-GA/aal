@@ -91,7 +91,7 @@ async def test_the_demo_report_and_a_second_import(client, people):
 
 
 def cells(data: bytes) -> list[list[tuple]]:
-    ws = openpyxl.load_workbook(io.BytesIO(data)).worksheets[0]
+    ws = openpyxl.load_workbook(io.BytesIO(data))["Artículo"]
     return [[(c.value, c.data_type) for c in row] for row in ws.iter_rows()]
 
 
@@ -109,6 +109,8 @@ async def test_round_trip(client, people):
     assert by_noc(exported) == by_noc(original)
     # The Maestro AAL: export -> import -> export, the same.
     maestro = (await client.get("/api/articles/export", params={"template": "maestro"}, headers=people["admin"])).content
+    # A working export (E16): ESTADO DE VALIDACIÓN first, one line per CUF the user may open.
+    assert openpyxl.load_workbook(io.BytesIO(maestro)).sheetnames == ["ESTADO DE VALIDACIÓN", "Artículo", "Referencias"]
     header = cells(maestro)[1]
     assert [v for v, _t in header[30:]] == ["PN", "NCAGE", "OrigenNombre", "cdUniVidaA2", "caVidaArt2", "cdUniVidaA3", "caVidaArt3"]
     job = await analyse(client, people["admin"], maestro, template="maestro", name="MAESTRO_AAL.xlsx")
@@ -191,7 +193,7 @@ async def test_the_key_without_noc(client, people):
     name; a NOC badly formed is rejected with its row, the rest applies."""
     await imported(client, people["admin"])
     wb = openpyxl.load_workbook(io.BytesIO(DEMO.read_bytes()))
-    ws = wb.worksheets[0]
+    ws = wb["Artículo"]
     row = next(r for r in range(3, ws.max_row + 1) if ws.cell(r, 2).value == "TAPÓN DE LLENADO DEPÓSITO")
     ws.cell(row, 2).value = "tapón  de llenado  depósito"
     ws.cell(row, 9).value = 3
@@ -262,7 +264,7 @@ async def test_repeated_imports_keep_life_controls_2_and_3(client, people):
     res = await client.patch(f"/api/articles/{tramontana['id']}", json=body, headers=people["admin"])
     assert res.status_code == 200, res.text
     wb = openpyxl.load_workbook(io.BytesIO(DEMO.read_bytes()))
-    ws = wb.worksheets[0]
+    ws = wb["Artículo"]
     row = next(r for r in range(3, ws.max_row + 1) if ws.cell(r, 1).value == "232033X900001")
     ws.cell(row, 28).value = None
     ws.cell(row, 29).value = None
@@ -283,7 +285,7 @@ async def test_pn_ncage_is_unique_on_import_and_a_null_name_is_422(client, peopl
     assert (await client.patch(f"/api/articles/{rod['id']}", json={"version": rod["version"] + 1, "nombre": None}, headers=people["admin"])).status_code == 422
     maestro = (await client.get("/api/articles/export", params={"template": "maestro"}, headers=people["admin"])).content
     wb = openpyxl.load_workbook(io.BytesIO(maestro))
-    ws = wb.worksheets[0]
+    ws = wb["Artículo"]
     other = next(r for r in range(3, ws.max_row + 1) if ws.cell(r, 2).value == "AMORTIGUADOR")
     ws.cell(other, 31).value, ws.cell(other, 32).value = "B-1", "DEMO2"
     out = io.BytesIO()

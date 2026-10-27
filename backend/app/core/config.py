@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     # relative path is taken from backend/.
     aacf_version_file: str = "../aacf/VERSION"
 
+    # --- Texts of the documents the backend writes (E16) ---
+    # The validation report (Excel, PDF) and the ESTADO DE VALIDACIÓN sheet
+    # read their Spanish texts from the frontend's locale: one source for
+    # the screen and the documents. A relative path is taken from backend/.
+    i18n_es_path: str = "../src/i18n/locales/es.json"
+
     @field_validator("cors_origins")
     @classmethod
     def _no_wildcard_origin(cls, origins: list[str]) -> list[str]:

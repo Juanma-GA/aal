@@ -22,11 +22,11 @@ its CS empty or 000000 01 00); a product by POL + N/A/E + supply unit; a
 part by its parent article + COP + ALP. Records sharing a key (the demo's
 duplicates) are matched in the order they appear.
 
-The analysis writes everything with the services of E13/E14 (the link with
-the master, the observations) in a transaction that is then rolled back:
-so it reports what the result would be -- the observations, the provisional
-articles and the new P/N + NCAGE, the parts that change articles other
-CUF use -- with the same code that applies it. Applying runs it again,
+The analysis is the same pass in memory (app/services/anexo_xi_dry.py,
+E16): it writes and locks nothing (a read-only snapshot transaction) and
+reports what the result would be -- the validator's findings over the CUF
+as it would be left, the provisional articles and the new P/N + NCAGE, the
+parts that change articles other CUF use. Applying runs it again,
 for good, in one transaction (all or nothing), after checking that nothing
 changed since the analysis (409 import_book_stale) and the confirmations: a
 file whose CUF (NOC / P/N) is not the material's, and Sustituir. The audit
@@ -41,12 +41,11 @@ import hashlib
 import uuid
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
-from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import error_detail
@@ -54,14 +53,17 @@ from app.io_excel.reader import Issue, Limits, ReadResult
 from app.io_excel.targets import register
 from app.io_excel.template import Template
 from app.models import Article, ArticlePart, ArticleReference, ExtraFunction, FunctionalProduct, ImportJob, Incompatibility, Material, PhysicalPosition, User
-from app.services import audit, confunfis, cuf
+from app.services import audit, confunfis, cuf, validation
 from app.services import confunfis_extras as extras
+from app.services.anexo_xi_dry import Dry
 from app.services.anexo_xi_sheets import EXTRA_SHEET, INCOMPATIBILITY_SHEET, OFFICIAL, OWN, read_book
 from app.services.articles import can_edit_articles, normalize_identity
 from app.services.confunfis_graph import ROOT
 from app.services.confunfis_sheet import IDENTITY_FIELDS, PARTS_SHEET, PRODUCTS_SHEET, ROW_FIELDS, SHEET, TEMPLATE
 from app.services.parameters import get_parameter
 from app.services.permissions import accessible_materials, material_access
+from app.validacion import engine
+from app.validacion.catalog import BLOCKING, OFF, WARNING
 
 ANEXO_XI = "confunfis_anexo_xi"
 MERGE, REPLACE = "merge", "replace"
@@ -190,8 +192,10 @@ async def _find_article(db: AsyncSession, noc: str | None, pn: str | None, ncage
 class Runner:
     """One pass over the book: the diff, written with the E13/E14 services."""
 
-    def __init__(self, db: AsyncSession, material: Material, mode: str, user: User | None, job_id: str | None, ip: str | None):
+    def __init__(self, db: AsyncSession, material: Material, mode: str, user: User | None, job_id: str | None, ip: str | None, *, dry: bool = False):
         self.db, self.material, self.mode, self.user, self.ip = db, material, mode, user, ip
+        # The analysis: the same pass over the records as they would be, nothing written.
+        self.dry = Dry(db, material) if dry else None
         self.user_id = user.id if user else None
         self.job_id = job_id
         self.sheets: dict[str, dict[str, Any]] = {}
@@ -225,7 +229,10 @@ class Runner:
             match = candidates[0] if candidates else None
             try:
                 if match is None:
-                    await confunfis.save_row(db, material, fields, self.user_id, source="import", strict=False, identity={"noc": noc, "pn": pn, "ncage": ncage}, audit_ip=self.ip)
+                    if self.dry:
+                        await self.dry.save_row(fields, {"noc": noc, "pn": pn, "ncage": ncage})
+                    else:
+                        await confunfis.save_row(db, material, fields, self.user_id, source="import", strict=False, identity={"noc": noc, "pn": pn, "ncage": ncage}, audit_ip=self.ip)
                     section["new"].append({"row": row, "key": _key_text(key), "values": {"name": _shown(values.get("article_name"))}})
                     continue
                 matched.add(match.id)
@@ -238,10 +245,11 @@ class Runner:
                     continue
                 identity_changed = any(c["field"] in IDENTITY_FIELDS for c in changes)
                 merged = {**{n: getattr(match, n) for n in confunfis.FIELDS}, **{k: v for k, v in fields.items() if k in confunfis.FIELDS}}
-                await confunfis.save_row(
-                    db, material, merged, self.user_id, source=match.source, strict=False, row=match,
-                    identity={"noc": noc, "pn": pn, "ncage": ncage} if identity_changed else None, audit_ip=self.ip,
-                )
+                identity = {"noc": noc, "pn": pn, "ncage": ncage} if identity_changed else None
+                if self.dry:
+                    await self.dry.save_row(merged, identity, match)
+                else:
+                    await confunfis.save_row(db, material, merged, self.user_id, source=match.source, strict=False, row=match, identity=identity, audit_ip=self.ip)
                 section["modified"].append({"row": row, "key": _key_text(key), "values": {"name": _shown(values.get("article_name") or match.article_name)}, "changes": changes})
             except confunfis.RowError as exc:
                 _rejected(section, row, _key_text(key), _problem_issues(SHEET, row, exc.problems))
@@ -250,12 +258,16 @@ class Runner:
                 continue
             key_text = _key_text(_row_key({n: getattr(r, n) for n in ("sns", "co", "al", "cs_sns", "cs_co", "cs_al")}))
             if self.mode == REPLACE:
-                await confunfis.delete_row(db, material, r, self.user_id, self.ip)
+                if self.dry:
+                    self.dry.delete_row(r)
+                else:
+                    await confunfis.delete_row(db, material, r, self.user_id, self.ip)
                 section["removed"].append({"row": None, "key": key_text, "values": {"name": _shown(r.article_name)}})
             else:
                 # Fusionar keeps what the file does not have: unchanged.
                 section["unchanged"].append({"row": None, "key": key_text, "values": {"name": _shown(r.article_name)}, "not_in_file": True})
-        await db.flush()
+        if not self.dry:
+            await db.flush()
 
     # ── TABLA PRODUCTOS FUNCIONALES ──────────────────────────────────────
 
@@ -277,7 +289,10 @@ class Runner:
             candidates = [p for p in by_key.get(key, []) if p.id not in matched]
             match = candidates[0] if candidates else None
             if match is None:
-                await extras.save_product(db, material, values, self.user_id, source="import", ip=self.ip)
+                if self.dry:
+                    await self.dry.save_product(values)
+                else:
+                    await extras.save_product(db, material, values, self.user_id, source="import", ip=self.ip)
                 section["new"].append({"row": row, "key": key_text, "values": {"name": clean["designation"] or ""}})
                 continue
             matched.add(match.id)
@@ -288,18 +303,25 @@ class Runner:
             if not changes:
                 section["unchanged"].append({"row": row, "key": key_text})
                 continue
-            await extras.save_product(db, material, values, self.user_id, source=match.source, product=match, ip=self.ip)
+            if self.dry:
+                await self.dry.save_product(values, match)
+            else:
+                await extras.save_product(db, material, values, self.user_id, source=match.source, product=match, ip=self.ip)
             section["modified"].append({"row": row, "key": key_text, "changes": changes})
         for p in stored:
             if p.id in matched:
                 continue
             key_text = " · ".join(x or "—" for x in (p.pol_code, p.nae, p.supply_unit))
             if self.mode == REPLACE:
-                await extras.remove_product(db, material, p, self.user_id, self.ip)
+                if self.dry:
+                    self.dry.remove_product(p)
+                else:
+                    await extras.remove_product(db, material, p, self.user_id, self.ip)
                 section["removed"].append({"row": None, "key": key_text, "values": {"name": p.designation}})
             else:
                 section["unchanged"].append({"row": None, "key": key_text, "not_in_file": True})
-        await extras.refresh_products(db, material)
+        if not self.dry:
+            await extras.refresh_products(db, material)
 
     # ── TABLA DE PARTES ──────────────────────────────────────────────────
 
@@ -317,13 +339,14 @@ class Runner:
                 bad = [Issue(f"{w}_invalid", {"value": ""}, row=row).as_json() for w in (*pwrong, *wrong)]
                 _rejected(section, row, key_text, item["issues"] + bad)
                 continue
-            parent = await _find_article(db, pnoc, ppn, pncage)
+            parent = await (self.dry.find(pnoc, ppn, pncage) if self.dry else _find_article(db, pnoc, ppn, pncage))
             if parent is None:
                 _rejected(section, row, key_text, [Issue("part_parent_not_found", {"value": pnoc or ppn or ""}, row=row).as_json()])
                 continue
             self.part_parents.add(parent.id)
             if parent.id not in stored_by_parent:
-                stored_by_parent[parent.id] = sorted(await extras.live_parts(db, parent.id), key=lambda p: (p.created_at, str(p.id)))
+                stored = await (self.dry.live_parts(parent) if self.dry else extras.live_parts(db, parent.id))
+                stored_by_parent[parent.id] = sorted(stored, key=lambda p: (p.created_at, str(p.id)))
             key_text = f"{parent.noc or parent.nombre} · {_shown(values.get('cop'))}/{_shown(values.get('alp'))}"
             cop, alp = _text(values.get("cop")), _text(values.get("alp")) or "00"
             candidates = [p for p in stored_by_parent[parent.id] if (p.cop, p.alp) == (cop, alp) and p.id not in matched]
@@ -331,7 +354,10 @@ class Runner:
             fields = {"cop": cop, "alp": alp, "quantity": values.get("quantity"), "part_name": None}
             try:
                 if match is None:
-                    await extras.save_part(db, parent, fields, self.user_id, source="import", strict=False, identity={"noc": noc, "pn": pn, "ncage": ncage}, ip=self.ip)
+                    if self.dry:
+                        await self.dry.save_part(parent, fields, {"noc": noc, "pn": pn, "ncage": ncage})
+                    else:
+                        await extras.save_part(db, parent, fields, self.user_id, source="import", strict=False, identity={"noc": noc, "pn": pn, "ncage": ncage}, ip=self.ip)
                     section["new"].append({"row": row, "key": key_text, "values": {"name": noc or pn or ""}, "parent": str(parent.id)})
                     continue
                 matched.add(match.id)
@@ -344,10 +370,13 @@ class Runner:
                     section["unchanged"].append({"row": row, "key": key_text})
                     continue
                 identity_changed = any(c["field"] in IDENTITY_FIELDS for c in changes)
-                await extras.save_part(
-                    db, parent, {**fields, "part_name": match.part_name}, self.user_id, source=match.source, strict=False, part=match,
-                    identity={"noc": noc, "pn": pn, "ncage": ncage} if identity_changed else None, ip=self.ip,
-                )
+                identity = {"noc": noc, "pn": pn, "ncage": ncage} if identity_changed else None
+                if self.dry:
+                    await self.dry.save_part(parent, {**fields, "part_name": match.part_name}, identity, match)
+                else:
+                    await extras.save_part(
+                        db, parent, {**fields, "part_name": match.part_name}, self.user_id, source=match.source, strict=False, part=match, identity=identity, ip=self.ip,
+                    )
                 section["modified"].append({"row": row, "key": key_text, "changes": changes, "parent": str(parent.id)})
             except extras.ExtraError as exc:
                 _rejected(section, row, key_text, _problem_issues(PARTS_SHEET, row, exc.problems))
@@ -357,15 +386,21 @@ class Runner:
                 if p.id in matched:
                     continue
                 if self.mode == REPLACE:
-                    await extras.remove_part(db, p, self.user_id, self.ip)
+                    if self.dry:
+                        self.dry.remove_part(p)
+                    else:
+                        await extras.remove_part(db, p, self.user_id, self.ip)
                     section["removed"].append({"row": None, "key": f"{p.cop}/{p.alp}", "values": {"name": p.part_name or ""}, "parent": str(parent_id)})
                 else:
                     section["unchanged"].append({"row": None, "key": f"{p.cop}/{p.alp}", "not_in_file": True})
-        await extras.refresh_parts(db, self.part_parents)
+        if not self.dry:
+            await extras.refresh_parts(db, self.part_parents)
 
     # ── the Libro AAL's own sheets ───────────────────────────────────────
 
     async def _rows_by_key(self) -> dict[tuple, PhysicalPosition]:
+        if self.dry:
+            return self.dry.rows_by_key(lambda r: _row_key({n: getattr(r, n) for n in ("sns", "co", "al", "cs_sns", "cs_co", "cs_al")}))
         out: dict[tuple, PhysicalPosition] = {}
         for r in sorted(await confunfis.live_rows(self.db, self.material.id), key=lambda r: (r.created_at, str(r.id))):
             out.setdefault(_row_key({n: getattr(r, n) for n in ("sns", "co", "al", "cs_sns", "cs_co", "cs_al")}), r)
@@ -375,7 +410,7 @@ class Runner:
         section = self.sheets[EXTRA_SHEET] = _section()
         db, material = self.db, self.material
         rows = await self._rows_by_key()
-        stored = await extras.live_extras(db, material.id)
+        stored = list(self.dry.extras.values()) if self.dry else await extras.live_extras(db, material.id)
         matched: set[uuid.UUID] = set()
         for item in pending:
             values, row = item["values"], item["row"]
@@ -389,11 +424,14 @@ class Runner:
             criterion, comment = _text(values.get("criterion")) or "", _text(values.get("comment"))
             match = next((e for e in stored if e.position_id == position.id and e.sns == sns and e.id not in matched), None)
             if match is None:
-                problems = await extras.check_extra(db, material, position, sns, criterion)
+                problems = await (self.dry.check_extra(position, sns, criterion) if self.dry else extras.check_extra(db, material, position, sns, criterion))
                 if problems:
                     _rejected(section, row, key_text, _problem_issues(EXTRA_SHEET, row, problems))
                     continue
-                await extras.add_extra(db, material, position, sns, criterion, comment, self.user_id, source="import", ip=self.ip)
+                if self.dry:
+                    self.dry.add_extra(position, sns, criterion, comment)
+                else:
+                    await extras.add_extra(db, material, position, sns, criterion, comment, self.user_id, source="import", ip=self.ip)
                 section["new"].append({"row": row, "key": key_text, "values": {"name": criterion}})
                 continue
             matched.add(match.id)
@@ -401,9 +439,13 @@ class Runner:
             if not changes:
                 section["unchanged"].append({"row": row, "key": key_text})
                 continue
-            problems = await extras.check_extra(db, material, position, sns, criterion, current=match)
+            problems = await (self.dry.check_extra(position, sns, criterion, match) if self.dry else extras.check_extra(db, material, position, sns, criterion, current=match))
             if problems:
                 _rejected(section, row, key_text, _problem_issues(EXTRA_SHEET, row, problems))
+                continue
+            if self.dry:
+                self.dry.change_extra(match, criterion, comment)
+                section["modified"].append({"row": row, "key": key_text, "changes": changes})
                 continue
             before = extras.extra_snapshot(match)
             match.criterion, match.comment, match.version, match.updated_by = criterion, comment, match.version + 1, self.user_id
@@ -413,7 +455,10 @@ class Runner:
             if e.id in matched:
                 continue
             if self.mode == REPLACE:
-                await extras.remove_extra(db, material, e, self.user_id, self.ip)
+                if self.dry:
+                    self.dry.remove_extra(e)
+                else:
+                    await extras.remove_extra(db, material, e, self.user_id, self.ip)
                 section["removed"].append({"row": None, "key": self._extra_key(e), "values": {"name": e.criterion}})
             else:
                 section["unchanged"].append({"row": None, "key": self._extra_key(e), "not_in_file": True})
@@ -422,7 +467,7 @@ class Runner:
         section = self.sheets[INCOMPATIBILITY_SHEET] = _section()
         db, material = self.db, self.material
         rows = await self._rows_by_key()
-        stored = await extras.live_incompatibilities(db, material.id)
+        stored = list(self.dry.incompatibilities.values()) if self.dry else await extras.live_incompatibilities(db, material.id)
         matched: set[uuid.UUID] = set()
         for item in pending:
             values, row = item["values"], item["row"]
@@ -446,12 +491,19 @@ class Runner:
                 continue
             match = next((i for i in stored if extras.same_incompatibility(i, a.id, b.id, kind) and i.id not in matched), None)
             if match is None:
-                await extras.add_incompatibility(db, material, a, b, kind, reason, self.user_id, source="import", ip=self.ip)
+                if self.dry:
+                    self.dry.add_incompatibility(a, b, kind, reason)
+                else:
+                    await extras.add_incompatibility(db, material, a, b, kind, reason, self.user_id, source="import", ip=self.ip)
                 section["new"].append({"row": row, "key": key_text, "values": {"name": reason}})
                 continue
             matched.add(match.id)
             if _same(match.reason, reason):
                 section["unchanged"].append({"row": row, "key": key_text})
+                continue
+            if self.dry:
+                self.dry.change_incompatibility(match, reason)
+                section["modified"].append({"row": row, "key": key_text, "changes": [{"field": "reason", "header": _header(INCOMPATIBILITY_SHEET, "reason"), "before": match.reason, "after": reason}]})
                 continue
             before, old_reason = extras.incompatibility_snapshot(match), match.reason
             match.reason, match.version, match.updated_by = reason, match.version + 1, self.user_id
@@ -461,7 +513,10 @@ class Runner:
             if i.id in matched:
                 continue
             if self.mode == REPLACE:
-                await extras.remove_incompatibility(db, material, i, self.user_id, self.ip)
+                if self.dry:
+                    self.dry.remove_incompatibility(i)
+                else:
+                    await extras.remove_incompatibility(db, material, i, self.user_id, self.ip)
                 section["removed"].append({"row": None, "key": self._incompatibility_key(i), "values": {"name": i.reason}})
             else:
                 section["unchanged"].append({"row": None, "key": self._incompatibility_key(i), "not_in_file": True})
@@ -478,11 +533,16 @@ class Runner:
             r.id: _key_text(_row_key({n: getattr(r, n) for n in ("sns", "co", "al", "cs_sns", "cs_co", "cs_al")})) for r in await confunfis.live_rows(db, mid)
         }
         extras_before, incompatibilities_before = await extras.live_extras(db, mid), await extras.live_incompatibilities(db, mid)
+        if self.dry:
+            await self.dry.load()
         await self.rows(pending[SHEET])
         # Sustituir: a row removed takes its extra functions and incompatibilities with it
         # (ROW_REMOVAL_EXTENSIONS); they are removed too, and the report must say so.
-        alive_e = {e.id for e in await extras.live_extras(db, mid)}
-        alive_i = {i.id for i in await extras.live_incompatibilities(db, mid)}
+        if self.dry:
+            alive_e, alive_i = set(self.dry.extras), set(self.dry.incompatibilities)
+        else:
+            alive_e = {e.id for e in await extras.live_extras(db, mid)}
+            alive_i = {i.id for i in await extras.live_incompatibilities(db, mid)}
         cascaded = {
             EXTRA_SHEET: [{"row": None, "key": self._extra_key(e), "values": {"name": e.criterion}, "with_row": True} for e in extras_before if e.id not in alive_e],
             INCOMPATIBILITY_SHEET: [{"row": None, "key": self._incompatibility_key(i), "values": {"name": i.reason}, "with_row": True} for i in incompatibilities_before if i.id not in alive_i],
@@ -498,7 +558,8 @@ class Runner:
         for sheet, items in cascaded.items():
             if items:
                 self.sheets.setdefault(sheet, _section())["removed"].extend(items)
-        await confunfis.refresh_observations(self.db, self.material)
+        if not self.dry:
+            await confunfis.refresh_observations(self.db, self.material)
 
 
 def _sheet_counts(sheets: dict[str, Any]) -> dict[str, dict[str, int]]:
@@ -519,6 +580,18 @@ async def fingerprint(db: AsyncSession, material: Material, parents: set[uuid.UU
     parts += sorted((str(i), v) for i, v in (await db.execute(select(ArticleReference.id, ArticleReference.version).where(ArticleReference.article_id.in_(used), ArticleReference.deleted_at.is_(None)))).all())
     parts.append(("material", material.noc, material.part_number))
     return hashlib.sha256(repr(parts).encode()).hexdigest()
+
+
+def _file_cuf(pending: dict[str, list[dict[str, Any]]]) -> dict[str, list[str]]:
+    """The CUF columns of every line (CF-016: all the same)."""
+    out: dict[str, list[str]] = {"cuf_noc": [], "cuf_pn": []}
+    for sheet in (SHEET, PRODUCTS_SHEET):
+        for item in pending.get(sheet, []):
+            for name in out:
+                value = _text(item["values"].get(name))
+                if value:
+                    out[name].append(value)
+    return out
 
 
 def _cuf_of(pending: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
@@ -542,6 +615,8 @@ async def _material(db: AsyncSession, params: dict[str, Any]) -> Material:
 
 class AnexoXiTarget:
     kind = ANEXO_XI
+    # The analysis only reads (anexo_xi_dry): a read-only snapshot (import_jobs).
+    read_only_analysis = True
 
     def can_import(self, user: User, params: dict[str, Any]) -> bool:
         # The material's permission is the route's (confunfis.editar); Sustituir, the admin's.
@@ -592,16 +667,13 @@ class AnexoXiTarget:
             # Every row would be outside the CUF's configuration (E16).
             report["notices"].append({"code": "no_subcategories"})
         report["pending"] = pending
-        # The dry run: everything written, measured, then rolled back by the engine.
-        # now() is the transaction's start: what the dry run creates has it, what was there is older.
-        started = (await db.execute(select(func.now()))).scalar_one()
-        runner = Runner(db, material, params.get("mode", MERGE), None, None, None)
+        # The pass in memory (anexo_xi_dry): nothing written, nothing locked.
+        runner = Runner(db, material, params.get("mode", MERGE), None, None, None, dry=True)
         parents = await self._parents(db, pending)
         report["fingerprint"] = await fingerprint(db, material, parents)
         await runner.run(pending)
-        await db.flush()
         report["sheets"] = runner.sheets
-        report["result"] = await self._result(db, material, started, runner, viewer)
+        report["result"] = await self._result(db, material, runner, viewer, _file_cuf(pending))
         top = runner.sheets[SHEET]
         report["new"], report["modified"], report["unchanged"], report["removed"], report["rejected"] = (
             top["new"], top["modified"], top["unchanged"], top["removed"], top["rejected"],
@@ -625,28 +697,24 @@ class AnexoXiTarget:
         return out
 
     async def _result(
-        self, db: AsyncSession, material: Material, started: datetime, runner: Runner, viewer: User | None,
+        self, db: AsyncSession, material: Material, runner: Runner, viewer: User | None, file_cuf: dict[str, list[str]],
     ) -> dict[str, Any]:
-        """What the result would have: observations, provisional articles,
-        new P/N + NCAGE, and the parts that change articles other CUF use."""
-        rows = await confunfis.live_rows(db, material.id)
+        """What the result would have: its findings (E16, by rule, with the
+        rules' severity), provisional articles, new P/N + NCAGE, and the
+        parts that change articles other CUF use."""
+        dry = runner.dry
+        assert dry is not None
+        ctx = await dry.context(runner.part_parents, file_cuf)
+        rules = await validation.settings(db)
         observations: dict[str, int] = defaultdict(int)
-        for r in rows:
-            for code in r.observation_codes:
-                observations[code] += 1
-        for p in await extras.live_products(db, material.id):
-            for code in p.observation_codes:
-                observations[code] += 1
-        for i in await extras.live_incompatibilities(db, material.id):
-            for code in i.observation_codes:
-                observations[code] += 1
-        for p in await extras.live_parts(db):
-            if p.parent_article_id in runner.part_parents:
-                for code in p.observation_codes:
-                    observations[code] += 1
-        new_articles = (await db.execute(select(Article).where(Article.created_at >= started))).scalars().all()
-        new_refs = (await db.execute(select(ArticleReference).where(ArticleReference.created_at >= started))).scalars().all()
-        names = {a.id: a for a in await _articles(db, {r.article_id for r in new_refs})}
+        severity: dict[str, str] = {}
+        for f in engine.run(ctx, {code: r.params for code, r in rules.items()}):
+            level = validation.severity_of(rules.get(f.code), f.code)
+            if level == OFF:
+                continue
+            observations[f.code] += 1
+            severity[f.code] = level
+        names = {**dry.new_articles, **await _articles(db, {r.article_id for r in dry.new_references} - set(dry.new_articles))}
         changed_parents = {uuid.UUID(x["parent"]) for k in ("new", "modified", "removed") for x in runner.sheets.get(PARTS_SHEET, {}).get(k, [])}
         global_parts = []
         if changed_parents:
@@ -658,7 +726,7 @@ class AnexoXiTarget:
                 )
             ).all()
             visible = {a.material.id for a in await accessible_materials(db, viewer)} if viewer else set()
-            parents = await _articles(db, changed_parents)
+            parents = {**await _articles(db, changed_parents - set(dry.new_articles)), **{i: a for i, a in dry.new_articles.items() if i in changed_parents}}
             by_parent: dict[uuid.UUID, list[str]] = defaultdict(list)
             hidden: dict[uuid.UUID, int] = defaultdict(int)
             for article_id, mid, name in users:
@@ -672,8 +740,11 @@ class AnexoXiTarget:
             ]
         return {
             "observations": dict(sorted(observations.items())),
-            "provisional_articles": [{"noc": a.noc, "name": a.nombre} for a in new_articles if a.origin == "confunfis"],
-            "new_references": [{"pn": r.pn, "ncage": r.ncage, "article": names[r.article_id].nombre if r.article_id in names else ""} for r in new_refs],
+            "severity": dict(sorted(severity.items())),
+            "blocking": sum(n for c, n in observations.items() if severity[c] == BLOCKING),
+            "warnings": sum(n for c, n in observations.items() if severity[c] == WARNING),
+            "provisional_articles": [{"noc": a.noc, "name": a.nombre} for a in dry.new_articles.values() if a.origin == "confunfis"],
+            "new_references": [{"pn": r.pn, "ncage": r.ncage, "article": names[r.article_id].nombre if r.article_id in names else ""} for r in dry.new_references],
             "global_parts": global_parts,
         }
 
@@ -715,6 +786,8 @@ class AnexoXiTarget:
         if _sheet_counts(runner.sheets) != _sheet_counts(report.get("sheets", {})):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("import_book_stale"))
         audit.record(db, action="confunfis.book_imported", entity_type="material", entity_id=str(material.id), user_id=user.id, material_id=material.id, after={**source, "mode": mode, "counts": job.counts}, ip=ip)
+        # The CUF validated once the book is in (E16): its traffic light reflects the import.
+        await validation.validate(db, material, user, "import", ip)
 
 
 register(AnexoXiTarget())

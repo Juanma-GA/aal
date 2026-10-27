@@ -206,7 +206,7 @@ export function IncompatibilitiesSection({ materialId, row, canEdit, onOpen }: {
                 </div>
                 <span className="text-xs text-muted-foreground">{i.reason}</span>
                 {i.observations.map((o) => (
-                  <span key={o.code} className="text-xs text-warning" data-testid={`incompatibility-observation-${o.code}`}>{observationText(t, o)}</span>
+                  <span key={`${o.code}-${o.problem}`} className="text-xs text-warning" data-testid={`incompatibility-observation-${o.code}-${o.problem}`}>{observationText(t, o)}</span>
                 ))}
               </li>
             );

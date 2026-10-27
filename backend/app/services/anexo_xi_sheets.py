@@ -19,6 +19,7 @@ listed (the template's help sheets, the official book's auxiliary ones).
 
 from dataclasses import dataclass
 
+from app.core.texts import text
 from app.io_excel.reader import Limits, ReadResult, read_rows, sheet_names
 from app.io_excel.template import Column, ColumnType, Template
 from app.services.confunfis_sheet import PARTS_TEMPLATE, PRODUCTS_TEMPLATE, TEMPLATE
@@ -111,5 +112,6 @@ def read_book(template: Template, data: bytes, limits: Limits) -> ReadResult:
     for other in (*OFFICIAL[1:], *OWN):
         if other.sheet in names:
             read.sheets[other.sheet] = read_rows(other, data, limits)
-    read.ignored_sheets = [n for n in names if n not in KNOWN]
+    # The ESTADO DE VALIDACIÓN sheet of a working export (E16) is ours too: not read, not reported.
+    read.ignored_sheets = [n for n in names if n not in KNOWN and n != text("validation.status.sheet")]
     return read

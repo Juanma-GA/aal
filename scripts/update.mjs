@@ -6,6 +6,7 @@
 //     Python lockfile changed (`uv pip` if the virtualenv has no pip);
 //   - alembic upgrade head, always (cheap, and it never hurts);
 //   - npm run test:db:create, when there are new migrations;
+//   - backend/scripts/refresh_findings.py, when the migrations or the validator's rules changed (E16);
 //   - with --check (npm run update -- --check), npm run check:all at the end.
 // Then a summary: what was done, what was not needed and why.
 //
@@ -113,6 +114,10 @@ if (!python.python) {
   if (touched((f) => f.startsWith('backend/alembic/versions/'))) {
     run('npm run test:db:create', process.execPath, [path.join('scripts', 'create-test-db.mjs')], ROOT);
   } else skip('npm run test:db:create', 'no hay migraciones nuevas');
+  // The findings kept on the CONFUNFIS records follow the rules' code (E16).
+  if (touched((f) => f.startsWith('backend/alembic/versions/') || f.startsWith('backend/app/validacion/'))) {
+    run('refresh_findings.py', python.python, [path.join('scripts', 'refresh_findings.py')], BACKEND_DIR);
+  } else skip('refresh_findings.py', 'ni migraciones ni reglas nuevas');
 }
 
 // 3. Optionally, the whole check.

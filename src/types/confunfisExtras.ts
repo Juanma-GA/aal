@@ -1,5 +1,5 @@
 // The rest of RF-02 (E14): app/schemas/confunfis_extras.py.
-import type { ArticleBrief } from './confunfis';
+import type { ArticleBrief, Observation } from './confunfis';
 
 export interface Part {
   id: string;
@@ -10,7 +10,7 @@ export interface Part {
   part_name: string | null;
   article: ArticleBrief | null;
   source: 'manual' | 'seed' | 'import';
-  observations: { code: string; params: Record<string, string> }[];
+  observations: Observation[];
   observation_codes: string[];
   /** Its COP has more than one ALP. */
   alternative: boolean;
@@ -48,7 +48,7 @@ export interface Product {
   quantity: string | null;
   unit: string | null;
   source: 'manual' | 'seed' | 'import' | 'copia';
-  observations: { code: string; params: Record<string, string> }[];
+  observations: Observation[];
   observation_codes: string[];
   version: number;
   updated_at: string;
@@ -93,7 +93,7 @@ export interface Incompatibility {
   kind: IncompatibilityKind;
   reason: string;
   source: string;
-  observations: { code: string; params: Record<string, string> }[];
+  observations: Observation[];
   observation_codes: string[];
   version: number;
   updated_at: string;

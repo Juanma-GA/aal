@@ -27,7 +27,7 @@ from pathlib import Path, PurePath
 from typing import Any
 
 from fastapi import HTTPException, UploadFile, status
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import backend_path, get_settings
@@ -113,6 +113,10 @@ async def run_analysis(job_id: uuid.UUID) -> None:
             return
         try:
             target = get_target(job.template)
+            if getattr(target, "read_only_analysis", False):
+                # A snapshot that writes and locks nothing (E16): what it reads is one moment.
+                await db.commit()
+                await db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
             template = await target.template(db, job.params)
             # A target that reads more than one sheet (E15) reads the file itself.
             reader = getattr(target, "read_file", None) or read_rows

@@ -143,7 +143,14 @@
     "import_cuf_not_confirmed": "El fichero es de otro CUF: confirma que quieres importarlo en este.",
     "import_replace_not_confirmed": "Para sustituir, escribe exactamente el nombre del CUF.",
     "import_book_stale": "El CUF o el maestro de artículos han cambiado desde el análisis, así que el resultado ya no sería el del informe. Vuelve a analizar el fichero.",
-    "import_replace_has_rejected": "Para sustituir, el fichero no puede tener filas rechazadas: lo que esas filas describen se daría de baja. Corrígelas en el fichero, o importa en «Fusionar»."
+    "import_replace_has_rejected": "Para sustituir, el fichero no puede tener filas rechazadas: lo que esas filas describen se daría de baja. Corrígelas en el fichero, o importa en «Fusionar».",
+    "delivery_blocked": "No se puede exportar para entrega: la validación NT 10/17 no lo permite.",
+    "validation_rule_not_found": "Esa regla de validación no existe.",
+    "validation_rule_param_unknown": "La regla no tiene estos parámetros: {{params}}.",
+    "validation_not_run": "Este CUF aún no se ha validado: pulsa \"Validar ahora\".",
+    "validation_finding_not_found": "Ese hallazgo ya no está en la última validación: vuelve a cargar el informe.",
+    "finding_blocking_cannot_be_accepted": "Un error bloqueante no se puede aceptar: hay que corregirlo.",
+    "finding_already_accepted": "Ese aviso ya estaba aceptado."
   },
   "actions": {
     "retry": "Reintentar",
@@ -192,7 +199,289 @@
     "ncage": "El NCAGE tiene 5 caracteres (letras mayúsculas y números).",
     "maxLength": "Como mucho {{max}} caracteres.",
     "grupoClase": "El Grupo-Clase tiene 4 cifras.",
-    "sns": "Un SNS tiene 6 caracteres (letras mayúsculas y cifras)."
+    "sns": "Un SNS tiene 6 caracteres (letras mayúsculas y cifras).",
+    "rules": {
+      "CF-001": {
+        "title": "SNS fuera de la configuración del CUF",
+        "text": "Cada fila tiene que estar en un SNS de la configuración funcional normalizada del CUF (la de su versión del catálogo)."
+      },
+      "CF-002": {
+        "title": "SNS mal formado",
+        "text": "Un SNS son 6 letras mayúsculas o cifras, también el del conjunto superior."
+      },
+      "CF-003": {
+        "title": "CO fuera de rango",
+        "text": "El código de componente (CO) va de 01 a 99."
+      },
+      "CF-004": {
+        "title": "Alternativos (AL) incoherentes",
+        "text": "Sin alternativos, AL 00; con alternativos, AL 01–99 y al menos dos; nunca 00 mezclado con 01–99 en el mismo hueco."
+      },
+      "CF-005": {
+        "title": "Cantidad (QTY) no válida",
+        "text": "La cantidad por unidad del conjunto superior es un número entero mayor que cero."
+      },
+      "CF-006": {
+        "title": "Cantidad distinta entre alternativos",
+        "text": "Los alternativos de un mismo hueco y conjunto superior llevan la misma cantidad."
+      },
+      "CF-007": {
+        "title": "Conjunto superior inexistente",
+        "text": "El conjunto superior de una fila tiene que ser otra fila de la CONFUNFIS."
+      },
+      "CF-008": {
+        "title": "Fila sin conjunto superior",
+        "text": "Toda fila, salvo la del propio CUF, dice de qué conjunto superior cuelga."
+      },
+      "CF-009": {
+        "title": "Fila del CUF principal",
+        "text": "Hay una sola fila del CUF: en 000000 01 00 (o en el SNS de su función, si es un CUF montado) y sin conjunto superior."
+      },
+      "CF-010": {
+        "title": "Ciclo de conjuntos superiores",
+        "text": "Una fila no puede colgar, directa o indirectamente, de sí misma."
+      },
+      "CF-011": {
+        "title": "Conjunto superior sin NOC ni P/N",
+        "text": "El artículo de un conjunto superior (LRU/SRU) debería tener NOC o P/N."
+      },
+      "CF-012": {
+        "title": "Identificación del artículo",
+        "text": "Cada artículo tiene NOC de 13 caracteres o, si no, P/N con NCAGE."
+      },
+      "CF-013": {
+        "title": "NCAGE mal formado",
+        "text": "El NCAGE son 5 letras mayúsculas o cifras."
+      },
+      "CF-014": {
+        "title": "Nombre o función sin informar",
+        "text": "Cada fila lleva el nombre del artículo y su función."
+      },
+      "CF-015": {
+        "title": "Fila duplicada",
+        "text": "No puede haber dos filas iguales (SNS, CO, AL y conjunto superior)."
+      },
+      "CF-016": {
+        "title": "Datos del CUF distintos en el fichero",
+        "text": "Al importar, todas las filas llevan los mismos datos del CUF."
+      },
+      "CF-017": {
+        "title": "Un artículo en varias posiciones",
+        "text": "Un mismo artículo en SNS distintos debería ser una sola posición con funciones adicionales."
+      },
+      "CF-018": {
+        "title": "CT SIGLE sin informar",
+        "text": "Cada fila dice si SIGLE la controla (S/N)."
+      },
+      "CF-019": {
+        "title": "CT SIGLE sin control unitario",
+        "text": "Con CT SIGLE = S y un artículo sin control unitario (MAR06 campo 59), SIGLE no podrá seguirlo."
+      },
+      "CF-020": {
+        "title": "Función adicional no válida",
+        "text": "Una función adicional es otro SNS de la configuración del CUF, distinto del de su fila."
+      },
+      "CF-021": {
+        "title": "Incompatibilidad incoherente",
+        "text": "Una exclusión une alternativos; un requisito apunta a una fila viva y no forma un ciclo."
+      },
+      "TP-001": {
+        "title": "Tabla de partes incoherente",
+        "text": "COP y ALP en rango, sin autorreferencias ni ciclos, cantidad mayor que cero, sin duplicados ni alternativo único, y la parte fuera de la CONFUNFIS."
+      },
+      "PF-001": {
+        "title": "Producto funcional incoherente",
+        "text": "Código POL existente, N/A/E válido, unidad de suministro de D155, unidad de medida de UNIDAD_MEDIDA_PF, cantidad válida y sin duplicados."
+      },
+      "AR-001": {
+        "title": "Datos básicos del artículo",
+        "text": "Los campos obligatorios del Fichero Carga y los códigos de sus tablas."
+      },
+      "AR-002": {
+        "title": "Reparable sin escalones de mantenimiento",
+        "text": "Un artículo reparable tiene al menos un escalón de mantenimiento, y todos los siguientes al primero."
+      },
+      "AR-003": {
+        "title": "Medida sin unidad",
+        "text": "Un peso o una dimensión lleva su unidad."
+      },
+      "AR-004": {
+        "title": "Control unitario sin código",
+        "text": "Con control unitario = S, el código de control unitario."
+      },
+      "AR-005": {
+        "title": "Control de vida incompleto",
+        "text": "Con control de vida = S, de uno a tres pares unidad (D114) y cantidad."
+      },
+      "AR-006": {
+        "title": "Mantenimiento preventivo sin control de vida",
+        "text": "Un artículo con mantenimiento preventivo lleva control de vida."
+      },
+      "AR-007": {
+        "title": "Control de configuración incoherente",
+        "text": "Con control de configuración = S, control unitario y grupo estructural 0 o 7."
+      }
+    },
+    "problems": {
+      "CF-001": {
+        "outside": "El SNS {{sns}} no está en la configuración normalizada del CUF."
+      },
+      "CF-002": {
+        "sns": "«{{sns}}» no es un SNS: son 6 letras mayúsculas o cifras.",
+        "cs": "El conjunto superior «{{cs}}» no es SNS (6) + CO (2) + AL (2)."
+      },
+      "CF-003": {
+        "range": "CO {{co}}: tiene que estar entre {{min}} y {{max}}."
+      },
+      "CF-004": {
+        "range": "AL {{al}}: tiene que estar entre 00 y {{max}}.",
+        "alone": "AL {{al}} es el único alternativo de su hueco: sin alternativos, va con AL 00.",
+        "mixed": "El hueco mezcla AL 00 con alternativos 01–99 (esta fila: AL {{al}})."
+      },
+      "CF-005": {
+        "missing": "Falta la cantidad.",
+        "not_whole": "La cantidad {{qty}} no es un número entero.",
+        "not_positive": "La cantidad {{qty}} no es mayor que cero.",
+        "too_big": "La cantidad {{qty}} pasa del máximo ({{max}})."
+      },
+      "CF-006": {
+        "different": "Los alternativos del hueco llevan cantidades distintas: {{qtys}}."
+      },
+      "CF-007": {
+        "not_found": "Ninguna fila está en la posición del conjunto superior {{cs}}."
+      },
+      "CF-008": {
+        "missing": "La fila no dice de qué conjunto superior cuelga."
+      },
+      "CF-009": {
+        "missing": "No hay fila del CUF (000000 01 00).",
+        "several": "Hay {{count}} filas del CUF: solo puede haber una.",
+        "with_cs": "La fila del CUF tiene conjunto superior ({{cs}}): no debe tenerlo."
+      },
+      "CF-010": {
+        "cycle": "La fila está en un ciclo de conjuntos superiores."
+      },
+      "CF-011": {
+        "no_identity": "Es el conjunto superior de {{children}} filas y su artículo no tiene NOC ni P/N."
+      },
+      "CF-012": {
+        "no_identity": "El artículo no tiene NOC ni P/N.",
+        "pn_without_ncage": "El artículo no tiene NOC y su P/N {{pn}} no lleva NCAGE.",
+        "pn_taken": "El P/N {{pn}} / {{ncage}} es de otro artículo: no se ha añadido a este."
+      },
+      "CF-013": {
+        "length": "El NCAGE «{{ncage}}» no tiene 5 caracteres."
+      },
+      "CF-014": {
+        "name": "Falta el nombre del artículo.",
+        "function": "Falta la función del artículo."
+      },
+      "CF-015": {
+        "duplicate": "La fila {{position}} está repetida con el mismo conjunto superior."
+      },
+      "CF-016": {
+        "different": "El dato «{{field}}» del CUF cambia entre filas: {{values}}."
+      },
+      "CF-017": {
+        "several_sns": "El artículo {{noc}} {{name}} está en {{positions}}."
+      },
+      "CF-018": {
+        "missing": "Falta el CT SIGLE (S/N)."
+      },
+      "CF-019": {
+        "no_unit_control": "CT SIGLE = S, pero el artículo no tiene control unitario."
+      },
+      "CF-020": {
+        "same_sns": "La función adicional {{sns}} es el SNS de su propia fila.",
+        "outside": "La función adicional {{sns}} no está en la configuración del CUF."
+      },
+      "CF-021": {
+        "excluye_without_alternatives": "«Excluye» entre dos filas sin alternativos: una de las dos sobraría.",
+        "requiere_removed": "«Requiere» apunta a una fila dada de baja.",
+        "requiere_cycle": "Los «requiere» forman un ciclo."
+      },
+      "TP-001": {
+        "self": "La parte es el propio artículo.",
+        "cycle": "La parte está en un ciclo de tablas de partes.",
+        "cop": "COP {{cop}} fuera de rango.",
+        "alp": "ALP {{alp}} fuera de rango.",
+        "duplicate": "COP {{cop}} / ALP {{alp}} repetido.",
+        "quantity": "La cantidad «{{quantity}}» no es mayor que cero.",
+        "alone": "ALP {{alp}} es el único alternativo de su COP.",
+        "in_confunfis": "La parte también está en la CONFUNFIS del CUF: una parte va fuera de la configuración.",
+        "pn_taken": "El P/N {{pn}} / {{ncage}} es de otro artículo."
+      },
+      "PF-001": {
+        "pol": "El código POL {{pol}} no existe.",
+        "nae": "N/A/E «{{nae}}» no válido.",
+        "supply_unit": "La unidad de suministro {{unit}} no está en D155.",
+        "unit": "La unidad de medida {{unit}} no está en UNIDAD_MEDIDA_PF.",
+        "quantity": "La cantidad {{quantity}} no es mayor que cero.",
+        "duplicate": "El producto está repetido."
+      }
+    },
+    "severity": {
+      "bloqueante": "Bloqueante",
+      "aviso": "Aviso",
+      "desactivada": "Desactivada"
+    },
+    "scope": {
+      "fila": "Fila",
+      "cuf": "CUF",
+      "articulo": "Artículo",
+      "parte": "Parte",
+      "producto": "Producto funcional",
+      "funcion_adicional": "Función adicional",
+      "incompatibilidad": "Incompatibilidad"
+    },
+    "state": {
+      "red": "Con errores bloqueantes",
+      "amber": "Con avisos",
+      "green": "Sin errores bloqueantes",
+      "none": "Sin validar"
+    },
+    "report": {
+      "title": "Informe de validación NT 10/17",
+      "cuf": "CUF",
+      "noc": "NOC",
+      "pn": "P/N",
+      "validatedAt": "Validado el",
+      "validatedBy": "Por",
+      "state": "Estado",
+      "outdated": "Desactualizado: hay cambios posteriores a la validación.",
+      "summary": "Resumen por regla",
+      "details": "Hallazgos",
+      "rule": "Regla",
+      "ref": "Referencia NT",
+      "severity": "Severidad",
+      "count": "Hallazgos",
+      "acceptedCount": "Aceptados",
+      "location": "Ubicación",
+      "message": "Problema",
+      "field": "Campo",
+      "found": "Valor encontrado",
+      "accepted": "Aceptado",
+      "justification": "Justificación",
+      "scopeCol": "Ámbito",
+      "counts": "{{blocking}} errores bloqueantes · {{warnings}} avisos · {{accepted}} aceptados",
+      "none": "Sin hallazgos.",
+      "yes": "Sí",
+      "no": "No",
+      "page": "Página {{page}}"
+    },
+    "status": {
+      "sheet": "ESTADO DE VALIDACIÓN",
+      "draft": "BORRADOR — {{blocking}} errores bloqueantes, {{warnings}} avisos, validado el {{at}}",
+      "draftOutdated": "BORRADOR — validación desactualizada (la última: {{at}})",
+      "notValidated": "BORRADOR — sin validar",
+      "ready": "Validado el {{at}}: sin errores bloqueantes ({{warnings}} avisos)",
+      "note": "Exportación de trabajo. Para entregar, usa «Exportar para entrega», que exige una validación al día sin errores bloqueantes."
+    },
+    "delivery": {
+      "delivery_not_validated": "Falta validar el CUF.",
+      "delivery_outdated": "La validación está desactualizada: hay cambios posteriores o han cambiado las reglas.",
+      "delivery_blocking": "Hay {{count}} errores bloqueantes."
+    }
   },
   "header": {
     "material": "Material",
@@ -491,7 +780,11 @@
       "confunfis.incompatibility_removed": "Incompatibilidad quitada",
       "confunfis.extras_copied": "Productos, funciones adicionales e incompatibilidades copiados",
       "confunfis.book_imported": "Libro CONFUNFIS importado",
-      "article.autocorrected": "Artículo autocorregido"
+      "article.autocorrected": "Artículo autocorregido",
+      "validation.run": "Validación NT ejecutada",
+      "validation.finding_accepted": "Aviso de validación aceptado",
+      "validation.rule_updated": "Regla de validación cambiada",
+      "confunfis.delivery_exported": "Exportación para entrega"
     },
     "entities": {
       "article": "Artículo",
@@ -512,7 +805,9 @@
       "physical_position": "Fila de la CONFUNFIS",
       "functional_product": "Producto funcional",
       "extra_function": "Función adicional",
-      "incompatibility": "Incompatibilidad"
+      "incompatibility": "Incompatibilidad",
+      "validation_rule": "Regla de validación",
+      "validation_finding": "Hallazgo de validación"
     }
   },
   "nav": {
@@ -1237,120 +1532,6 @@
       "multifunction_one": "multifunción ({{count}})",
       "multifunction_other": "multifunción ({{count}})",
       "multifunction": "multifunción ({{count}})"
-    },
-    "observations": {
-      "OF-001": {
-        "short": "Fuera de configuración",
-        "text": "El SNS {{sns}} no está en la configuración normalizada del CUF."
-      },
-      "OF-002": {
-        "short": "CS mal formado",
-        "text": "El conjunto superior «{{cs}}» no es SNS (6) + CO (2) + AL (2)."
-      },
-      "OF-003": {
-        "short": "CS no encontrado",
-        "text": "Ninguna fila está en la posición del conjunto superior {{cs}}."
-      },
-      "OF-004": {
-        "short": "Duplicada",
-        "text": "Hay otra fila igual (mismo SNS, CO, AL y conjunto superior)."
-      },
-      "OF-005": {
-        "short": "CO/AL fuera de rango",
-        "text": "CO {{co}} o AL {{al}} fuera de los rangos de la configuración."
-      },
-      "OF-006": {
-        "short": "QTY no válida",
-        "text": "La cantidad «{{qty}}» no es un número entero mayor o igual que 1."
-      },
-      "OF-007": {
-        "short": "Sin NOC ni P/N",
-        "text": "El artículo no tiene NOC ni P/N + NCAGE."
-      },
-      "OF-008": {
-        "short": "Sin función",
-        "text": "La fila no dice la función del artículo."
-      },
-      "OF-009": {
-        "short": "Nombre distinto del maestro",
-        "text": "El nombre de la fila no es el del maestro de artículos ({{master}}). No es un error: la NT §9.1.3 dice qué nombre usar en cada caso."
-      },
-      "OF-010": {
-        "short": "Ciclo",
-        "text": "La fila está en un ciclo de conjuntos superiores: no tiene total."
-      },
-      "OF-011": {
-        "short": "P/N de otro artículo",
-        "text": "El P/N {{pn}} / {{ncage}} ya es de otro artículo: no se ha añadido a este."
-      },
-      "OF-012": {
-        "short": "Alternativo único",
-        "text": "Es el único alternativo de su hueco (AL {{al}}): sin alternativos, la NT §9.1.6 pide AL 00."
-      },
-      "OP-001": {
-        "short": "Parte de sí mismo",
-        "text": "El artículo es parte de su propia tabla de partes."
-      },
-      "OP-002": {
-        "short": "Ciclo de despiece",
-        "text": "Esta parte cierra un ciclo: el artículo acaba siendo parte de sí mismo a través de otras tablas de partes."
-      },
-      "OP-003": {
-        "short": "COP/ALP repetido",
-        "text": "Hay otra parte con COP {{cop}} y ALP {{alp}} en este artículo."
-      },
-      "OP-004": {
-        "short": "Cantidad no válida",
-        "text": "La cantidad «{{quantity}}» no es mayor o igual que 1."
-      },
-      "OP-005": {
-        "short": "También en la CONFUNFIS",
-        "text": "La parte también figura en la CONFUNFIS de un CUF donde está montado el artículo; la NT dice que las partes no van en la configuración."
-      },
-      "OP-006": {
-        "short": "Alternativo único",
-        "text": "Es el único alternativo de su COP (ALP {{alp}}): si no hay otro, va con ALP 00."
-      },
-      "OP-007": {
-        "short": "P/N de otro artículo",
-        "text": "El P/N {{pn}} / {{ncage}} ya es de otro artículo: no se ha añadido a este."
-      },
-      "OPF-001": {
-        "short": "Código POL no encontrado",
-        "text": "El código {{pol}} no está en la tabla POL."
-      },
-      "OPF-002": {
-        "short": "Designación distinta de POL",
-        "text": "La designación no es la descripción POL de {{pol}} ({{description}}). Es un aviso, no un error."
-      },
-      "OPF-003": {
-        "short": "N/A/E no válido",
-        "text": "«{{nae}}» no está en la tabla NAE."
-      },
-      "OPF-004": {
-        "short": "Unidad de suministro no válida",
-        "text": "La unidad de suministro {{unit}} no está en la tabla D155."
-      },
-      "OPF-005": {
-        "short": "Unidad de medida no válida",
-        "text": "La unidad de medida {{unit}} no está en la tabla UNIDAD_MEDIDA_PF (unidades de los productos funcionales)."
-      },
-      "OPF-006": {
-        "short": "Duplicado",
-        "text": "Hay otro producto funcional idéntico."
-      },
-      "OI-001": {
-        "short": "Excluye sin alternativos",
-        "text": "Ninguna de las dos filas tiene alternativos: «excluye» dejaría una de ellas inutilizable."
-      },
-      "OI-002": {
-        "short": "Requiere una fila dada de baja",
-        "text": "La fila requerida ya no está en la CONFUNFIS."
-      },
-      "OI-003": {
-        "short": "Ciclo de «requiere»",
-        "text": "Esta incompatibilidad está en un ciclo de «requiere»."
-      }
     },
     "tree": {
       "label": "Árbol físico de la CONFUNFIS",

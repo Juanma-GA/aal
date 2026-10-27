@@ -47,7 +47,7 @@ from app.schemas.confunfis import (
     VersionIn,
 )
 from app.schemas.confunfis_extras import CufPartOut, ExtraFunctionOut, IncompatibilityOut, PartOut, RowRef
-from app.services import audit, confunfis, cuf
+from app.services import audit, confunfis, cuf, validation
 from app.services import confunfis_extras as extras
 from app.services.catalog_tree import tree_level
 from app.services.confunfis_graph import ROOT, Graph, key_text, well_formed
@@ -225,10 +225,16 @@ async def summary(access: MaterialAccess = Depends(require_material_permission(R
     extra_rows = await extras.live_extras(db, access.material.id)
     incompatibilities = await extras.live_incompatibilities(db, access.material.id)
     by_code: dict[str, int] = {}
+    rules = await validation.settings(db)
+    severities = {"bloqueante": 0, "aviso": 0}
     for r in rows:
         for code in r.observation_codes:
             by_code[code] = by_code.get(code, 0) + 1
-    return Summary(
+        for o in r.observations:
+            severity = validation.severity_of(rules.get(o.get("code", "")), o["code"]) if o.get("code") in rules else None
+            if severity in severities:
+                severities[severity] += 1
+    return Summary(errors=severities["bloqueante"], warnings=severities["aviso"],
         rows=len(rows), positions=len({(r.sns, r.co, r.al) for r in rows}), huecos=len({(r.sns, r.co) for r in rows}),
         sns_covered=len({r.sns for r in rows} & config), sns_in_config=len(config),
         with_observations=sum(1 for r in rows if r.observation_codes), by_observation=dict(sorted(by_code.items())),

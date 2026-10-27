@@ -13,15 +13,16 @@ Saving a row (`save_row`), from the screen ("manual", strict) or a file
   nor reference; otherwise a provisional article is created (origin
   "confunfis", audited). An article found by NOC without the row's P/N +
   NCAGE gets it as a reference (origin "confunfis"); a P/N + NCAGE another
-  article has stays out of the row and is noted (OF-011). The master's SIGLE
-  data are never touched; a name that differs from the master's is kept and
-  observed (OF-009, NT §9.1.3 says which name to use).
+  article has stays out of the row and is noted (CF-012). The master's SIGLE
+  data are never touched; a name that differs from the master's is kept.
 
 Observations (`refresh_observations`, after every change of the
-material's rows): provisional codes OF-001..OF-011 that E16 replaces by the
-CF rules, kept on the rows (observations, observation_codes) for the
-filters. The ranges of CO and AL come from the "confunfis" parameter; the
-SNS format is the catalog's (E10).
+material's rows): the findings of the NT 10/17 validator (E16,
+app/validacion/engine.py) over the CUF's snapshot, kept on each row and
+incompatibility (observations, observation_codes) for the badges and the
+filters -- every finding, whatever its rule's configuration says (that is
+applied when they are read). The ranges of CO and AL come from the
+"confunfis" parameter; the SNS format is the catalog's (E10).
 
 Extension points: "Crear a partir de otro" copies the CONFUNFIS (source
 "copia"); a subcategory whose SNS a row uses cannot leave the CUF; the
@@ -41,29 +42,17 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
 
-from app.models import Article, ArticleReference, Material, PhysicalPosition, User
+from app.models import Article, ArticleReference, ExtraFunction, Incompatibility, Material, PhysicalPosition, User
 from app.services import audit, cuf
 from app.services.articles import Checker, autocorrect_article, normalize_identity, reference_owner, register_usage
 from app.services.catalog import SNS_RE
 from app.services.confunfis_graph import ROOT, Graph, Row, key_text
 from app.services.parameters import get_parameter
 from app.services.permissions import accessible_materials
+from app.validacion import engine
+from app.validacion.catalog import INCOMPATIBILITY, ROW
 
 _TWO_DIGITS = re.compile(r"^\d{2}$")
-OBSERVATION_CODES = (
-    "OF-001",  # SNS outside the CUF's normalized configuration
-    "OF-002",  # CS badly formed
-    "OF-003",  # CS not found
-    "OF-004",  # duplicate row (SNS + CO + AL + CS)
-    "OF-005",  # CO or AL out of range
-    "OF-006",  # QTY not a whole number, or < 1
-    "OF-007",  # no NOC nor P/N
-    "OF-008",  # no function
-    "OF-009",  # name different from the master's
-    "OF-010",  # on a cycle of CS
-    "OF-011",  # its P/N + NCAGE belongs to another article
-    "OF-012",  # alternative alone in its hueco (it should be AL 00), E14
-)
 FIELDS = ("sns", "co", "al", "qty", "article_name", "function_text", "ct_sigle", "cs_sns", "cs_co", "cs_al")
 
 
@@ -140,7 +129,7 @@ async def _attach_reference(
         link.reference = own
         return
     if await reference_owner(db, pn, ncage, exclude=article.id):
-        link.notes.append({"code": "OF-011", "params": {"pn": pn, "ncage": ncage or ""}})
+        link.notes.append({"code": "pn_taken", "params": {"pn": pn, "ncage": ncage or ""}})
         return
     reference = ArticleReference(
         id=uuid.uuid4(), pn=pn, ncage=ncage, principal=article.principal_reference is None, origin="confunfis", version=1,
@@ -324,76 +313,82 @@ async def save_row(
 # ── observations ─────────────────────────────────────────────────────────
 
 
-def _out_of(value: str, bounds: dict[str, int]) -> bool:
-    return not _TWO_DIGITS.match(value or "") or not bounds["min"] <= int(value) <= bounds["max"]
-
-
-def observations_of(
-    rows: list[PhysicalPosition], config: set[str], articles: dict[uuid.UUID, Article], params: dict[str, Any], graph: Graph | None = None
-) -> dict[uuid.UUID, list[dict[str, Any]]]:
-    graph = graph or Graph(graph_row(r) for r in rows)
-    duplicates = graph.duplicates()
-    out: dict[uuid.UUID, list[dict[str, Any]]] = {}
-    for r in rows:
-        found: list[dict[str, Any]] = []
-        add = lambda code, **p: found.append({"code": code, "params": p})  # noqa: E731
-        root = (r.sns, r.co, r.al) == ROOT
-        cs = " ".join(x or "" for x in (r.cs_sns, r.cs_co, r.cs_al)).strip()
-        if not root and r.sns not in config:
-            add("OF-001", sns=r.sns)
-        orphan = graph.orphan.get(str(r.id))
-        if orphan == "malformed":
-            add("OF-002", cs=cs)
-        elif orphan == "not_found":
-            add("OF-003", cs=cs)
-        if str(r.id) in duplicates:
-            add("OF-004")
-        if _out_of(r.co, params["co"]) or _out_of(r.al, params["al"]):
-            add("OF-005", co=r.co, al=r.al)
-        if r.qty is None or r.qty != r.qty.to_integral_value() or r.qty < 1:
-            add("OF-006", qty="" if r.qty is None else str(r.qty))
-        article = articles.get(r.article_id) if r.article_id else None
-        if article is None or (article.noc is None and r.article_reference_id is None):
-            add("OF-007")
-        if not r.function_text:
-            add("OF-008")
-        if article is not None and r.article_name and name_key(r.article_name) != name_key(article.nombre):
-            add("OF-009", master=article.nombre)
-        if graph.in_cycle(graph.rows[str(r.id)]):
-            add("OF-010")
-        if graph.is_single_alternative(graph.rows[str(r.id)]):
-            add("OF-012", al=r.al)
-        found += [n for n in r.link_notes or [] if n.get("code") == "OF-011"]
-        out[r.id] = found
-    return out
-
-
 async def articles_of(db: AsyncSession, rows: list[PhysicalPosition]) -> dict[uuid.UUID, Article]:
     ids = {r.article_id for r in rows if r.article_id}
     return {a.id: a for a in (await db.execute(select(Article).where(Article.id.in_(ids)))).scalars()} if ids else {}
 
 
+async def mounted_sns(db: AsyncSession, material: Material) -> set[str]:
+    """The SNS where this CUF sits as a mounted CUF in another one (its article by its NOC, CF-009)."""
+    if not material.noc:
+        return set()
+    query = (
+        select(PhysicalPosition.sns).join(Article, Article.id == PhysicalPosition.article_id)
+        .where(Article.noc == material.noc, PhysicalPosition.material_id != material.id, PhysicalPosition.deleted_at.is_(None))
+    )
+    return set((await db.execute(query)).scalars())
+
+
+def row_observations(ctx: engine.Context) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
+    """What is kept on each row (its own findings, and those of its article,
+    CF-017, and of its extra functions, CF-020, on the row they open) and on
+    each incompatibility (CF-021)."""
+    rows: dict[str, list[dict[str, Any]]] = {str(r.id): [] for r in ctx.rows}
+    incompatibilities: dict[str, list[dict[str, Any]]] = {str(i.id): [] for i in ctx.incompatibilities}
+    for f in engine.run(ctx):
+        if f.entity_type == INCOMPATIBILITY:
+            incompatibilities[f.entity_id].append(f.as_json())
+        elif f.code.startswith("CF-") and f.row_id in rows and (f.entity_type == ROW or f.code in ("CF-017", "CF-020")):
+            rows[f.row_id].append(f.as_json())
+    return rows, incompatibilities
+
+
+async def snapshot_context(db: AsyncSession, material: Material, rows: list[PhysicalPosition] | None = None) -> engine.Context:
+    """The CONFUNFIS of a CUF, as the validator reads it: its rows, their
+    articles and references, its extra functions and incompatibilities."""
+    from app.services.articles import data_of
+
+    rows = await live_rows(db, material.id) if rows is None else rows
+    articles = await articles_of(db, rows)
+    ref_ids = {r.article_reference_id for r in rows if r.article_reference_id}
+    references = {x.id: x for x in (await db.execute(select(ArticleReference).where(ArticleReference.id.in_(ref_ids)))).scalars()} if ref_ids else {}
+    extras = list((await db.execute(select(ExtraFunction).where(ExtraFunction.material_id == material.id, ExtraFunction.deleted_at.is_(None)))).scalars())
+    incompatibilities = list((await db.execute(
+        select(Incompatibility).where(Incompatibility.material_id == material.id, Incompatibility.deleted_at.is_(None))
+    )).scalars())
+    return engine.Context(
+        rows=rows, config=set(await cuf.normalized_config(db, material)), params=await get_parameter(db, "confunfis"),
+        articles=articles, references=references, article_data={a.id: data_of(a) for a in articles.values()},
+        extras=extras, incompatibilities=incompatibilities, mounted_sns=await mounted_sns(db, material),
+    )
+
+
+def _write_observations(model: Any, obj: Any, found: list[dict[str, Any]]) -> Any:
+    codes = sorted({o["code"] for o in found})
+    set_committed_value(obj, "observations", found)
+    set_committed_value(obj, "observation_codes", codes)
+    return (
+        update(model).where(model.id == obj.id).values(observations=found, observation_codes=codes, updated_at=model.updated_at)
+        .execution_options(synchronize_session=False)
+    )
+
+
 async def refresh_observations(db: AsyncSession, material: Material) -> None:
-    """Recomputes every row's observations (one row's change may change
-    another's: a duplicate, a CS). Only the changed ones are written, not
-    through the ORM: neither their version nor updated_at move."""
-    rows = await live_rows(db, material.id)
-    graph = Graph(graph_row(r) for r in rows)
-    found = observations_of(rows, set(await cuf.normalized_config(db, material)), await articles_of(db, rows), await get_parameter(db, "confunfis"), graph)
-    for r in rows:
-        if found[r.id] != r.observations:
-            await db.execute(
-                update(PhysicalPosition)
-                .where(PhysicalPosition.id == r.id)
-                .values(observations=found[r.id], observation_codes=sorted({o["code"] for o in found[r.id]}), updated_at=PhysicalPosition.updated_at)
-                .execution_options(synchronize_session=False)
-            )
-            # Committed values on the instance: no second UPDATE at commit.
-            set_committed_value(r, "observations", found[r.id])
-            set_committed_value(r, "observation_codes", sorted({o["code"] for o in found[r.id]}))
-    # What hangs from the rows (E14: incompatibilities, parts) is observed too.
+    """Recomputes every row's findings (one row's change may change
+    another's: a duplicate, a CS) and its incompatibilities'. Only the
+    changed ones are written, not through the ORM: neither their version
+    nor updated_at move."""
+    ctx = await snapshot_context(db, material)
+    by_row, by_incompatibility = row_observations(ctx)
+    for r in ctx.rows:
+        if by_row[str(r.id)] != r.observations:
+            await db.execute(_write_observations(PhysicalPosition, r, by_row[str(r.id)]))
+    for i in ctx.incompatibilities:
+        if by_incompatibility[str(i.id)] != i.observations:
+            await db.execute(_write_observations(Incompatibility, i, by_incompatibility[str(i.id)]))
+    # What hangs from the rows (E14: parts) is observed too.
     for extension in REFRESH_EXTENSIONS:
-        await extension(db, material, rows, graph)
+        await extension(db, material, ctx.rows, ctx.graph)
 
 
 async def refresh_materials(db: AsyncSession, *, article_ids: set[uuid.UUID] | None = None, material_ids: set[uuid.UUID] | None = None) -> None:

@@ -25,6 +25,11 @@ def parts_url(article):
     return f"/api/articles/{article.id}/parts"
 
 
+
+def problems(item: dict) -> set[str]:
+    """What the E16 rule (PF-001, CF-021) says is wrong with it."""
+    return {o["problem"] for o in item["observations"]}
+
 async def test_the_figures_of_the_demo(client, demo):
     analyst, admin = demo["people"]["analista"], demo["people"]["admin"]
     pump = await _article(PUMP)
@@ -48,7 +53,7 @@ async def test_the_figures_of_the_demo(client, demo):
         products = (await client.get(f"{base(demo, name)}/products", headers=who)).json()
         assert len(products) == 8 and len({p["pol_code"] for p in products}) == 7
         assert sorted(p["nae"] for p in products if p["pol_code"] == "O-1236") == ["E", "N"]
-        assert [(p["supply_unit"], p["observation_codes"]) for p in products if p["observation_codes"]] == [("ZZ", ["OPF-004"])]
+        assert [(p["supply_unit"], p["observation_codes"]) for p in products if p["observation_codes"]] == [("ZZ", ["PF-001"])]
         assert all(p["pol_description"] == p["designation"] for p in products)
 
         rows = (await all_rows(client, demo, who, name=name))["items"]
@@ -102,26 +107,27 @@ async def test_the_parts_and_their_observations(client, demo):
     assert [(p["field"], p["code"]) for p in bad.json()["detail"]["problems"]] == [("cop", "out_of_range")]
 
     def codes(part):
-        return part["observation_codes"]
+        # TP-001 (E16): what is wrong, by its problem.
+        return {o["problem"] for o in part["observations"]}
 
     own = (await client.post(url, json={"cop": "03", "article_id": str(pump.id), "quantity": 1}, headers=analyst)).json()
-    assert "OP-001" in codes(own)
+    assert "self" in codes(own)
     # The pistón sits in the Tramontana's CONFUNFIS, where the pump is mounted too.
     in_cuf = (await client.post(url, json={"cop": "04", "noc": PISTON, "quantity": 0}, headers=analyst)).json()
-    assert set(codes(in_cuf)) >= {"OP-004", "OP-005"}
+    assert set(codes(in_cuf)) >= {"in_confunfis", "quantity"}
     alone = (await client.post(url, json={"cop": "05", "alp": "03", "noc": PISTON, "quantity": 2}, headers=analyst)).json()
-    assert "OP-006" in codes(alone)
+    assert "alone" in codes(alone)
     twice = (await client.post(url, json={"cop": "01", "alp": "00", "noc": GASKET, "quantity": 1}, headers=analyst)).json()
-    assert "OP-003" in codes(twice)
+    assert "duplicate" in codes(twice)
     # A cycle of breakdowns: the gasket breaks down into the pump.
     cycle = (await client.post(parts_url(gasket), json={"cop": "01", "noc": PUMP, "quantity": 1}, headers=analyst)).json()
-    assert "OP-002" in codes(cycle)
+    assert "cycle" in codes(cycle)
     listed = {p["id"]: p for p in (await client.get(url, headers=analyst)).json()}
-    assert "OP-002" in codes(next(p for p in listed.values() if p["cop"] == "01" and p["alp"] == "00" and p["id"] != twice["id"]))
+    assert "cycle" in codes(next(p for p in listed.values() if p["cop"] == "01" and p["alp"] == "00" and p["id"] != twice["id"]))
 
     # "Volver a ALP 00" and "Duplicar como alternativo".
     reset = await client.post(f"{url}/{alone['id']}/reset-alp", json={"version": alone["version"]}, headers=analyst)
-    assert reset.status_code == 200 and reset.json()["alp"] == "00" and "OP-006" not in codes(reset.json())
+    assert reset.status_code == 200 and reset.json()["alp"] == "00" and "alone" not in codes(reset.json())
     copy = await client.post(f"{url}/{alone['id']}/duplicate-alternative", json={"version": reset.json()["version"]}, headers=analyst)
     assert copy.status_code == 201, copy.text
     cop5 = sorted((p["alp"], p["article"]["noc"]) for p in (await client.get(url, headers=analyst)).json() if p["cop"] == "05")
@@ -135,7 +141,7 @@ async def test_the_parts_and_their_observations(client, demo):
     stale = await client.patch(f"{url}/{in_cuf['id']}", json={"version": in_cuf["version"] - 1 or 99, "quantity": 2}, headers=analyst)
     assert stale.status_code == 409
     fixed = await client.patch(f"{url}/{in_cuf['id']}", json={"version": in_cuf["version"], "quantity": 2}, headers=analyst)
-    assert fixed.status_code == 200 and "OP-004" not in codes(fixed.json())
+    assert fixed.status_code == 200 and "quantity" not in codes(fixed.json())
 
     # An article that is a part cannot go; one with parts takes them along.
     denied = await client.delete(f"/api/articles/{gasket.id}", params={"version": gasket.version, "confirm": True}, headers=analyst)
@@ -173,11 +179,11 @@ async def test_functional_products(client, demo):
     made = await client.post(url, json={"designation": "OTRO", "pol_code": "X-0000", "nae": "Q", "supply_unit": "ZZ", "unit": "QQ", "quantity": "N/A"}, headers=analyst)
     assert made.status_code == 201, made.text
     p = made.json()
-    assert p["quantity"] is None and set(p["observation_codes"]) == {"OPF-001", "OPF-003", "OPF-004", "OPF-005"}
+    assert p["quantity"] is None and problems(p) == {"pol", "nae", "supply_unit", "unit"}
     named = (await client.post(url, json={"designation": "ACEITE", "pol_code": "O-1236", "nae": "N", "noc": PISTON, "supply_unit": "DR", "quantity": 1, "unit": "LI"}, headers=analyst)).json()
-    assert named["observation_codes"] == ["OPF-002"] and named["article"]["id"] == str(piston.id)
+    assert named["observation_codes"] == [] and named["article"]["id"] == str(piston.id)
     twin = (await client.post(url, json={"designation": "ACEITE", "pol_code": "O-1236", "nae": "N", "noc": PISTON, "supply_unit": "DR", "quantity": 1, "unit": "LI"}, headers=analyst)).json()
-    assert set(twin["observation_codes"]) == {"OPF-002", "OPF-006"}
+    assert problems(twin) == {"duplicate"}
     # No provisional article for an unknown NOC.
     unknown = (await client.post(url, json={"designation": "X", "noc": "999999X999999"}, headers=analyst)).json()
     assert unknown["article"] is None
@@ -190,11 +196,11 @@ async def test_functional_products(client, demo):
     gone = await client.delete(f"{url}/{twin['id']}", params={"version": twin["version"], "confirm": True}, headers=analyst)
     assert gone.status_code == 204
     after = {x["id"]: x for x in (await client.get(url, headers=analyst)).json()}
-    assert twin["id"] not in after and "OPF-006" not in after[named["id"]]["observation_codes"]
+    assert twin["id"] not in after and "duplicate" not in problems(after[named["id"]])
 
 
 async def test_products_follow_their_tables_and_the_master(client, demo):
-    """Live observations (the review of E14): adding ZZ to D155 clears OPF-004;
+    """Live observations (the review of E14): adding ZZ to D155 clears PF-001 supply_unit;
     a NOC that arrives in the master links its product."""
     admin, analyst = demo["people"]["admin"], demo["people"]["analista"]
     url = f"{base(demo)}/products"
@@ -223,7 +229,7 @@ async def test_the_unit_of_measure_of_the_anexo_xi(client, demo):
     url = f"{base(demo)}/products"
     for unit, observed in (("L", False), ("KG", False), ("LI", False), ("QQ", True)):
         made = (await client.post(url, json={"designation": f"PRUEBA {unit}", "unit": unit}, headers=analyst)).json()
-        assert ("OPF-005" in made["observation_codes"]) is observed, unit
+        assert ("unit" in problems(made)) is observed, unit
 
 
 async def test_extra_functions(client, demo):
@@ -268,7 +274,7 @@ async def test_incompatibilities(client, demo):
     blank = await client.post(url, json={"row_a_id": a["id"], "row_b_id": b["id"], "kind": "excluye", "reason": "   "}, headers=analyst)
     assert blank.status_code == 422
     made = await client.post(url, json={"row_a_id": a["id"], "row_b_id": b["id"], "kind": "excluye", "reason": "no caben"}, headers=analyst)
-    assert made.status_code == 201 and made.json()["observation_codes"] == ["OI-001"]
+    assert made.status_code == 201 and problems(made.json()) == {"excluye_without_alternatives"}
     # "excluye" is symmetric: B-A is the same one.
     again = await client.post(url, json={"row_a_id": b["id"], "row_b_id": a["id"], "kind": "excluye", "reason": "otra vez"}, headers=analyst)
     assert (again.status_code, again.json()["detail"]["code"]) == (409, "incompatibility_exists")
@@ -276,7 +282,7 @@ async def test_incompatibilities(client, demo):
     ab = (await client.post(url, json={"row_a_id": a["id"], "row_b_id": b["id"], "kind": "requiere", "reason": "1"}, headers=analyst)).json()
     ba = (await client.post(url, json={"row_a_id": b["id"], "row_b_id": a["id"], "kind": "requiere", "reason": "2"}, headers=analyst)).json()
     listed = {i["id"]: i for i in (await client.get(url, headers=analyst)).json()}
-    assert "OI-003" in listed[ab["id"]]["observation_codes"] and "OI-003" in listed[ba["id"]]["observation_codes"]
+    assert "requiere_cycle" in problems(listed[ab["id"]]) and "requiere_cycle" in problems(listed[ba["id"]])
     card = (await client.get(f"{base(demo)}/rows/{b['id']}", headers=analyst)).json()
     assert len(card["incompatibilities"]) == 3 and card["incompatibility_count"] == 3
 
@@ -293,9 +299,9 @@ async def test_incompatibilities(client, demo):
         row.deleted_at = func.now()
         await db.flush()
         await confunfis.refresh_observations(db, material)
-        observed = (await db.get(Incompatibility, ab["id"])).observation_codes
+        observed = {o["problem"] for o in (await db.get(Incompatibility, ab["id"])).observations}
         await db.rollback()
-    assert "OI-002" in observed
+    assert "requiere_removed" in observed
 
     # Removing a row takes them along, each audited.
     res = await client.delete(f"{base(demo)}/rows/{b['id']}", params={"version": b["version"], "confirm": True}, headers=analyst)

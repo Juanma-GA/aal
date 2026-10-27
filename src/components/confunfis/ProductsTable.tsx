@@ -216,7 +216,7 @@ function ProductGroup({ code, items, canEdit, onEdit, onRemove }: { code: string
             <div className="flex flex-col gap-1">
               <span>{p.designation}</span>
               {p.observations.map((o, i) => (
-                <span key={`${o.code}-${i}`} className="text-xs text-warning" data-testid={`product-observation-${o.code}`}>{observationText(t, o)}</span>
+                <span key={`${o.code}-${i}`} className="text-xs text-warning" data-testid={`product-observation-${o.code}-${o.problem}`}>{observationText(t, o)}</span>
               ))}
             </div>
           </TableCell>
