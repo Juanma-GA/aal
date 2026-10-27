@@ -169,7 +169,22 @@ try {
   await page.reload();
   await page.locator('[data-testid="confunfis-band"][data-state="authorization"]').waitFor();
   assert(await page.getByTestId('confunfis-new-row').isDisabled(), 'with v1 reviewed, "Nueva fila" is disabled without an authorization');
-  assert((await page.getByTestId('confunfis-edit-why').textContent()) === es.baselines.band.needAuthorization, 'saying an authorization is needed');
+  assert((await page.getByTestId('confunfis-edit-why').textContent()).startsWith(es.baselines.band.needAuthorization), 'saying an authorization is needed');
+  // E17b: the row card's buttons are there, disabled, with the reason and the link that unblocks them; the observer has none.
+  const rows = (await admin('GET', `${base}/confunfis/rows?page_size=1000`)).items;
+  const segments = rows.find((r) => r.sns === 'A21031' && r.co === '01' && r.al === '00');
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}/confunfis?fila=${segments.id}`);
+  await page.getByTestId('row-blocked').waitFor();
+  for (const id of ['row-edit', 'row-duplicate-alternative', 'row-alternative-cs', 'row-delete', 'extra-function-add', 'incompatibility-add']) {
+    assert(await page.getByTestId(id).isDisabled(), `analyst without an authorization: "${id}" shown, disabled`);
+  }
+  assert((await page.getByTestId('row-blocked').textContent()).includes(es.baselines.band.needAuthorization)
+    && (await page.getByTestId('row-blocked-unlock').textContent()) === es.baselines.band.request, 'with the reason and "Solicitar una autorización"');
+  await page.screenshot({ path: shot('verify-baselines-2-blocked.png') });
+  await observer.goto(`${BASE_URL}/materiales/${tramontana.id}/confunfis?fila=${segments.id}`);
+  await observer.getByTestId('row-fields').waitFor();
+  assert((await observer.getByTestId('row-edit').count()) === 0 && (await observer.getByTestId('row-blocked').count()) === 0
+    && (await observer.getByTestId('extra-function-add').count()) === 0, 'the observer: no edit buttons at all');
   await page.goto(`${BASE_URL}/materiales/${tramontana.id}/baselines?tab=autorizaciones`);
   await page.getByTestId('authorization-new').click();
   await page.getByTestId('authorization-kind').click();
@@ -188,11 +203,11 @@ try {
   assert((await approve(reviewer, `authorization-${ac.code}-approve`, 'authorization-decide')).status() === 200, `the reviewer approves ${ac.code}`);
 
   // ── 5. Active in the band: the segments' QTY 3 -> 4, total 24 ──────────
-  const rows = (await admin('GET', `${base}/confunfis/rows?page_size=1000`)).items;
-  const segments = rows.find((r) => r.sns === 'A21031' && r.co === '01' && r.al === '00');
   await page.goto(`${BASE_URL}/materiales/${tramontana.id}/confunfis?fila=${segments.id}`);
   await page.getByTestId('confunfis-authorization').click();
   await page.getByTestId(`confunfis-authorization-${ac.code}`).click();
+  await page.getByTestId('row-blocked').waitFor({ state: 'detached' });
+  assert(!(await page.getByTestId('row-edit').isDisabled()), `with ${ac.code} active, "Editar" is enabled`);
   await page.getByTestId('row-edit').click();
   await page.getByTestId('row-form-qty').fill('4');
   const [edited] = await Promise.all([
@@ -250,6 +265,29 @@ try {
   const panelText = await panel.textContent();
   assert(panelText.includes(es.baselines.band.reviewed.replace('{{number}}', '2')) && panelText.includes('0 cambios desde v2'), `the Panel: "${panelText}"`);
   await page.screenshot({ path: shot('verify-baselines-4-panel.png'), fullPage: true });
+
+  // ── 8b. (E17b) The CUF's subcategories after v2: disabled, saying why; refused without an authorization ──
+  await page.goto(`${BASE_URL}/materiales/${tramontana.id}/ficha`);
+  await page.getByTestId('cuf-subcategories-blocked').waitFor();
+  assert(await page.getByTestId('cuf-add-subcategory').isDisabled() && await page.getByTestId('cuf-remove-0201').isDisabled(),
+    'the subcategories of the Tramontana: disabled, with the reason');
+  const cuf = await admin('GET', `${base}/cuf`);
+  const refused = await admin('PUT', `${base}/subcategories`, { version: cuf.version, codes: [...cuf.subcategories.map((x) => x.code), '0602'] })
+    .then(() => 'accepted', (e) => e.message);
+  assert(/answered 409: .*authorization_required/.test(refused), 'adding a subcategory without an authorization: 409 authorization_required');
+
+  // ── 8c. (E17b) The admin creates v3 (every permission), but does not approve it (four eyes) ──
+  const adminPage = await contextFor({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+  await openBaselines(adminPage);
+  const [byAdmin] = await Promise.all([
+    adminPage.waitForResponse((r) => r.url().endsWith(`/api${base}/baselines`) && r.request().method() === 'POST'),
+    adminPage.getByTestId('baseline-create').click(),
+  ]);
+  assert(byAdmin.status() === 201, 'the admin sees "Crear baseline" and creates v3');
+  await adminPage.locator('[data-testid="baseline-v3"][data-state="en_revision"]').waitFor();
+  assert(await adminPage.getByTestId('baseline-v3-approve').isDisabled() && await adminPage.getByTestId('baseline-v3-reject').isDisabled()
+    && (await adminPage.getByTestId('baseline-v3-four-eyes').count()) === 1, 'its "Aprobar" and "Rechazar" are disabled for the admin, its author (four eyes)');
+  await adminPage.screenshot({ path: shot('verify-baselines-5-admin.png'), fullPage: true });
 
   // ── 9. The observer: no "Validar ahora" nor delivery, but the report ───
   await observer.goto(`${BASE_URL}/materiales/${tramontana.id}/validacion`);

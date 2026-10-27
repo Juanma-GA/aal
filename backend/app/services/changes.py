@@ -13,6 +13,10 @@ session writes it (SQLAlchemy `before_flush`), the CUF's baselines decide:
   (authorization_change) and every audit row of the request carries it;
 - no baseline: free, as before E17.
 
+E17b: the CUF's subcategories and catalog version (its allowed functions:
+a change can leave the approved CONFUNFIS out of them, CF-001) go through
+the same rule; its descriptive data does not.
+
 So every route, the book import, the copy towards a CUF and any script go
 through the same rule, without a check in each of them. Parts and articles
 are global: they are never blocked (their changes show in the diff against
@@ -33,7 +37,18 @@ from typing import Any
 from sqlalchemy import event, inspect, select
 from sqlalchemy.orm import Session
 
-from app.models import AuditLog, AuthorizationChange, Baseline, ChangeAuthorization, ExtraFunction, FunctionalProduct, Incompatibility, Material, PhysicalPosition
+from app.models import (
+    AuditLog,
+    AuthorizationChange,
+    Baseline,
+    ChangeAuthorization,
+    ExtraFunction,
+    FunctionalProduct,
+    Incompatibility,
+    Material,
+    MaterialSubcategoryLink,
+    PhysicalPosition,
+)
 
 GUARDED: dict[type, str] = {
     PhysicalPosition: "physical_position",
@@ -41,6 +56,9 @@ GUARDED: dict[type, str] = {
     ExtraFunction: "extra_function",
     Incompatibility: "incompatibility",
 }
+# E17b: the CUF's own change-controlled data, its allowed functions: its subcategories (each link)
+# and its catalog version. Its descriptive data (name, description, Grupo-Clase…) stays free.
+MATERIAL_FIELDS = ("catalog_version_id",)
 HEADER = "X-Change-Authorization"
 
 
@@ -116,6 +134,12 @@ def _action(obj: Any, deleted: bool) -> str | None:
     return "modificado" if changed else None
 
 
+def _material_change(obj: Any) -> bool:
+    """A CUF whose catalog version changes (a new one has no baseline: never guarded)."""
+    state = inspect(obj)
+    return not state.pending and any(state.attrs[name].history.has_changes() for name in MATERIAL_FIELDS)
+
+
 def _touched(session: Session) -> list[tuple[Any, str]]:
     out: list[tuple[Any, str]] = []
     for obj in list(session.new) + list(session.dirty):
@@ -123,10 +147,25 @@ def _touched(session: Session) -> list[tuple[Any, str]]:
             action = _action(obj, False)
             if action:
                 out.append((obj, action))
+        elif isinstance(obj, MaterialSubcategoryLink) or (isinstance(obj, Material) and _material_change(obj)):
+            out.append((obj, "modificado"))
     for obj in session.deleted:
         if type(obj) in GUARDED:
             out.append((obj, "eliminado"))
+        elif isinstance(obj, MaterialSubcategoryLink):
+            out.append((obj, "modificado"))
     return out
+
+
+def _material_of(obj: Any) -> uuid.UUID:
+    return obj.id if isinstance(obj, Material) else obj.material_id
+
+
+def _entity(obj: Any) -> tuple[str, str]:
+    """What authorization_change names: the record, or (its subcategories, its catalog version) the CUF itself."""
+    if isinstance(obj, (Material, MaterialSubcategoryLink)):
+        return "material", str(_material_of(obj))
+    return GUARDED[type(obj)], str(obj.id)
 
 
 def _parse(value: str | None) -> uuid.UUID | None:
@@ -160,7 +199,7 @@ def _note_audit_rows(session: Session) -> None:
 def _check(session: Session, touched: list[tuple[Any, str]]) -> None:
     by_material: dict[uuid.UUID, list[tuple[Any, str]]] = {}
     for obj, action in touched:
-        by_material.setdefault(obj.material_id, []).append((obj, action))
+        by_material.setdefault(_material_of(obj), []).append((obj, action))
     request = _REQUEST.get() or _Request()
     with session.no_autoflush:
         # FOR SHARE on the CUF: "Crear baseline" (FOR UPDATE on it) waits for this change to commit
@@ -190,10 +229,15 @@ def _check(session: Session, touched: list[tuple[Any, str]]) -> None:
                 own = authorization is not None and authorization.material_id == material_id
                 raise ChangeBlocked("authorization_not_usable", authorization=authorization.code if own else "")
             request.used[authorization.id] = authorization.code
+            seen: set[tuple[str, str]] = set()
             for obj, action in items:
+                entity_type, entity_id = _entity(obj)
+                if (entity_type, entity_id) in seen:
+                    continue
+                seen.add((entity_type, entity_id))
                 session.add(AuthorizationChange(
-                    id=uuid.uuid4(), authorization_id=authorization.id, material_id=material_id, entity_type=GUARDED[type(obj)],
-                    entity_id=str(obj.id), action=action, user_id=request.user_id,
+                    id=uuid.uuid4(), authorization_id=authorization.id, material_id=material_id, entity_type=entity_type,
+                    entity_id=entity_id, action=action, user_id=request.user_id,
                 ))
 
 

@@ -139,3 +139,21 @@ async def test_a_deleted_material_grants_nothing(client, world):
     token, _ = await login(client, users["analista"])
     assert (await client.get(f"/api/materials/{material_a.id}", headers=bearer(token))).status_code == 404
     assert (await client.get("/api/materials", headers=bearer(token))).json() == []
+
+
+async def test_the_admin_has_every_permission_of_the_catalog(client, world, factory):
+    """E17b: whatever the catalog holds (E18–E19 add permissions), the admin has it on every material, also where they
+    hold a role of their own. The only things they are refused are the four eyes (tests/integration/test_baselines.py)."""
+    material_a, material_b, users = world
+    async with async_session_factory() as session:
+        catalog = set((await session.execute(select(Permission.code))).scalars().all())
+    assert catalog
+    for role in (None, "observador"):
+        if role:
+            await factory.assign(users["admin"], material_a, role)
+        token, _ = await login(client, users["admin"])
+        listed = {m["id"]: set(m["permissions"]) for m in (await client.get("/api/materials", headers=bearer(token))).json()}
+        for material in (material_a, material_b):
+            assert listed[str(material.id)] == catalog, (role, catalog - listed[str(material.id)])
+            one = (await client.get(f"/api/materials/{material.id}", headers=bearer(token))).json()
+            assert set(one["permissions"]) == catalog, role

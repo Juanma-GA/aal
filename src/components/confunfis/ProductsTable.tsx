@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
+import { BlockedReason, GatedButton, type Gate } from '@/components/layout/GatedButton';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -134,7 +135,7 @@ function ProductDialog({ materialId, product, onClose }: { materialId: string; p
   );
 }
 
-export function ProductsTable({ materialId, canEdit }: { materialId: string; canEdit: boolean }): React.JSX.Element {
+export function ProductsTable({ materialId, gate }: { materialId: string; gate: Gate }): React.JSX.Element {
   const { t } = useTranslation();
   const products = useProducts(materialId);
   const remove = useDeleteProduct(materialId);
@@ -160,8 +161,9 @@ export function ProductsTable({ materialId, canEdit }: { materialId: string; can
         <Badge data-testid="products-count">{t('confunfis.products.count', { count: products.data.length })}</Badge>
         {withObservations ? <Badge variant="outline" className="border-warning text-warning">{t('confunfis.products.withObservations', { count: withObservations })}</Badge> : null}
         <p className="text-sm text-muted-foreground">{t('confunfis.products.hint')}</p>
-        {canEdit ? <Button className="sm:ml-auto" onClick={() => setEditing({ product: null })} data-testid="product-new">{t('confunfis.products.new')}</Button> : null}
+        <GatedButton gate={gate} className="sm:ml-auto" onClick={() => setEditing({ product: null })} data-testid="product-new">{t('confunfis.products.new')}</GatedButton>
       </div>
+      <BlockedReason gate={gate} testid="products-blocked" />
       {products.data.length === 0 ? <p className="text-sm text-muted-foreground">{t('confunfis.products.empty')}</p> : (
         <div className="overflow-x-auto rounded-md border">
           <Table>
@@ -178,7 +180,7 @@ export function ProductsTable({ materialId, canEdit }: { materialId: string; can
             </TableHeader>
             <TableBody>
               {groups.map((g) => (
-                <ProductGroup key={g.code || NONE} code={g.code} items={g.items} canEdit={canEdit} onEdit={(p) => setEditing({ product: p })} onRemove={setRemoving} />
+                <ProductGroup key={g.code || NONE} code={g.code} items={g.items} gate={gate} onEdit={(p) => setEditing({ product: p })} onRemove={setRemoving} />
               ))}
             </TableBody>
           </Table>
@@ -198,7 +200,7 @@ export function ProductsTable({ materialId, canEdit }: { materialId: string; can
   );
 }
 
-function ProductGroup({ code, items, canEdit, onEdit, onRemove }: { code: string; items: Product[]; canEdit: boolean; onEdit: (p: Product) => void; onRemove: (p: Product) => void }): React.JSX.Element {
+function ProductGroup({ code, items, gate, onEdit, onRemove }: { code: string; items: Product[]; gate: Gate; onEdit: (p: Product) => void; onRemove: (p: Product) => void }): React.JSX.Element {
   const { t } = useTranslation();
   const description = items.find((p) => p.pol_description)?.pol_description;
   return (
@@ -227,10 +229,10 @@ function ProductGroup({ code, items, canEdit, onEdit, onRemove }: { code: string
           <TableCell>{p.quantity ?? t('confunfis.products.bulk')}</TableCell>
           <TableCell className="font-mono">{p.unit ?? '—'}</TableCell>
           <TableCell>
-            {canEdit ? (
+            {gate.permitted ? (
               <div className="flex justify-end gap-1">
-                <Button size="icon" variant="ghost" aria-label={t('confunfis.products.edit')} onClick={() => onEdit(p)} data-testid="product-edit"><Pencil aria-hidden="true" /></Button>
-                <Button size="icon" variant="ghost" className="text-destructive" aria-label={t('confunfis.products.remove')} onClick={() => onRemove(p)} data-testid="product-remove"><Trash2 aria-hidden="true" /></Button>
+                <GatedButton gate={gate} size="icon" variant="ghost" aria-label={t('confunfis.products.edit')} onClick={() => onEdit(p)} data-testid="product-edit"><Pencil aria-hidden="true" /></GatedButton>
+                <GatedButton gate={gate} size="icon" variant="ghost" className="text-destructive" aria-label={t('confunfis.products.remove')} onClick={() => onRemove(p)} data-testid="product-remove"><Trash2 aria-hidden="true" /></GatedButton>
               </div>
             ) : null}
           </TableCell>

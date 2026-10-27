@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BlockedReason, type Gate } from '@/components/layout/GatedButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +15,9 @@ import type { Cuf } from '@/types/cuf';
 /** The subcategories of the CUF: removed from their chip, added from a
  *  picker of the version's categories with a search. The number of SNS of
  *  the normalized configuration updates with each change. */
-export function SubcategoriesCard({ cuf, canEdit }: { cuf: Cuf; canEdit: boolean }): React.JSX.Element {
+/** E17b: after a baseline the subcategories (the CUF's allowed functions) are change-controlled: `gate` hides them without
+ *  material.editar and says why they are disabled. */
+export function SubcategoriesCard({ cuf, gate }: { cuf: Cuf; gate: Gate }): React.JSX.Element {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -49,12 +52,13 @@ export function SubcategoriesCard({ cuf, canEdit }: { cuf: Cuf; canEdit: boolean
               <Badge variant="secondary" className="gap-1 py-1 text-sm" data-testid={`cuf-sub-${s.code}`}>
                 <span className="font-mono">{s.code}</span> {s.name}
                 {change.isPending ? null : <span className="text-muted-foreground">· {s.sns_count}</span>}
-                {canEdit ? (
+                {gate.permitted ? (
                   <button
                     type="button"
                     className="ml-1 rounded hover:text-destructive disabled:opacity-50"
                     // One change at a time: the next one needs the version the server gives back.
-                    disabled={change.isPending}
+                    disabled={change.isPending || Boolean(gate.reason)}
+                    title={gate.reason ?? undefined}
                     aria-label={t('cuf.removeSubcategory', { code: s.code })}
                     data-testid={`cuf-remove-${s.code}`}
                     onClick={() => change.mutate({ cuf, codes: current.filter((c) => c !== s.code) })}
@@ -66,10 +70,13 @@ export function SubcategoriesCard({ cuf, canEdit }: { cuf: Cuf; canEdit: boolean
             </li>
           ))}
         </ul>
-        {canEdit && cuf.catalog_version ? (
+        {gate.permitted && cuf.catalog_version ? (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="self-start" data-testid="cuf-add-subcategory" disabled={change.isPending}>
+              <Button
+                variant="outline" size="sm" className="self-start" data-testid="cuf-add-subcategory"
+                disabled={change.isPending || Boolean(gate.reason)} title={gate.reason ?? undefined}
+              >
                 <Plus aria-hidden="true" />
                 {t('cuf.addSubcategory')}
               </Button>
@@ -106,6 +113,7 @@ export function SubcategoriesCard({ cuf, canEdit }: { cuf: Cuf; canEdit: boolean
             </PopoverContent>
           </Popover>
         ) : null}
+        <BlockedReason gate={gate} testid="cuf-subcategories-blocked" />
       </CardContent>
     </Card>
   );

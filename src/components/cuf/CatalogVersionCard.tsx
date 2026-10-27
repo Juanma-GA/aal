@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { BlockedReason, GatedButton, type Gate } from '@/components/layout/GatedButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -27,7 +28,8 @@ function CodeList({ title, codes, testId }: { title: string; codes: string[]; te
 
 /** The catalog version the CUF works with; an admin changes it after
  *  seeing the impact on its normalized configuration, and confirms. */
-export function CatalogVersionCard({ cuf, isAdmin }: { cuf: Cuf; isAdmin: boolean }): React.JSX.Element {
+/** E17b: the catalog version is change-controlled after a baseline (`gate`: admin only; why it is disabled). */
+export function CatalogVersionCard({ cuf, gate }: { cuf: Cuf; gate: Gate }): React.JSX.Element {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -60,11 +62,10 @@ export function CatalogVersionCard({ cuf, isAdmin }: { cuf: Cuf; isAdmin: boolea
         ) : (
           <span className="text-warning">{t('cuf.noCatalog')}</span>
         )}
-        {isAdmin ? (
-          <Button variant="outline" size="sm" onClick={() => setOpen(true)} data-testid="cuf-change-version">
-            {t('cuf.changeVersion')}
-          </Button>
-        ) : null}
+        <GatedButton gate={gate} variant="outline" size="sm" onClick={() => setOpen(true)} data-testid="cuf-change-version">
+          {t('cuf.changeVersion')}
+        </GatedButton>
+        <BlockedReason gate={gate} className="basis-full" testid="cuf-version-blocked" />
       </CardContent>
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setTarget(''); }}>
         <DialogContent>

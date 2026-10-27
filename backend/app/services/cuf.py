@@ -18,7 +18,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Material, MaterialSubcategoryLink, SubcategorySns, UserMaterialRole
@@ -76,8 +76,13 @@ async def removal_problem(db: AsyncSession, material: Material, removed: set[str
 
 
 async def set_subcategories(db: AsyncSession, material: Material, codes: set[str]) -> None:
-    await db.execute(delete(MaterialSubcategoryLink).where(MaterialSubcategoryLink.material_id == material.id))
-    for code in sorted(codes):
+    """Through the session, link by link (E17b): the change control (app/services/changes.py) sees what goes and comes."""
+    links = {link.subcategory_code: link for link in (await db.execute(
+        select(MaterialSubcategoryLink).where(MaterialSubcategoryLink.material_id == material.id)
+    )).scalars()}
+    for code in sorted(set(links) - codes):
+        await db.delete(links[code])
+    for code in sorted(codes - set(links)):
         db.add(MaterialSubcategoryLink(material_id=material.id, subcategory_code=code))
     await db.flush()
 

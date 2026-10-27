@@ -2059,7 +2059,7 @@
       "outdated": "La validación está desactualizada: vuelve a validar.",
       "blocking": "La validación tiene {{count}} bloqueantes.",
       "blocking_one": "La validación tiene 1 bloqueante.",
-      "toValidation": "Ir a la validación"
+      "toValidation": "Validar ahora"
     },
     "review": {
       "approveTitle": "Aprobar la baseline v{{number}}",
@@ -2095,9 +2095,10 @@
       "active": "Autorización activa:",
       "noneChosen": "Ninguna",
       "noneUsable": "No hay ninguna autorización aprobada y abierta.",
-      "needAuthorization": "Hace falta una autorización: elige una activa en la banda de arriba (o solicítala).",
+      "needAuthorization": "Hace falta una autorización de cambio aprobada (hay una baseline revisada).",
       "request": "Solicitar una autorización",
-      "open": "Ver baselines y cambios"
+      "open": "Ver baselines y cambios",
+      "chooseAuthorization": "Hace falta una autorización activa: elígela en la banda de arriba."
     },
     "delivery": {
       "button": "Exportar para entrega (baseline v{{number}})",
@@ -2142,7 +2143,10 @@
         "creado": "creado",
         "modificado": "modificado",
         "eliminado": "eliminado"
-      }
-    }
+      },
+      "closeOnlyRequester": "Solo la cierra quien la solicitó (o un administrador)."
+    },
+    "materialChange": "{{name}}: subcategorías o versión del catálogo",
+    "withdrawOnlyAuthor": "Solo la retira quien la creó (o un administrador)."
   }
 }

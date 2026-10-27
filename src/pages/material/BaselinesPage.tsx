@@ -9,6 +9,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
+import { BlockedReason, GatedButton, type Gate } from '@/components/layout/GatedButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -104,6 +105,8 @@ function BaselinesTab({ materialId, onCompare }: { materialId: string; onCompare
   const canReview = material.permissions.includes('baseline.revisar');
   const isAdmin = Boolean(me.data?.is_admin);
   const inReview = (list.data ?? []).some((b) => b.state === 'en_revision');
+  // Four eyes: whoever created it sees "Aprobar" and "Rechazar" disabled (with baseline.revisar), never enabled.
+  const reviewGate = (own: boolean): Gate => ({ permitted: canReview, reason: own ? t('baselines.fourEyes') : null });
   const v = validation.data;
   // Why not now (the server checks it again): one in review, no up-to-date validation, blocking findings.
   const why = inReview
@@ -116,21 +119,20 @@ function BaselinesTab({ materialId, onCompare }: { materialId: string; onCompare
           ? t('baselines.create.blocking', { count: v.blocking })
           : null;
 
+  // Not validated, outdated or with blocking findings: "Validar ahora"; another in review: nothing to unblock here.
+  const createGate: Gate = {
+    permitted: canCreate,
+    reason: why,
+    unlock: why && !inReview ? { to: `/materiales/${materialId}/validacion`, label: t('baselines.create.toValidation') } : null,
+  };
   return (
     <div className="flex flex-col gap-4">
       {canCreate ? (
         <div className="flex flex-wrap items-center gap-3">
-          <Button disabled={Boolean(why) || create.isPending} onClick={() => create.mutate()} data-testid="baseline-create">
+          <GatedButton gate={createGate} disabled={create.isPending} onClick={() => create.mutate()} data-testid="baseline-create">
             {t('baselines.create.button')}
-          </Button>
-          {why ? (
-            <p className="text-sm text-muted-foreground" data-testid="baseline-create-why">
-              {why}{' '}
-              <Link to={`/materiales/${materialId}/validacion`} className="text-link underline-offset-2 hover:underline">{t('baselines.create.toValidation')}</Link>
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">{t('baselines.create.hint')}</p>
-          )}
+          </GatedButton>
+          {why ? <BlockedReason gate={createGate} testid="baseline-create-why" /> : <p className="text-sm text-muted-foreground">{t('baselines.create.hint')}</p>}
         </div>
       ) : null}
       {list.isLoading ? <Skeleton className="h-40 w-full" /> : null}
@@ -160,18 +162,25 @@ function BaselinesTab({ materialId, onCompare }: { materialId: string; onCompare
                   {b.review_comment ? <p data-testid={`baseline-v${b.number}-comment`}>{t('baselines.comment.shown', { text: b.review_comment })}</p> : null}
                   <div className="flex flex-wrap items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => onCompare(b)} data-testid={`baseline-v${b.number}-compare`}>{t('baselines.compare.withCurrent')}</Button>
-                    {b.state === 'en_revision' && canCreate && (own || isAdmin) ? (
-                      <Button variant="outline" size="sm" onClick={() => step.mutate({ baseline: b, action: 'withdraw' })} data-testid={`baseline-v${b.number}-withdraw`}>
+                    {b.state === 'en_revision' ? (
+                      <GatedButton
+                        gate={{ permitted: canCreate, reason: own || isAdmin ? null : t('baselines.withdrawOnlyAuthor') }}
+                        variant="outline" size="sm" onClick={() => step.mutate({ baseline: b, action: 'withdraw' })} data-testid={`baseline-v${b.number}-withdraw`}
+                      >
                         {t('baselines.actions.withdraw')}
-                      </Button>
+                      </GatedButton>
                     ) : null}
-                    {b.state === 'en_revision' && canReview && !own ? (
+                    {b.state === 'en_revision' ? (
                       <>
-                        <Button size="sm" onClick={() => setReviewing({ baseline: b, approve: true })} data-testid={`baseline-v${b.number}-approve`}>{t('baselines.actions.approve')}</Button>
-                        <Button variant="outline" size="sm" onClick={() => setReviewing({ baseline: b, approve: false })} data-testid={`baseline-v${b.number}-reject`}>{t('baselines.actions.reject')}</Button>
+                        <GatedButton gate={reviewGate(own)} size="sm" onClick={() => setReviewing({ baseline: b, approve: true })} data-testid={`baseline-v${b.number}-approve`}>
+                          {t('baselines.actions.approve')}
+                        </GatedButton>
+                        <GatedButton gate={reviewGate(own)} variant="outline" size="sm" onClick={() => setReviewing({ baseline: b, approve: false })} data-testid={`baseline-v${b.number}-reject`}>
+                          {t('baselines.actions.reject')}
+                        </GatedButton>
+                        {canReview && own ? <span className="text-xs text-muted-foreground" data-testid={`baseline-v${b.number}-four-eyes`}>{t('baselines.fourEyes')}</span> : null}
                       </>
                     ) : null}
-                    {b.state === 'en_revision' && canReview && own ? <span className="text-xs text-muted-foreground">{t('baselines.fourEyes')}</span> : null}
                   </div>
                 </CardContent>
               </Card>
@@ -372,6 +381,7 @@ function AuthorizationsTab({ materialId }: { materialId: string }): React.JSX.El
   const canRequest = material.permissions.includes('autorizacion.solicitar');
   const canDecide = material.permissions.includes('autorizacion.aprobar');
   const isAdmin = Boolean(me.data?.is_admin);
+  const decideGate = (own: boolean): Gate => ({ permitted: canDecide, reason: own ? t('baselines.authorizations.notOwn') : null });
   const kindName = useMemo(() => Object.fromEntries((kinds.data ?? []).map((v) => [v.code, v.description])), [kinds.data]);
   return (
     <div className="flex flex-col gap-4">
@@ -420,17 +430,20 @@ function AuthorizationsTab({ materialId }: { materialId: string }): React.JSX.El
                     </Button>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {a.state === 'solicitada' && canDecide && !own ? (
+                    {a.state === 'solicitada' ? (
                       <span className="flex gap-2">
-                        <Button size="sm" onClick={() => setDeciding({ authorization: a, approve: true })} data-testid={`authorization-${a.code}-approve`}>{t('baselines.actions.approve')}</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDeciding({ authorization: a, approve: false })} data-testid={`authorization-${a.code}-reject`}>{t('baselines.actions.reject')}</Button>
+                        <GatedButton gate={decideGate(own)} size="sm" onClick={() => setDeciding({ authorization: a, approve: true })} data-testid={`authorization-${a.code}-approve`}>{t('baselines.actions.approve')}</GatedButton>
+                        <GatedButton gate={decideGate(own)} size="sm" variant="outline" onClick={() => setDeciding({ authorization: a, approve: false })} data-testid={`authorization-${a.code}-reject`}>{t('baselines.actions.reject')}</GatedButton>
                       </span>
                     ) : null}
                     {a.state === 'solicitada' && canDecide && own ? <span className="text-xs text-muted-foreground">{t('baselines.authorizations.notOwn')}</span> : null}
-                    {a.state === 'aprobada' && (own || isAdmin) ? (
-                      <Button size="sm" variant="outline" onClick={() => step.mutate({ authorization: a, action: 'close' })} data-testid={`authorization-${a.code}-close`}>
+                    {a.state === 'aprobada' ? (
+                      <GatedButton
+                        gate={{ permitted: canRequest || isAdmin, reason: own || isAdmin ? null : t('baselines.authorizations.closeOnlyRequester') }}
+                        size="sm" variant="outline" onClick={() => step.mutate({ authorization: a, action: 'close' })} data-testid={`authorization-${a.code}-close`}
+                      >
                         {t('baselines.authorizations.close')}
-                      </Button>
+                      </GatedButton>
                     ) : null}
                   </TableCell>
                 </TableRow>

@@ -35,6 +35,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.texts import text
 from app.models import (
     Article,
     ArticlePart,
@@ -384,6 +385,9 @@ async def labels_of(db: AsyncSession, changes: list[AuthorizationChange], curren
     docs: list[dict[str, Any]] | None = None
     out: dict[str, str] = {}
     for c in changes:
+        if c.entity_type == "material":
+            out[c.entity_id] = text("baselines.materialChange", name=current.get("material", {}).get("name") or "")
+            continue
         entity, section = sections.get(c.entity_type, (None, None))
         if entity is None:
             continue
@@ -510,7 +514,9 @@ async def with_authorizations(db: AsyncSession, material: Material, entries: lis
     by_entity: dict[str, dict[str, str]] = {}
     for entity_id, aid, code in (await db.execute(query)).all():
         by_entity.setdefault(entity_id, {})[str(aid)] = code
-    return [{**e, "authorizations": [{"id": i, "code": c} for i, c in sorted(by_entity.get(e["id"], {}).items(), key=lambda x: x[1])]} for e in entries]
+    # The CUF's own changes (subcategories, catalog version) are named by its id (changes._entity).
+    key = lambda e: str(material.id) if e["entity"] == "material" else e["id"]  # noqa: E731
+    return [{**e, "authorizations": [{"id": i, "code": c} for i, c in sorted(by_entity.get(key(e), {}).items(), key=lambda x: x[1])]} for e in entries]
 
 
 # ── the delivery ─────────────────────────────────────────────────────────

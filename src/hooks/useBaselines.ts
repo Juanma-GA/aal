@@ -20,6 +20,7 @@ import {
   reviewBaseline,
   withdrawBaseline,
 } from '@/services/baselinesApi';
+import type { Gate } from '@/components/layout/GatedButton';
 import { useUiStore } from '@/stores/uiStore';
 import type { Baseline, ChangeAuthorization } from '@/types/baselines';
 
@@ -118,14 +119,24 @@ export function useActiveAuthorization(materialId: string): ChangeAuthorization 
   return state.data?.usable_authorizations.find((a) => a.id === chosen) ?? null;
 }
 
-/** Whether the CONFUNFIS may be edited now, and why not (the buttons say it; the server refuses it anyway). */
-export function useEditGate(materialId: string, permitted: boolean): { canEdit: boolean; reason: string | null } {
+/** Whether the CONFUNFIS may be edited now: hidden without the permission, otherwise disabled
+ *  while a baseline is in review or a reviewed one has no active authorization (E17b), with the
+ *  reason and the link that unblocks it. The server refuses it anyway. */
+export function useEditGate(materialId: string, permitted: boolean, canRequest = false): Gate & { canEdit: boolean } {
   const { t } = useTranslation();
   const state = useConfigurationState(materialId, permitted);
   const active = useActiveAuthorization(materialId);
-  if (!permitted) return { canEdit: false, reason: null };
+  const page = `/materiales/${materialId}/baselines`;
   const s = state.data;
-  if (s?.edit === 'locked') return { canEdit: false, reason: t('baselines.band.lockedReason', { number: s.in_review?.number }) };
-  if (s?.edit === 'authorization' && !active) return { canEdit: false, reason: t('baselines.band.needAuthorization') };
-  return { canEdit: true, reason: null };
+  let gate: Gate = { permitted, reason: null, unlock: null };
+  if (permitted && s?.edit === 'locked') {
+    gate = { permitted, reason: t('baselines.band.lockedReason', { number: s.in_review?.number }), unlock: { to: page, label: t('baselines.band.open') } };
+  } else if (permitted && s?.edit === 'authorization' && !active) {
+    gate = {
+      permitted,
+      reason: s.usable_authorizations.length ? t('baselines.band.chooseAuthorization') : t('baselines.band.needAuthorization'),
+      unlock: canRequest ? { to: `${page}?tab=autorizaciones`, label: t('baselines.band.request') } : { to: page, label: t('baselines.band.open') },
+    };
+  }
+  return { ...gate, canEdit: permitted && !gate.reason };
 }

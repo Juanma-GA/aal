@@ -17,6 +17,7 @@ import { ProductsTable } from '@/components/confunfis/ProductsTable';
 import { RowFormDialog } from '@/components/confunfis/RowFormDialog';
 import { RowSheet } from '@/components/confunfis/RowSheet';
 import { RowsTable } from '@/components/confunfis/RowsTable';
+import { BlockedReason, GatedButton } from '@/components/layout/GatedButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -122,7 +123,7 @@ export function ConfunfisPage(): React.JSX.Element {
   const rowId = params.get('fila');
   const permitted = material.permissions.includes('confunfis.editar');
   // E17: a baseline in review, or a reviewed one without an active authorization, stops the edits.
-  const gate = useEditGate(material.id, permitted);
+  const gate = useEditGate(material.id, permitted, material.permissions.includes('autorizacion.solicitar'));
   const canEdit = gate.canEdit;
   const [form, setForm] = useState<{ row: PositionRow | null } | null>(null);
   const [altCs, setAltCs] = useState<PositionRow | null>(null);
@@ -174,7 +175,7 @@ export function ConfunfisPage(): React.JSX.Element {
         ) : null}
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {permitted ? null : <p className="text-sm text-muted-foreground">{t('confunfis.readOnly')}</p>}
-          {gate.reason ? <p className="max-w-72 text-sm text-muted-foreground" data-testid="confunfis-edit-why">{gate.reason}</p> : null}
+          <BlockedReason gate={gate} className="max-w-80" testid="confunfis-edit-why" />
           {material.permissions.includes('confunfis.entregar') ? <DeliveryButton materialId={material.id} /> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -202,7 +203,7 @@ export function ConfunfisPage(): React.JSX.Element {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button disabled={!canEdit} title={gate.reason ?? undefined} onClick={() => setForm({ row: null })} data-testid="confunfis-new-row">{t('confunfis.newRow')}</Button>
+              <GatedButton gate={gate} onClick={() => setForm({ row: null })} data-testid="confunfis-new-row">{t('confunfis.newRow')}</GatedButton>
             </>
           ) : null}
         </div>
@@ -229,12 +230,12 @@ export function ConfunfisPage(): React.JSX.Element {
           <CufPartsTable materialId={material.id} />
         </TabsContent>
         <TabsContent value="productos">
-          <ProductsTable materialId={material.id} canEdit={canEdit} />
+          <ProductsTable materialId={material.id} gate={gate} />
         </TabsContent>
       </Tabs>
       {rowId ? (
         <RowSheet
-          materialId={material.id} rowId={rowId} canEdit={canEdit} highlight={params.get('campo')}
+          materialId={material.id} rowId={rowId} gate={gate} highlight={params.get('campo')}
           onOpen={(id) => go({ fila: id })} onEdit={(row) => setForm({ row })} onAlternativeCs={setAltCs}
         />
       ) : null}

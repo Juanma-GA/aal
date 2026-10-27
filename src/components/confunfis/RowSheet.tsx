@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { DetailPanel } from '@/components/layout/DetailPanel';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { BlockedReason, GatedButton, type Gate } from '@/components/layout/GatedButton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -28,7 +28,8 @@ function RowLink({ row, onOpen }: { row: PositionRow; onOpen: (id: string) => vo
 interface Props {
   materialId: string;
   rowId: string;
-  canEdit: boolean;
+  /** confunfis.editar (else the buttons are hidden) and, after a baseline, why they are disabled (E17b). */
+  gate: Gate;
   onOpen: (rowId: string | null) => void;
   onEdit: (row: PositionRow) => void;
   onAlternativeCs: (row: PositionRow) => void;
@@ -43,7 +44,7 @@ const ARTICLE_FIELDS = new Set(['noc', 'pn', 'ncage']);
  *  card), the total in the CUF with how it comes out, its observations and
  *  history; and, with confunfis.editar, edit, duplicate as alternative,
  *  add an alternative CS and remove. */
-export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlternativeCs, highlight }: Props): React.JSX.Element {
+export function RowSheet({ materialId, rowId, gate, onOpen, onEdit, onAlternativeCs, highlight }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
   // Once its removal is confirmed the card stops reading its row: closing
   // may take a render, and a read of a removed row is a 404.
@@ -83,20 +84,23 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
               {row.extra_function_count ? <Badge variant="outline">{t('confunfis.badges.multifunction', { count: row.extra_function_count })}</Badge> : null}
               <ObservationBadges row={row} />
             </div>
-            {canEdit ? (
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => onEdit(row)} data-testid="row-edit">{t('confunfis.card.edit')}</Button>
-                <Button
-                  size="sm" variant="outline" disabled={duplicate.isPending} data-testid="row-duplicate-alternative"
-                  onClick={() => duplicate.mutate(row, { onSuccess: (created) => onOpen(created.id) })}
-                >
-                  {t('confunfis.card.duplicateAlternative')}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => onAlternativeCs(row)} data-testid="row-alternative-cs">{t('confunfis.card.alternativeCs')}</Button>
-                {row.observations.some((o) => o.code === 'CF-004' && o.problem === 'alone') ? (
-                  <Button size="sm" variant="outline" disabled={reset.isPending} onClick={() => reset.mutate(row)} data-testid="row-reset-al">{t('confunfis.card.resetAl')}</Button>
-                ) : null}
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setRemoving(true)} data-testid="row-delete">{t('confunfis.card.remove')}</Button>
+            {gate.permitted ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <GatedButton gate={gate} size="sm" variant="outline" onClick={() => onEdit(row)} data-testid="row-edit">{t('confunfis.card.edit')}</GatedButton>
+                  <GatedButton
+                    gate={gate} size="sm" variant="outline" disabled={duplicate.isPending} data-testid="row-duplicate-alternative"
+                    onClick={() => duplicate.mutate(row, { onSuccess: (created) => onOpen(created.id) })}
+                  >
+                    {t('confunfis.card.duplicateAlternative')}
+                  </GatedButton>
+                  <GatedButton gate={gate} size="sm" variant="outline" onClick={() => onAlternativeCs(row)} data-testid="row-alternative-cs">{t('confunfis.card.alternativeCs')}</GatedButton>
+                  {row.observations.some((o) => o.code === 'CF-004' && o.problem === 'alone') ? (
+                    <GatedButton gate={gate} size="sm" variant="outline" disabled={reset.isPending} onClick={() => reset.mutate(row)} data-testid="row-reset-al">{t('confunfis.card.resetAl')}</GatedButton>
+                  ) : null}
+                  <GatedButton gate={gate} size="sm" variant="ghost" className="text-destructive" onClick={() => setRemoving(true)} data-testid="row-delete">{t('confunfis.card.remove')}</GatedButton>
+                </div>
+                <BlockedReason gate={gate} testid="row-blocked" />
               </div>
             ) : null}
             <dl className="flex flex-col gap-1" data-testid="row-fields">
@@ -140,8 +144,8 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
             </section>
             <Separator />
             <PartsSection row={row} />
-            <ExtraFunctionsSection materialId={materialId} row={row} canEdit={canEdit} />
-            <IncompatibilitiesSection materialId={materialId} row={row} canEdit={canEdit} onOpen={onOpen} />
+            <ExtraFunctionsSection materialId={materialId} row={row} gate={gate} />
+            <IncompatibilitiesSection materialId={materialId} row={row} gate={gate} onOpen={onOpen} />
             <Separator />
             {row.observations.length ? (
               <section className="flex flex-col gap-1 text-sm" data-testid="row-observations">

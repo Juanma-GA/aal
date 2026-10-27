@@ -10,10 +10,12 @@ import { CufDataCard } from '@/components/cuf/CufDataCard';
 import { NormalizedConfigTab } from '@/components/cuf/NormalizedConfigTab';
 import { SnsRequestsTab } from '@/components/cuf/SnsRequestsTab';
 import { SubcategoriesCard } from '@/components/cuf/SubcategoriesCard';
+import { ConfigurationBand } from '@/components/baselines/ConfigurationBand';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useEditGate } from '@/hooks/useBaselines';
 import { useCuf } from '@/hooks/useCuf';
 import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
 import { useMe } from '@/hooks/useSession';
@@ -61,10 +63,15 @@ export function MaterialCufPage(): React.JSX.Element {
   const tab: Tab = TABS.find((x) => x === params.get('tab')) ?? 'ficha';
   const isAdmin = Boolean(me.data?.is_admin);
   const canEdit = material.permissions.includes('material.editar');
+  // E17b: subcategories and catalog version are change-controlled after a baseline (the band chooses the authorization).
+  const canRequest = material.permissions.includes('autorizacion.solicitar');
+  const subcategoriesGate = useEditGate(material.id, canEdit, canRequest);
+  const versionGate = useEditGate(material.id, isAdmin, canRequest);
   const title = t('cuf.title');
   return (
     <div className="flex flex-col gap-6" data-testid="cuf-page">
       <PageHeader crumbs={[{ label: material.name, to: `/materiales/${material.id}` }, { label: title }]} title={title} />
+      <ConfigurationBand materialId={material.id} canRequest={canRequest} />
       {cuf.isError ? (
         <p className="text-sm text-destructive" role="alert">
           {describeApiError(cuf.error, t).message}
@@ -82,8 +89,8 @@ export function MaterialCufPage(): React.JSX.Element {
           </TabsList>
           <TabsContent value="ficha" className="grid gap-6 lg:grid-cols-2">
             <CufDataCard material={material} cuf={cuf.data} isAdmin={isAdmin} />
-            <SubcategoriesCard cuf={cuf.data} canEdit={canEdit} />
-            <CatalogVersionCard cuf={cuf.data} isAdmin={isAdmin} />
+            <SubcategoriesCard cuf={cuf.data} gate={subcategoriesGate} />
+            <CatalogVersionCard cuf={cuf.data} gate={versionGate} />
             <TeamCard materialId={material.id} />
           </TabsContent>
           <TabsContent value="configuracion">

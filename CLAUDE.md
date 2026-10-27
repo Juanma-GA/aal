@@ -250,7 +250,10 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   analista solicita AC-TRM-4X4-A-001 (LSA), el revisor la aprueba, el analista la elige en la banda y cambia la QTY de `A21031` a 4
   (total 24, la cabecera `X-Change-Authorization`, el historial la nombra); Comparar v1 ↔ actual da 1 cambio con su autorización y
   se exporta; la entrega es la v1 con el aviso "1 cambio posterior no incluido"; la v2 aprobada cierra la autorización y el Panel
-  dice "Baseline v2 revisada · 0 cambios desde v2"; el observador no ve "Validar ahora" ni "Exportar para entrega". Credenciales:
+  dice "Baseline v2 revisada · 0 cambios desde v2"; el observador no ve "Validar ahora" ni "Exportar para entrega". (E17b) Sin
+  autorización, los botones de la ficha de fila se ven deshabilitados con el motivo y "Solicitar una autorización" (el observador no
+  los ve; con la autorización activa, habilitados); las subcategorías del CUF, deshabilitadas y un cambio por la API da 409
+  `authorization_required`; el admin crea la v3 y la ve con "Aprobar" y "Rechazar" deshabilitados (cuatro ojos). Credenciales:
   las de `verify-navigation` más `DEV_REVISOR_PASSWORD` y `DEV_OBSERVADOR_PASSWORD`. Deja la base como estaba
   (`--save-confunfis` / `--restore-confunfis`, `--save-articles` / `--restore-articles`, `--authorizations`, `--baselines`,
   `--validation-runs`).
@@ -520,6 +523,15 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   en el `uiStore` (por material, nunca en el navegador) y `apiClient` la envía en las llamadas de ese material.
   `scripts/demo_corregir_hallazgos.py` corrige los 10 bloqueantes de la demo (`--dejar CF-007`) y
   `seed_demo_confunfis.py --reset` deja la demo como vino.
+  (E17b) Las subcategorías del CUF (`material_subcategory_link`, escritas por el ORM en `cuf.set_subcategories`) y su
+  versión del catálogo (`material.catalog_version_id`) también pasan por la guarda (`authorization_change` con
+  `entity_type = "material"`, la entrada `material` del diff); nombre, descripción y Grupo-Clase siguen libres.
+- **Botones, para toda la app (E17b)**: se **ocultan solo por permiso**; con permiso pero falta una condición (autorización
+  activa, validación al día y sin bloqueantes, otra baseline en revisión, lo propio en los cuatro ojos…) se muestran
+  **deshabilitados con el motivo** y, si procede, el enlace que lo desbloquea: `GatedButton` y `BlockedReason`
+  (`src/components/layout/GatedButton.tsx`, con un `Gate` `{permitted, reason, unlock}`; el de la CONFUNFIS sale de
+  `useEditGate`). El admin tiene todos los permisos del catálogo en todos los materiales (lo vigila
+  `test_the_admin_has_every_permission_of_the_catalog`); lo único que se le niega es aprobar lo propio.
 - **Ficha lateral acoplada (E15)**: toda ficha de detalle es un `DetailPanel` (`src/components/layout/DetailPanel.tsx`):
   desde 1024 px se acopla a la derecha del contenido (un hueco de `AppLayout` al lado de `<main>`, vía `uiStore.detailSlot`),
   sin fondo oscurecido, y la lista sigue pulsable; por debajo, el `sheet` de shadcn. Ancho arrastrando el borde, el mismo para

@@ -288,3 +288,51 @@ async def test_a_removal_under_an_authorization_names_it(client, corrected):
     assert [(e["entity"], e["change"], [a["code"] for a in e["authorizations"]]) for e in diff["entries"]] == [
         ("row", "removed", [ac["code"]]), ("article", "removed", []),  # its article no longer in the CUF
     ]
+
+
+async def test_the_admin_does_everything_but_approve_their_own(client, corrected):
+    """E17b: the admin creates a baseline and requests an authorization (every permission), but the four eyes still hold."""
+    demo = corrected
+    admin, reviewer, analyst = demo["people"]["admin"], demo["people"]["revisor"], demo["people"]["analista"]
+    await validate(client, demo, admin)
+    mine = await _create(client, demo, admin)
+    own = await _review(client, demo, admin, mine)
+    assert (own.status_code, own.json()["detail"]["code"]) == (403, "baseline_review_own")
+    assert (await _review(client, demo, reviewer, mine)).status_code == 200
+    asked = (await client.post(b_url(demo, "authorizations"), json={"kind": "lsa", "description": "x", "reason": "y"}, headers=admin)).json()
+    refused = await client.post(b_url(demo, f"authorizations/{asked['id']}/approve"), json={"version": asked["version"]}, headers=admin)
+    assert (refused.status_code, refused.json()["detail"]["code"]) == (403, "authorization_decide_own")
+    theirs = (await client.post(b_url(demo, "authorizations"), json={"kind": "lsa", "description": "z", "reason": "y"}, headers=analyst)).json()
+    assert (await client.post(b_url(demo, f"authorizations/{theirs['id']}/approve"), json={"version": theirs["version"]}, headers=admin)).status_code == 200
+
+
+async def test_the_cufs_subcategories_need_an_authorization_after_a_baseline(client, corrected):
+    """E17b: a subcategory (the CUF's allowed functions) is change-controlled like its rows; its description is not."""
+    demo = corrected
+    admin, analyst, reviewer = demo["people"]["admin"], demo["people"]["analista"], demo["people"]["revisor"]
+    mid = demo["materials"][TRAMONTANA].id
+    cuf_url = f"/api/materials/{mid}"
+
+    async def subcategories(codes, headers):
+        version = (await client.get(f"{cuf_url}/cuf", headers=admin)).json()["version"]
+        return await client.put(f"{cuf_url}/subcategories", json={"version": version, "codes": codes}, headers=headers)
+
+    await validate(client, demo, analyst)
+    v1 = await _create(client, demo, analyst)
+    locked = await subcategories(["0102", "0201", "0601", "0602"], analyst)
+    assert (locked.status_code, locked.json()["detail"]["code"]) == (409, "baseline_in_review")
+    await _review(client, demo, reviewer, v1)
+    refused = await subcategories(["0102", "0201", "0601", "0602"], analyst)
+    assert (refused.status_code, refused.json()["detail"]["code"]) == (409, "authorization_required")
+    # Its descriptive data stays free.
+    version = (await client.get(f"{cuf_url}/cuf", headers=admin)).json()["version"]
+    assert (await client.patch(cuf_url, json={"version": version, "description": "Vehículo de demo"}, headers=admin)).status_code == 200
+    ac = (await client.post(b_url(demo, "authorizations"), json={"kind": "diseno", "description": "Añadir 0602", "reason": "y"}, headers=analyst)).json()
+    ac = (await client.post(b_url(demo, f"authorizations/{ac['id']}/approve"), json={"version": ac["version"]}, headers=reviewer)).json()
+    done = await subcategories(["0102", "0201", "0601", "0602"], {**analyst, HEADER: ac["id"]})
+    assert done.status_code == 200, done.text
+    diff = (await client.get(b_url(demo, "baselines/diff"), params={"before": v1["id"]}, headers=analyst)).json()
+    [entry] = [e for e in diff["entries"] if e["entity"] == "material"]
+    assert [f["field"] for f in entry["fields"]] == ["subcategories"] and [a["code"] for a in entry["authorizations"]] == [ac["code"]]
+    changes = (await client.get(b_url(demo, f"authorizations/{ac['id']}/changes"), headers=analyst)).json()
+    assert [(c["entity_type"], c["action"]) for c in changes] == [("material", "modificado")] and changes[0]["label"].startswith(TRAMONTANA)

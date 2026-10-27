@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
+import { GatedButton, type Gate } from '@/components/layout/GatedButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -89,7 +90,7 @@ export function PartsSection({ row }: { row: RowDetail }): React.JSX.Element | n
 }
 
 /** "Funciones adicionales": the other SNS of a component in one position. */
-export function ExtraFunctionsSection({ materialId, row, canEdit }: { materialId: string; row: RowDetail; canEdit: boolean }): React.JSX.Element {
+export function ExtraFunctionsSection({ materialId, row, gate }: { materialId: string; row: RowDetail; gate: Gate }): React.JSX.Element {
   const { t } = useTranslation();
   const criteria = useReferenceValues(CRITERIA_TABLE);
   const create = useCreateExtraFunction(materialId);
@@ -106,7 +107,7 @@ export function ExtraFunctionsSection({ materialId, row, canEdit }: { materialId
     <section className="flex flex-col gap-2 text-sm" data-testid="row-extra-functions">
       <div className="flex items-center gap-2">
         <h3 className="flex-1 font-medium">{t('confunfis.extras.extraFunctions', { count: row.extra_functions.length })}</h3>
-        {canEdit && !adding ? <Button size="sm" variant="outline" onClick={() => setAdding(true)} data-testid="extra-function-add">{t('confunfis.extras.add')}</Button> : null}
+        {!adding ? <GatedButton gate={gate} size="sm" variant="outline" onClick={() => setAdding(true)} data-testid="extra-function-add">{t('confunfis.extras.add')}</GatedButton> : null}
       </div>
       {row.extra_functions.length ? (
         <ul className="flex flex-col gap-1">
@@ -115,11 +116,9 @@ export function ExtraFunctionsSection({ materialId, row, canEdit }: { materialId
               <span className="font-mono text-xs">{e.sns}</span>
               <span className="flex-1">{e.sns_name}</span>
               <Badge variant="outline">{label(e.criterion)}</Badge>
-              {canEdit ? (
-                <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} onClick={() => setRemoving(e)} data-testid={`extra-function-remove-${e.sns}`}>
-                  {t('confunfis.extras.remove')}
-                </Button>
-              ) : null}
+              <GatedButton gate={gate} size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} onClick={() => setRemoving(e)} data-testid={`extra-function-remove-${e.sns}`}>
+                {t('confunfis.extras.remove')}
+              </GatedButton>
               {e.comment ? <span className="basis-full text-xs text-muted-foreground">{e.comment}</span> : null}
             </li>
           ))}
@@ -171,7 +170,7 @@ export function ExtraFunctionsSection({ materialId, row, canEdit }: { materialId
 }
 
 /** "Incompatibilidades": "excluye" (both ways) or "requiere" (this row needs the other). */
-export function IncompatibilitiesSection({ materialId, row, canEdit, onOpen }: { materialId: string; row: RowDetail; canEdit: boolean; onOpen: (id: string) => void }): React.JSX.Element {
+export function IncompatibilitiesSection({ materialId, row, gate, onOpen }: { materialId: string; row: RowDetail; gate: Gate; onOpen: (id: string) => void }): React.JSX.Element {
   const { t } = useTranslation();
   const create = useCreateIncompatibility(materialId);
   const remove = useDeleteIncompatibility(materialId, row.id);
@@ -185,7 +184,7 @@ export function IncompatibilitiesSection({ materialId, row, canEdit, onOpen }: {
     <section className="flex flex-col gap-2 text-sm" data-testid="row-incompatibilities">
       <div className="flex items-center gap-2">
         <h3 className="flex-1 font-medium">{t('confunfis.extras.incompatibilities', { count: row.incompatibilities.length })}</h3>
-        {canEdit && !adding ? <Button size="sm" variant="outline" onClick={() => setAdding(true)} data-testid="incompatibility-add">{t('confunfis.extras.add')}</Button> : null}
+        {!adding ? <GatedButton gate={gate} size="sm" variant="outline" onClick={() => setAdding(true)} data-testid="incompatibility-add">{t('confunfis.extras.add')}</GatedButton> : null}
       </div>
       {row.incompatibilities.length ? (
         <ul className="flex flex-col gap-2">
@@ -198,11 +197,9 @@ export function IncompatibilitiesSection({ materialId, row, canEdit, onOpen }: {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{verb}</Badge>
                   <RowName row={mine ? i.row_b : i.row_a} onOpen={onOpen} />
-                  {canEdit ? (
-                    <Button size="sm" variant="ghost" className="ml-auto text-destructive" disabled={remove.isPending} onClick={() => setRemoving(i)} data-testid="incompatibility-remove">
-                      {t('confunfis.extras.remove')}
-                    </Button>
-                  ) : null}
+                  <GatedButton gate={gate} size="sm" variant="ghost" className="ml-auto text-destructive" disabled={remove.isPending} onClick={() => setRemoving(i)} data-testid="incompatibility-remove">
+                    {t('confunfis.extras.remove')}
+                  </GatedButton>
                 </div>
                 <span className="text-xs text-muted-foreground">{i.reason}</span>
                 {i.observations.map((o) => (
