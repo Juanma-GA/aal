@@ -9,6 +9,8 @@
 # (panel "disponible" con su ruta; materiales "en_desarrollo") y la clave
 # opcional `ruta` (solo en los disponibles: plantilla de URL, con
 # :materialId para las páginas de un material).
+# - E17: módulo nuevo `baselines` ("Baselines y cambios", disponible), con RF-34
+#   (versionado y propuestas de cambio) que también lleva `versionado`.
 version: 1
 fuente: Especificación de requisitos PALI (em&e) + plan AAL v0.3
 grupos:
@@ -213,6 +215,28 @@ modulos:
   entregable: null
   depende_de:
   - confunfis
+- codigo: baselines
+  grupo: base
+  nombre: Baselines y cambios
+  orden: 9
+  fase: '1'
+  estado: disponible
+  ruta: /materiales/:materialId/baselines
+  encargo: E17
+  objetivo: Congelar y revisar la CONFUNFIS en baselines y respaldar cada cambio posterior con una autorización aprobada.
+  requisitos:
+  - id: RF-34
+    texto: Versionado, notas de revisión, propuestas de cambio y registro de auditoría de todas las modificaciones.
+  entradas:
+  - CONFUNFIS física
+  - Validación NT 10/17
+  salidas:
+  - Baselines revisadas
+  - Autorizaciones de cambio
+  - Comparación entre baselines
+  entregable: null
+  depende_de:
+  - validacion
   - articulos
 - codigo: candidatos
   grupo: paal

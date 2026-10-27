@@ -244,12 +244,22 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
 - **`verify-validation-real.mjs`** (E16): importa `private/CON_FUN_FIS2_ejemplo.xlsx` en un CUF `[verify] …` con todas las
   subcategorías (aplicar ya valida), valida otra vez midiendo el tiempo (< 3 s, `VALIDATION_REAL_MAX_S`) y coteja CF-002 = 2,
   CF-007 = 6, CF-008 = 46, CF-012 = 52, CF-014 = 52, CF-015 = 21. Sin el fichero, 2 (NOT RUN). No está en la CI.
+- **`verify-baselines.mjs`** (E17): con la demo cargada (y sin baselines), corre `demo_corregir_hallazgos.py`; el analista valida
+  (0 bloqueantes) y crea la v1 desde el sidebar (En revisión, sin "Aprobar" para su autor; la CONFUNFIS en solo lectura), el
+  observador la ve sin acciones, el revisor la aprueba; sin autorización "Nueva fila" queda deshabilitada con su motivo; el
+  analista solicita AC-TRM-4X4-A-001 (LSA), el revisor la aprueba, el analista la elige en la banda y cambia la QTY de `A21031` a 4
+  (total 24, la cabecera `X-Change-Authorization`, el historial la nombra); Comparar v1 ↔ actual da 1 cambio con su autorización y
+  se exporta; la entrega es la v1 con el aviso "1 cambio posterior no incluido"; la v2 aprobada cierra la autorización y el Panel
+  dice "Baseline v2 revisada · 0 cambios desde v2"; el observador no ve "Validar ahora" ni "Exportar para entrega". Credenciales:
+  las de `verify-navigation` más `DEV_REVISOR_PASSWORD` y `DEV_OBSERVADOR_PASSWORD`. Deja la base como estaba
+  (`--save-confunfis` / `--restore-confunfis`, `--save-articles` / `--restore-articles`, `--authorizations`, `--baselines`,
+  `--validation-runs`).
 - **CI** (`.github/workflows/check.yml`): gitleaks con su SHA-256 comprobado (fijado en el workflow y
   contra el fichero de checksums de la release); un job en `windows-latest` (E16) que instala el lockfile, arranca el
   backend (`import app.main`) y pasa `tests/unit` sin base de datos (los tests unitarios nunca la tocan); Postgres 16 como servicio, claves JWT, `npm ci` +
   `npm run check:all`; admin y datos de desarrollo con contraseñas aleatorias generadas en el propio
   job (enmascaradas); y `verify-health` + `verify-auth-settings` + `verify-navigation` + `verify-reference-tables` + `verify-conf-fun` + `verify-materials` (tras importar el catálogo y los materiales de demo) + `verify-articles` + `verify-articles-perf` + `verify-confunfis` (tras
-  `seed_demo_articles.py` y `seed_demo_confunfis.py`, después de `verify-materials`) + `verify-validation` con Chrome contra
+  `seed_demo_articles.py` y `seed_demo_confunfis.py`, después de `verify-materials`) + `verify-validation` + `verify-baselines` con Chrome contra
   uvicorn y Vite.
 
 ## Reglas de cierre de cada encargo
@@ -483,6 +493,33 @@ crezca, búscalo con `grep -n` y lee solo los tramos que salgan.
   | OF-007 | CF-012 | OI-001 | CF-021 `excluye_without_alternatives` |
   | OF-008 | CF-014 | OI-002 | CF-021 `requiere_removed` |
   | OF-009 (nombre distinto del maestro) | retirada | OI-003 | CF-021 `requiere_cycle` |
+- **Baselines y autorizaciones de cambio (E17, RF-34)**: `baseline` (vN por CUF y ámbito `confunfis`, más adelante `cil`;
+  `en_revision` → `revisada` / `rechazada` / `retirada`; una sola en revisión por CUF, índice único parcial), `change_authorization`
+  (`AC-<P/N del CUF>-NNN`, tipo de la tabla de referencia `TIPO_AUTORIZACION`; `solicitada` → `aprobada` / `rechazada`, `aprobada` →
+  `cerrada`) y `authorization_change` (qué registro tocó cada autorización). La instantánea es **un documento JSONB por baseline**
+  (`app/services/baselines.py`: filas, productos, funciones adicionales, incompatibilidades, artículos con referencias y controles de
+  vida, partes, y las hojas ya calculadas del Anexo XI y del Fichero Carga; Decimal y fechas con un códec etiquetado) con su SHA-256;
+  nunca se modifica. Crear pide `baseline.crear` y la última validación al día sin bloqueantes (su ejecución queda retenida,
+  `RETAINED_RUNS`); revisar, `baseline.revisar` y no ser el autor (ni siendo admin); rechazar pide comentario; aprobar cierra las
+  autorizaciones aprobadas usadas antes de crearla. **Control de cambios en un solo sitio**: `app/services/changes.py`, un
+  `before_flush` sobre `GUARDED` (filas, productos funcionales, funciones adicionales, incompatibilidades): baseline en revisión → 409
+  `baseline_in_review`; revisada → hace falta la autorización que nombra la petición (cabecera `X-Change-Authorization`, ligada en
+  `deps.current_user`; en scripts y tests, `changes.acting(...)`), aprobada y de ese CUF (409 `authorization_required` /
+  `authorization_not_usable`); cada registro tocado queda en `authorization_change` y la auditoría lleva `change_authorization`. Así
+  valen la pantalla, el libro (además `IMPORT_GUARDS` lo rechaza antes de analizar), la copia y los scripts sin comprobar nada por
+  ruta; las sentencias SQL directas (hallazgos recalculados, restauraciones de los `verify-*`) no pasan por él, y
+  `changes.unguarded()` lo levanta para mantenimiento (`seed_demo_confunfis.py --reset`). Partes y artículos son globales: no se
+  bloquean, salen en el diff y "Dónde se usa" lleva `baseline` (vN revisada del CUF). Rechazada o retirada la que estaba en
+  revisión, se vuelve a la regla anterior (con una revisada, autorización). Diff (`baselines.diff`, entre dos instantáneas o con la
+  actual) por entidad y campo, cada campo con su nombre (`baselines.fields` o la definición del artículo), con las autorizaciones de
+  cada cambio; en Excel, texto. Entrega: `DELIVERY_SOURCES` da la instantánea de la última revisada (con ella, la validación viva no
+  bloquea); hoja de estado "ENTREGA — baseline vN revisada por …" y cabecera `X-Changes-Not-Included`. La copia de un material no
+  lleva baselines. API `app/api/routes/baselines.py` (`/api/materials/{id}/baselines…`, `/authorizations…`, `GET …/baselines/state`
+  para el Panel y la banda). Pantalla `/materiales/:materialId/baselines` (módulo `baselines`, migración 0020; ?tab, ?antes,
+  ?despues); en la CONFUNFIS, `ConfigurationBand` y `useEditGate` (botones deshabilitados con su motivo); la autorización activa vive
+  en el `uiStore` (por material, nunca en el navegador) y `apiClient` la envía en las llamadas de ese material.
+  `scripts/demo_corregir_hallazgos.py` corrige los 10 bloqueantes de la demo (`--dejar CF-007`) y
+  `seed_demo_confunfis.py --reset` deja la demo como vino.
 - **Ficha lateral acoplada (E15)**: toda ficha de detalle es un `DetailPanel` (`src/components/layout/DetailPanel.tsx`):
   desde 1024 px se acopla a la derecha del contenido (un hueco de `AppLayout` al lado de `<main>`, vía `uiStore.detailSlot`),
   sin fondo oscurecido, y la lista sigue pulsable; por debajo, el `sheet` de shadcn. Ancho arrastrando el borde, el mismo para

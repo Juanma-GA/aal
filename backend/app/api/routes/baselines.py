@@ -34,7 +34,7 @@ from app.core.errors import error_detail
 from app.core.texts import text
 from app.db.base import get_db
 from app.io_excel.writer import excel_text
-from app.models import Baseline, ChangeAuthorization, Material, User
+from app.models import ArticleFieldDefinition, Baseline, ChangeAuthorization, Material, User
 from app.schemas.baselines import (
     AuthorizationChangeOut,
     AuthorizationIn,
@@ -183,6 +183,12 @@ async def _diff(db: AsyncSession, material: Material, before: uuid.UUID, after: 
     except BaselineError as exc:
         raise _fail(exc) from None
     entries = await baselines.with_authorizations(db, material, baselines.diff(old.snapshot, new_doc), old.created_at, until)
+    # Each field by its name (HR21): an article's by its definition, the rest from es.json.
+    names = dict((await db.execute(select(ArticleFieldDefinition.prisma_code, ArticleFieldDefinition.name))).all())
+    for e in entries:
+        for f in e["fields"]:
+            key = f["field"]
+            f["label"] = names.get(key[5:], key[5:]) if key.startswith("data.") else text(f"baselines.fields.{key}")
     return DiffOut(before=f"v{old.number}", after=after_label, entries=[DiffEntry(**e) for e in entries]), entries
 
 
@@ -205,7 +211,7 @@ async def baseline_diff(
     for e in entries:
         codes = ", ".join(a["code"] for a in e["authorizations"])
         for f in e["fields"] or [{"field": "", "before": "", "after": ""}]:
-            values = [text(f"baselines.entities.{e['entity']}"), e["label"], text(f"baselines.changes.{e['change']}"), f["field"], f["before"], f["after"], codes]
+            values = [text(f"baselines.entities.{e['entity']}"), e["label"], text(f"baselines.changes.{e['change']}"), f.get("label", ""), f["before"], f["after"], codes]
             for c, v in enumerate(values, start=1):
                 cell = ws.cell(row=r, column=c)
                 cell.value, cell.data_type = excel_text(str(v)), "s"

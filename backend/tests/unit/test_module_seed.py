@@ -16,7 +16,7 @@ def seed():
 def test_the_real_seed_passes(seed):
     assert check_seed(seed) == []
     assert len(seed.groups) == 9
-    assert len(seed.modules) == 45
+    assert len(seed.modules) == 46
     covered = {rf for m in seed.modules for rf, _ in m.requirements}
     assert covered >= set(REQUIRED_RF)
 
@@ -36,7 +36,9 @@ def test_states_of_the_seed(seed):
     assert states["productos-funcionales"] == ("disponible", "/materiales/:materialId/confunfis/productos")
     # E16: the NT 10/17 validation of each material.
     assert states["validacion"] == ("disponible", "/materiales/:materialId/validacion")
-    on = ("panel", "materiales", "catalogo-normalizado", "articulos", "confunfis", "tabla-partes", "productos-funcionales", "validacion")
+    # E17: baselines and change authorizations of each material.
+    assert states["baselines"] == ("disponible", "/materiales/:materialId/baselines")
+    on = ("panel", "materiales", "catalogo-normalizado", "articulos", "confunfis", "tabla-partes", "productos-funcionales", "validacion", "baselines")
     assert {s for code, (s, _) in states.items() if code not in on} == {"planificado"}
 
 

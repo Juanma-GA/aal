@@ -87,6 +87,7 @@ class AuthorizationIn(StrictModel):
 
 class FieldChange(BaseModel):
     field: str
+    label: str
     before: str
     after: str
 

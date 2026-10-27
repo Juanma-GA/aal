@@ -20,7 +20,7 @@ async def test_menu_for_any_signed_in_user(client, factory):
     token, _ = await login(client, await factory.user())
     groups = (await client.get("/api/modules", headers=bearer(token))).json()
     assert [g["code"] for g in groups][:3] == ["inicio", "base", "paal"]
-    assert sum(len(g["modules"]) for g in groups) == 45
+    assert sum(len(g["modules"]) for g in groups) == 46
     assert groups[0]["modules"][0]["code"] == "panel"
     assert (await client.get("/api/modules")).status_code == 401
 

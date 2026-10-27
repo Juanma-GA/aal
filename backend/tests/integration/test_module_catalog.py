@@ -12,7 +12,7 @@ from app.services.module_catalog import REQUIRED_RF, SeedModule, load_catalog, r
 
 async def test_the_migration_loaded_the_catalog(db):
     assert await db.scalar(select(func.count()).select_from(ModuleGroup)) == 9
-    assert await db.scalar(select(func.count()).select_from(ModuleCatalog)) == 45
+    assert await db.scalar(select(func.count()).select_from(ModuleCatalog)) == 46
     rfs = set((await db.execute(select(ModuleRequirement.rf_id))).scalars().all())
     assert rfs >= set(REQUIRED_RF)
     panel = await db.get(ModuleCatalog, "panel")

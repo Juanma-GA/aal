@@ -1976,6 +1976,168 @@
       "added": "Añadido",
       "removed": "Eliminado",
       "modified": "Modificado"
+    },
+    "fields": {
+      "sns": "SNS",
+      "co": "CO",
+      "al": "AL",
+      "qty": "QTY",
+      "cs_sns": "SNS del CS",
+      "cs_co": "CO del CS",
+      "cs_al": "AL del CS",
+      "article_name": "Nombre del artículo",
+      "function_text": "Función",
+      "ct_sigle": "CT SIGLE",
+      "noc": "NOC",
+      "pn": "P/N",
+      "ncage": "NCAGE",
+      "designation": "Designación",
+      "pol_code": "Código POL",
+      "nae": "N/A/E",
+      "supply_unit": "Unidad de suministro",
+      "quantity": "Cantidad",
+      "unit": "Unidad de medida",
+      "row": "Fila",
+      "criterion": "Criterio",
+      "comment": "Comentario",
+      "row_a": "Fila",
+      "kind": "Tipo",
+      "row_b": "Fila relacionada",
+      "reason": "Motivo",
+      "nombre": "Nombre",
+      "references": "Referencias (P/N / NCAGE)",
+      "life": "Controles de vida",
+      "parent": "Artículo padre",
+      "cop": "COP",
+      "alp": "ALP",
+      "part_name": "Nombre de la parte"
+    },
+    "title": "Baselines y cambios",
+    "version": "v{{number}}",
+    "empty": "Este CUF todavía no tiene ninguna baseline.",
+    "rows": "{{count}} filas",
+    "rows_one": "{{count}} fila",
+    "createdBy": "Creada por {{by}} el {{at}}",
+    "reviewedBy": {
+      "approved": "revisada por {{by}} el {{at}}",
+      "rejected": "rechazada por {{by}} el {{at}}",
+      "withdrawn": "retirada por {{by}} el {{at}}"
+    },
+    "fourEyes": "La revisa otra persona: nadie revisa su propia baseline.",
+    "states": {
+      "en_revision": "En revisión",
+      "revisada": "Revisada",
+      "rechazada": "Rechazada",
+      "retirada": "Retirada"
+    },
+    "light": {
+      "green": "Validación en verde",
+      "amber": "Validación en ámbar: {{warnings}} avisos",
+      "red": "Validación en rojo: {{blocking}} bloqueantes",
+      "none": "Sin validación"
+    },
+    "tabs": {
+      "baselines": "Baselines",
+      "comparar": "Comparar",
+      "autorizaciones": "Autorizaciones"
+    },
+    "actions": {
+      "withdraw": "Retirar",
+      "approve": "Aprobar",
+      "reject": "Rechazar"
+    },
+    "create": {
+      "button": "Crear baseline",
+      "hint": "Congela la CONFUNFIS tal como está y la deja en solo lectura hasta que otra persona la revise.",
+      "inReview": "Ya hay una baseline en revisión.",
+      "notValidated": "Antes hay que validar la CONFUNFIS.",
+      "outdated": "La validación está desactualizada: vuelve a validar.",
+      "blocking": "La validación tiene {{count}} bloqueantes.",
+      "blocking_one": "La validación tiene 1 bloqueante.",
+      "toValidation": "Ir a la validación"
+    },
+    "review": {
+      "approveTitle": "Aprobar la baseline v{{number}}",
+      "approveHint": "Queda revisada: desde ahora, cada cambio de la CONFUNFIS necesita una autorización aprobada.",
+      "rejectTitle": "Rechazar la baseline v{{number}}",
+      "rejectHint": "La CONFUNFIS deja de estar en solo lectura. Explica qué hay que corregir."
+    },
+    "comment": {
+      "required": "Comentario (obligatorio)",
+      "optional": "Comentario (opcional)",
+      "shown": "Comentario: {{text}}"
+    },
+    "compare": {
+      "withCurrent": "Comparar con el estado actual",
+      "before": "Desde",
+      "after": "Hasta",
+      "current": "Estado actual",
+      "export": "Exportar a Excel",
+      "summary": "{{before}} ↔ {{after}}: {{count}} cambios",
+      "summary_one": "{{before}} ↔ {{after}}: 1 cambio",
+      "none": "No hay ningún cambio.",
+      "noAuthorization": "sin autorización"
+    },
+    "band": {
+      "none": "Sin baseline: la CONFUNFIS se edita libremente.",
+      "locked": "Baseline v{{number}} en revisión: la CONFUNFIS está en solo lectura hasta que se revise.",
+      "lockedReason": "La baseline v{{number}} está en revisión: la CONFUNFIS está en solo lectura.",
+      "reviewed": "Baseline v{{number}} revisada",
+      "changesSince": "{{count}} cambios desde v{{number}}",
+      "changesSince_one": "1 cambio desde v{{number}}",
+      "openAuthorizations": "{{count}} autorizaciones abiertas",
+      "openAuthorizations_one": "1 autorización abierta",
+      "active": "Autorización activa:",
+      "noneChosen": "Ninguna",
+      "noneUsable": "No hay ninguna autorización aprobada y abierta.",
+      "needAuthorization": "Hace falta una autorización: elige una activa en la banda de arriba (o solicítala).",
+      "request": "Solicitar una autorización",
+      "open": "Ver baselines y cambios"
+    },
+    "delivery": {
+      "button": "Exportar para entrega (baseline v{{number}})",
+      "notIncluded": "La entrega es la baseline v{{number}}: hay {{count}} cambios posteriores no incluidos.",
+      "notIncluded_one": "La entrega es la baseline v{{number}}: hay 1 cambio posterior no incluido."
+    },
+    "panel": {
+      "title": "Estado de configuración",
+      "open": "Ver baselines y cambios"
+    },
+    "authorizations": {
+      "new": "Solicitar autorización",
+      "empty": "No hay autorizaciones de cambio.",
+      "requestTitle": "Solicitar una autorización de cambio",
+      "requestHint": "Tras una baseline revisada, cada cambio de la CONFUNFIS va respaldado por una autorización aprobada por otra persona.",
+      "request": "Solicitar",
+      "kind": "Tipo",
+      "kindPlaceholder": "Elige el tipo",
+      "description": "Descripción",
+      "reason": "Motivo",
+      "because": "Motivo: {{reason}}",
+      "code": "Código",
+      "state": "Estado",
+      "requested": "Solicitada",
+      "decidedBy": "Decidida por {{by}} el {{at}}",
+      "changes": "Cambios",
+      "changesCount": "{{count}} cambios",
+      "changesCount_one": "1 cambio",
+      "noChanges": "Todavía no se ha hecho ningún cambio con ella.",
+      "notOwn": "La aprueba otra persona.",
+      "close": "Cerrar",
+      "closedIn": "Cerrada con la baseline v{{number}}",
+      "approveTitle": "Aprobar {{code}}",
+      "rejectTitle": "Rechazar {{code}}",
+      "states": {
+        "solicitada": "Solicitada",
+        "aprobada": "Aprobada",
+        "rechazada": "Rechazada",
+        "cerrada": "Cerrada"
+      },
+      "actions": {
+        "creado": "creado",
+        "modificado": "modificado",
+        "eliminado": "eliminado"
+      }
     }
   }
 }

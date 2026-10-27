@@ -7,6 +7,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { ConfigurationBand } from '@/components/baselines/ConfigurationBand';
 import { BookImportDialog } from '@/components/confunfis/BookImportDialog';
 import { CufPartsTable } from '@/components/confunfis/CufPartsTable';
 import { FunctionalView } from '@/components/confunfis/FunctionalView';
@@ -23,6 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useConfigurationState, useEditGate } from '@/hooks/useBaselines';
 import { confunfisKey, useAlternativeCs, useConfunfisSummary } from '@/hooks/useConfunfis';
 import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
 import { useMe } from '@/hooks/useSession';
@@ -37,18 +40,26 @@ import { positionOf, type PositionRow } from '@/types/confunfis';
 
 const EXPORTS: BookExport[] = ['anexo', 'aal', 'plantilla'];
 
-/** "Exportar para entrega" (E16): the CUF's Anexo XI and the Fichero Carga
- *  of its articles, only with an up-to-date validation free of blocking
- *  findings; disabled otherwise, saying why (the server refuses it too). */
+/** "Exportar para entrega" (E16, E17): the Anexo XI and the Fichero Carga of
+ *  the latest reviewed baseline (vN, not the live data), only with one and an
+ *  up-to-date validation free of blocking findings; disabled otherwise,
+ *  saying why (the server refuses it too). The changes made since vN are
+ *  not in it: said once it is downloaded. */
 function DeliveryButton({ materialId }: { materialId: string }): React.JSX.Element {
   const { t } = useTranslation();
   const validation = useValidation(materialId);
+  const state = useConfigurationState(materialId);
   const problems = validation.data?.delivery_problems ?? [];
   const why = problems.map((p) => t(`validation.delivery.${p.code}`, p.params)).join(' ');
   const blocked = !validation.data || problems.length > 0;
+  const reviewed = state.data?.reviewed;
   const go = () => {
     exportDelivery(materialId)
-      .then(({ blob, fileName }) => saveFile(blob, fileName ?? 'ENTREGA.zip'))
+      .then(({ blob, fileName, headers }) => {
+        saveFile(blob, fileName ?? 'ENTREGA.zip');
+        const pending = Number(headers.get('X-Changes-Not-Included') ?? 0);
+        if (pending > 0) toast.warning(t('baselines.delivery.notIncluded', { count: pending, number: headers.get('X-Baseline') }));
+      })
       .catch((error: unknown) => notifyError(error, t));
   };
   return (
@@ -56,7 +67,7 @@ function DeliveryButton({ materialId }: { materialId: string }): React.JSX.Eleme
       {/* A disabled button gets no hover: its reason is written next to it. */}
       <span title={blocked ? why : undefined}>
         <Button variant="outline" disabled={blocked} onClick={go} aria-describedby={blocked ? 'delivery-why' : undefined} data-testid="confunfis-delivery">
-          {t('validation.page.delivery')}
+          {reviewed ? t('baselines.delivery.button', { number: reviewed.number }) : t('validation.page.delivery')}
         </Button>
       </span>
       {blocked && why ? <span id="delivery-why" className="max-w-64 text-xs text-muted-foreground" data-testid="confunfis-delivery-why">{why}</span> : null}
@@ -109,7 +120,10 @@ export function ConfunfisPage(): React.JSX.Element {
   const { tab: pathTab } = useParams();
   const tab: Tab = TABS.find((x) => x === (pathTab ?? params.get('tab'))) ?? 'arbol';
   const rowId = params.get('fila');
-  const canEdit = material.permissions.includes('confunfis.editar');
+  const permitted = material.permissions.includes('confunfis.editar');
+  // E17: a baseline in review, or a reviewed one without an active authorization, stops the edits.
+  const gate = useEditGate(material.id, permitted);
+  const canEdit = gate.canEdit;
   const [form, setForm] = useState<{ row: PositionRow | null } | null>(null);
   const [altCs, setAltCs] = useState<PositionRow | null>(null);
   const [importing, setImporting] = useState<'anexo' | 'aal' | null>(null);
@@ -140,6 +154,7 @@ export function ConfunfisPage(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-6" data-testid="confunfis-page">
       <PageHeader crumbs={[{ label: material.name, to: `/materiales/${material.id}` }, { label: title }]} title={title} />
+      <ConfigurationBand materialId={material.id} canRequest={material.permissions.includes('autorizacion.solicitar')} />
       <div className="flex flex-wrap items-center gap-2">
         {summary.data ? (
           <>
@@ -158,7 +173,8 @@ export function ConfunfisPage(): React.JSX.Element {
           </>
         ) : null}
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          {canEdit ? null : <p className="text-sm text-muted-foreground">{t('confunfis.readOnly')}</p>}
+          {permitted ? null : <p className="text-sm text-muted-foreground">{t('confunfis.readOnly')}</p>}
+          {gate.reason ? <p className="max-w-72 text-sm text-muted-foreground" data-testid="confunfis-edit-why">{gate.reason}</p> : null}
           {material.permissions.includes('confunfis.entregar') ? <DeliveryButton materialId={material.id} /> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -172,11 +188,11 @@ export function ConfunfisPage(): React.JSX.Element {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          {canEdit ? (
+          {permitted ? (
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" data-testid="confunfis-import">{t('confunfisBook.import')}</Button>
+                  <Button variant="outline" disabled={!canEdit} title={gate.reason ?? undefined} data-testid="confunfis-import">{t('confunfisBook.import')}</Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {(['anexo', 'aal'] as const).map((book) => (
@@ -186,7 +202,7 @@ export function ConfunfisPage(): React.JSX.Element {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button onClick={() => setForm({ row: null })} data-testid="confunfis-new-row">{t('confunfis.newRow')}</Button>
+              <Button disabled={!canEdit} title={gate.reason ?? undefined} onClick={() => setForm({ row: null })} data-testid="confunfis-new-row">{t('confunfis.newRow')}</Button>
             </>
           ) : null}
         </div>

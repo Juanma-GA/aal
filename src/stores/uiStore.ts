@@ -25,6 +25,10 @@ export interface UiState {
   /** Where a docked detail panel goes (AppLayout's slot beside <main>; null before it renders). */
   detailSlot: HTMLElement | null;
   setDetailSlot: (slot: HTMLElement | null) => void;
+  /** E17: the change authorization each CUF's edits go under (material id -> authorization id), sent by
+   *  src/services/apiClient.ts as X-Change-Authorization. Only for this tab and session, never stored. */
+  changeAuthorizations: Record<string, string>;
+  setChangeAuthorization: (materialId: string, authorizationId: string | null) => void;
 }
 
 export const useUiStore = create<UiState>()((set) => ({
@@ -40,4 +44,12 @@ export const useUiStore = create<UiState>()((set) => ({
   setDetailPanelWidth: (width) => set({ detailPanelWidth: width }),
   detailSlot: null,
   setDetailSlot: (slot) => set({ detailSlot: slot }),
+  changeAuthorizations: {},
+  setChangeAuthorization: (materialId, authorizationId) =>
+    set((state) => {
+      const next = { ...state.changeAuthorizations };
+      if (authorizationId) next[materialId] = authorizationId;
+      else delete next[materialId];
+      return { changeAuthorizations: next };
+    }),
 }));

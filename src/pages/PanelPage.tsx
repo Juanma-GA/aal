@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useConfigurationState } from '@/hooks/useBaselines';
 import { useCuf } from '@/hooks/useCuf';
 import { useMaterialOfPage } from '@/hooks/useMaterialOfPage';
 import { moduleHref, useModules } from '@/hooks/useModules';
@@ -39,6 +40,37 @@ function ValidationCard({ materialId, when }: { materialId: string; when: (iso: 
         {validation.data ? <TrafficLight validation={validation.data} compact /> : <Skeleton className="h-6 w-48" />}
         <Link to={`/materiales/${materialId}/validacion`} className="text-link text-sm underline-offset-2 hover:underline" data-testid="panel-validation-link">
           {t('validation.page.openReport')}
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** E17: the CUF's configuration state (no baseline, vN in review, vN reviewed + n changes) and its open authorizations. */
+function ConfigurationCard({ materialId }: { materialId: string }): React.JSX.Element {
+  const { t } = useTranslation();
+  const state = useConfigurationState(materialId);
+  const s = state.data;
+  return (
+    <Card className="h-fit" data-testid="panel-configuration">
+      <CardHeader>
+        <CardTitle>{t('baselines.panel.title')}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm">
+        {s ? (
+          <>
+            <p data-testid="panel-configuration-state">
+              {s.in_review
+                ? t('baselines.band.locked', { number: s.in_review.number })
+                : s.reviewed
+                  ? `${t('baselines.band.reviewed', { number: s.reviewed.number })} · ${t('baselines.band.changesSince', { count: s.changes_since, number: s.reviewed.number })}`
+                  : t('baselines.band.none')}
+            </p>
+            {s.open_authorizations ? <p>{t('baselines.band.openAuthorizations', { count: s.open_authorizations })}</p> : null}
+          </>
+        ) : <Skeleton className="h-6 w-48" />}
+        <Link to={`/materiales/${materialId}/baselines`} className="text-link underline-offset-2 hover:underline" data-testid="panel-configuration-link">
+          {t('baselines.panel.open')}
         </Link>
       </CardContent>
     </Card>
@@ -141,6 +173,7 @@ export function PanelPage(): React.JSX.Element {
         </Card>
 
         {material.permissions.includes('validacion.ver') ? <ValidationCard materialId={material.id} when={when} /> : null}
+        {material.permissions.includes('confunfis.ver') ? <ConfigurationCard materialId={material.id} /> : null}
 
         <Card data-testid="panel-team">
           <CardHeader>
