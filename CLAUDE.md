@@ -186,7 +186,7 @@ Scripts de Node, sin sintaxis de shell: el mismo comando en Linux y en PowerShel
   recargar y la vista móvil. Credenciales por entorno: `VERIFY_ADMIN_EMAIL`, `VERIFY_ADMIN_PASSWORD` y
   `DEV_ANALISTA_PASSWORD`. Deja la base como estaba (material `[verify] …` borrado, FTA de vuelta a
   "planificado", preferencias del analista restauradas).
-- **`verify-reference-tables.mjs`** (E03): el admin ve las 17 tablas, abre D114 (13 valores con su tipo por nombre),
+- **`verify-reference-tables.mjs`** (E03): el admin ve las 18 tablas, abre D114 (13 valores con su tipo por nombre),
   edita en línea una descripción de D112, exporta D112, el script lo cambia con openpyxl
   (`backend/scripts/verify_edit_xlsx.py`), lo importa, ve 1 modificado y aplica; el analista ve las
   tablas sin edición. Mismas credenciales que `verify-navigation`. Deja la base como estaba: guarda

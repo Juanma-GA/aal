@@ -9,6 +9,7 @@ from app.api.routes.article_parts import router as article_parts_router
 from app.api.routes.article_revalidations import router as article_revalidations_router
 from app.api.routes.articles import router as articles_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.baselines import router as baselines_router
 from app.api.routes.catalog import router as catalog_router
 from app.api.routes.confunfis import router as confunfis_router
 from app.api.routes.confunfis_book import router as confunfis_book_router
@@ -25,8 +26,9 @@ from app.api.routes.users import router as users_router
 from app.api.routes.validation import router as validation_router
 from app.api.routes.validation import rules_router as validation_rules_router
 from app.core.config import get_settings
-from app.core.errors import SanitizedErrorMiddleware, validation_error_handler
+from app.core.errors import SanitizedErrorMiddleware, change_blocked_handler, validation_error_handler
 from app.core.logging import configure_logging
+from app.services.changes import ChangeBlocked
 from app.core.texts import check as check_texts
 from app.core.timezone import check as check_timezone
 from app.version import app_version
@@ -52,6 +54,7 @@ app.add_middleware(
 )
 
 app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(ChangeBlocked, change_blocked_handler)
 
 app.include_router(system_router)
 app.include_router(auth_router)
@@ -72,4 +75,5 @@ app.include_router(article_parts_router)
 app.include_router(article_revalidations_router)
 app.include_router(validation_rules_router)
 app.include_router(validation_router)
+app.include_router(baselines_router)
 app.include_router(admin_router)

@@ -139,14 +139,15 @@ async def test_accepting_a_warning(client, demo):
 
 
 async def test_the_delivery_is_blocked_until_it_validates_green(client, demo):
+    """E17: green is no longer enough, it needs a reviewed baseline too (its delivery: test_baselines.py)."""
     analyst = demo["people"]["analista"]
     delivery = f"{base(demo)}/delivery"
     res = await client.get(delivery, headers=analyst)
-    assert (res.status_code, [p["code"] for p in res.json()["detail"]["problems"]]) == (409, ["delivery_not_validated"])
+    assert (res.status_code, [p["code"] for p in res.json()["detail"]["problems"]]) == (409, ["delivery_not_validated", "delivery_no_baseline"])
     await validate(client, demo, analyst)
     res = await client.get(delivery, headers=analyst)
-    assert [p["code"] for p in res.json()["detail"]["problems"]] == ["delivery_blocking"]
-    # Every rule a warning: no blocking findings, green enough to deliver.
+    assert [p["code"] for p in res.json()["detail"]["problems"]] == ["delivery_blocking", "delivery_no_baseline"]
+    # Every rule a warning: no blocking findings, green enough; still no baseline.
     async with async_session_factory() as db:
         codes = list((await db.execute(select(ValidationRule.code))).scalars())
         await db.execute(update(ValidationRule).values(severity="aviso"))
@@ -154,16 +155,12 @@ async def test_the_delivery_is_blocked_until_it_validates_green(client, demo):
     try:
         await validate(client, demo, analyst)
         res = await client.get(delivery, headers=analyst)
-        assert res.status_code == 200 and res.headers["content-type"] == "application/zip"
-        names = zipfile.ZipFile(io.BytesIO(res.content)).namelist()
-        assert sorted(n.split("_")[0] for n in names) == ["ANEXO", "FICHERO"]
-        anexo = openpyxl.load_workbook(io.BytesIO(zipfile.ZipFile(io.BytesIO(res.content)).read(next(n for n in names if n.startswith("ANEXO")))))
-        assert "ESTADO DE VALIDACIÓN" not in anexo.sheetnames and anexo.sheetnames[0] == "CON_FUN_FIS"
-        # A change afterwards: outdated, refused again.
+        assert [p["code"] for p in res.json()["detail"]["problems"]] == ["delivery_no_baseline"]
+        # A change afterwards: outdated as well.
         [air] = find((await all_rows(client, demo, analyst))["items"], "A24110")
         await client.patch(f"{base(demo)}/rows/{air['id']}", json={"version": air["version"], "qty": 2}, headers=analyst)
         res = await client.get(delivery, headers=analyst)
-        assert [p["code"] for p in res.json()["detail"]["problems"]] == ["delivery_outdated"]
+        assert [p["code"] for p in res.json()["detail"]["problems"]] == ["delivery_outdated", "delivery_no_baseline"]
     finally:
         await _restore_rules(codes)
 

@@ -130,3 +130,10 @@ async def validation_error_handler(_request, exc) -> JSONResponse:
         for err in exc.errors()
     ]
     return JSONResponse(status_code=422, content={"detail": error_detail("validation_error", fields=fields)})
+
+
+async def change_blocked_handler(_request, exc) -> JSONResponse:
+    """A change of a CONFUNFIS its baselines do not allow (E17,
+    app/services/changes.py): 409 with the reason (baseline_in_review,
+    authorization_required, authorization_not_usable)."""
+    return JSONResponse(status_code=409, content={"detail": error_detail(exc.code, **exc.params)})

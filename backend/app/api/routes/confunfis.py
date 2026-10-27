@@ -25,7 +25,7 @@ from app.api.routes.catalog import like_text
 from app.api.routes.users import confirmation_required, version_conflict
 from app.core.errors import error_detail
 from app.db.base import get_db
-from app.models import Article, ArticlePart, AuditLog, ExtraFunction, Incompatibility, Material, PhysicalPosition, SnsPosition, User
+from app.models import Article, ArticlePart, AuditLog, Baseline, ExtraFunction, Incompatibility, Material, PhysicalPosition, SnsPosition, User
 from app.schemas.confunfis import (
     AlternativeCsIn,
     ArticleBrief,
@@ -400,12 +400,23 @@ async def _detail(db: AsyncSession, ctx: Context, row: PhysicalPosition) -> RowD
             .where(AuditLog.entity_type == "physical_position", AuditLog.entity_id == str(row.id)).order_by(AuditLog.created_at.desc())
         )
     ).all()
+    # E17: the authorization each change was made under, and the first reviewed baseline that includes it.
+    reviewed = (await db.execute(
+        select(Baseline.number, Baseline.created_at).where(Baseline.material_id == row.material_id, Baseline.state == "revisada").order_by(Baseline.created_at)
+    )).all()
+
+    def entry(a: AuditLog, name: str | None) -> dict[str, Any]:
+        used = (a.after or {}).get("change_authorization") or []
+        baseline = next((n for n, at in reviewed if at >= a.created_at), None)
+        return {"id": str(a.id), "at": a.created_at.isoformat(), "action": a.action, "user": name,
+                "authorization": used[0]["code"] if used else None, "baseline": baseline}
+
     return RowDetail(
         **_row_out(ctx, row).model_dump(),
         parents=[_row_out(ctx, r) for r in _ordered(parents)],
         children=[_row_out(ctx, r) for r in _ordered(children)],
         chains=[[ChainStep(qty=_plain(q), sns=s) for q, s in chain] for chain in ctx.graph.chains(g.hueco)],
-        history=[{"id": str(a.id), "at": a.created_at.isoformat(), "action": a.action, "user": name} for a, name in history],
+        history=[entry(a, name) for a, name in history],
         hueco_als=sorted({r.al for r in ctx.rows if (r.sns, r.co) == (row.sns, row.co)}),
         extra_functions=[extra_out(ctx, e) for e in ctx.extras if e.position_id == row.id],
         incompatibilities=[incompatibility_out(ctx, i) for i in ctx.incompatibilities if row.id in (i.row_a_id, i.row_b_id)],

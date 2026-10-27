@@ -157,7 +157,11 @@ export function RowSheet({ materialId, rowId, canEdit, onOpen, onEdit, onAlterna
                 {row.history.map((h) => (
                   <li key={h.id}>
                     {t(`audit.actions.${h.action}`)}
-                    <span className="block text-xs text-muted-foreground">{when(h.at)} · {h.user ?? t('articles.byScript')}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {when(h.at)} · {h.user ?? t('articles.byScript')}
+                      {h.authorization ? ` · ${t('confunfis.card.historyAuthorization', { code: h.authorization })}` : ''}
+                      {h.baseline ? ` · ${t('confunfis.card.historyBaseline', { number: h.baseline })}` : ''}
+                    </span>
                   </li>
                 ))}
               </ul>

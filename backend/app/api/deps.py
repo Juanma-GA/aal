@@ -15,7 +15,7 @@ refuses it.
 
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,7 @@ from app.core.errors import error_detail
 from app.core.security import InvalidAccessToken, access_token_subject
 from app.db.base import get_db
 from app.models import User
+from app.services import changes
 from app.services.permissions import MaterialAccess, material_access
 
 _bearer = HTTPBearer(auto_error=False)
@@ -58,12 +59,14 @@ async def get_session_user(
     return user
 
 
-async def current_user(user: User = Depends(get_session_user)) -> User:
+async def current_user(request: Request, user: User = Depends(get_session_user)) -> User:
     """A signed-in user who has no pending password change. Until they
     change it (a new account, a reset), only /api/auth/* and
-    /api/me/password answer them."""
+    /api/me/password answer them. (E17) The request's change authorization
+    (header X-Change-Authorization) is bound for the CONFUNFIS guard."""
     if user.must_change_password:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=error_detail("password_change_required"))
+    changes.bind(user.id, request.headers.get(changes.HEADER))
     return user
 
 

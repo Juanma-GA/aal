@@ -49,6 +49,8 @@ export interface WhereUsed {
   row_id?: string;
   position?: string;
   cs?: string | null;
+  /** E17: the latest reviewed baseline of its CUF (vN), or null. */
+  baseline?: number | null;
   /** E14: a part of another article (its COP/ALP), a functional product of a CUF. */
   article_id?: string;
   article_name?: string;

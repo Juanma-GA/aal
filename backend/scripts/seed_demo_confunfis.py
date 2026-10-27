@@ -13,7 +13,16 @@ and the demo's extra function (the radio E12300 is also E19200) and
 incompatibility (L41120 requires L41130); the Puesto de mando gets them on
 its own rows (copied with the CONFUNFIS, or added to one copied before).
 
-    python scripts/seed_demo_confunfis.py        (from backend/)
+    python scripts/seed_demo_confunfis.py           (from backend/)
+    python scripts/seed_demo_confunfis.py --reset   (the demo as it came)
+
+E17: --reset leaves the demo clean after a rehearsal of the hito de demo 2
+(docs/encargos/E17.md §6): it removes, for good, the CONFUNFIS of the
+Tramontana and of the Puesto de mando with their baselines, authorizations,
+validations and accepted findings, puts the demo articles back as
+demo/FICHERO_CARGA_DEMO.xlsx has them (seed_demo_articles.py, plus the P/N
+that demo_corregir_hallazgos.py gives the filler cap), and loads it all
+again. A baseline only goes this way: never through the API.
 
 Run it after seed_demo_materials.py and seed_demo_articles.py (and the
 catalog demo/CONF_FUN_DEMO.xlsx imported): it says what is missing.
@@ -21,17 +30,30 @@ Idempotent: a material whose CONFUNFIS has rows is left as it is, and so is
 each E14 table that already has something.
 """
 
+import argparse
 import asyncio
 import sys
 from pathlib import Path
 
 from _common import cancellable, utf8_output
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.core.config import get_settings
 from app.db.base import async_session_factory, engine
-from app.models import Article, Material, PhysicalPosition
-from app.services import audit, confunfis, cuf
+from app.models import (
+    Article,
+    ArticleReference,
+    Baseline,
+    ChangeAuthorization,
+    ExtraFunction,
+    FindingAcceptance,
+    FunctionalProduct,
+    Incompatibility,
+    Material,
+    PhysicalPosition,
+    ValidationRun,
+)
+from app.services import audit, changes, confunfis, cuf
 from app.services import confunfis_extras as extras
 from app.services.confunfis_sheet import read_parts, read_products, read_sheet, split, split_part
 from app.services.import_jobs import limits
@@ -202,18 +224,47 @@ async def seed() -> int:
     return 0
 
 
-async def run() -> int:
+async def reset() -> int:
+    """Everything a rehearsal leaves on the two demo CUF, removed for good (unguarded: a baseline
+    in review or reviewed would refuse it); then the demo articles back as the file has them."""
+    import demo_corregir_hallazgos
+    import seed_demo_articles
+
+    async with async_session_factory() as db:
+        materials = [m for m in (await _material(db, TRAMONTANA), await _material(db, PUESTO_DE_MANDO)) if m is not None]
+        ids = [m.id for m in materials]
+        with changes.unguarded():
+            # In this order: a baseline holds its validation; the extras hang from the rows.
+            for model in (Baseline, ChangeAuthorization, FindingAcceptance, ValidationRun, Incompatibility, ExtraFunction, FunctionalProduct, PhysicalPosition):
+                await db.execute(delete(model).where(model.material_id.in_(ids)))
+            await db.execute(delete(ArticleReference).where(
+                ArticleReference.pn == demo_corregir_hallazgos.CAP_PN, ArticleReference.ncage == demo_corregir_hallazgos.CAP_NCAGE,
+            ))
+            for m in materials:
+                audit.record(db, action="confunfis.reset", entity_type="material", entity_id=str(m.id), material_id=m.id,
+                             after={"script": "seed_demo_confunfis --reset"})
+            await db.commit()
+        print(f"Borrado: CONFUNFIS, baselines, autorizaciones y validaciones de {', '.join(m.name for m in materials) or 'nada'}.")
+    return await seed_demo_articles.seed()
+
+
+async def run(reset_first: bool = False) -> int:
     try:
+        if reset_first and await reset():
+            return 1
         return await seed()
     finally:
         await engine.dispose()
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--reset", action="store_true", help="borra la CONFUNFIS de demo, sus baselines y autorizaciones y la vuelve a cargar")
+    args = parser.parse_args()
     if get_settings().environment == "production":
         print("seed_demo_confunfis no se ejecuta con ENVIRONMENT=production.", file=sys.stderr)
         return 1
-    return asyncio.run(run())
+    return asyncio.run(run(args.reset))
 
 
 if __name__ == "__main__":

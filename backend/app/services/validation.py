@@ -63,6 +63,9 @@ DELIVERY_GUARDS: list[DeliveryGuard] = []
 # E17: the runs never purged (a baseline's). Each returns the ids it keeps for the material.
 RetainedRuns = Callable[[AsyncSession, Material], Awaitable[set[uuid.UUID]]]
 RETAINED_RUNS: list[RetainedRuns] = []
+# E17: what the delivery exports instead of the live data (a reviewed baseline). The first that answers wins.
+DeliverySource = Callable[[AsyncSession, Material], Awaitable[Any | None]]
+DELIVERY_SOURCES: list[DeliverySource] = []
 
 
 # ── the rules' configuration ─────────────────────────────────────────────
@@ -291,10 +294,25 @@ async def accept(db: AsyncSession, material: Material, finding: ValidationFindin
     return acceptance
 
 
+async def delivery_source(db: AsyncSession, material: Material) -> Any | None:
+    """What the delivery exports when not the live data (E17: a reviewed baseline's snapshot)."""
+    for source in DELIVERY_SOURCES:
+        found = await source(db, material)
+        if found is not None:
+            return found
+    return None
+
+
 async def delivery_problems(db: AsyncSession, material: Material) -> list[dict[str, Any]]:
-    """Why the delivery is refused (empty: it may go)."""
-    run = await latest(db, material)
+    """Why the delivery is refused (empty: it may go). With a frozen source (a
+    reviewed baseline, E17) the live data's validation does not count: what
+    goes is that snapshot, validated free of blocking findings when frozen."""
     problems: list[dict[str, Any]] = []
+    if await delivery_source(db, material) is not None:
+        for guard in DELIVERY_GUARDS:
+            problems += await guard(db, material)
+        return problems
+    run = await latest(db, material)
     if run is None:
         problems.append({"code": "delivery_not_validated", "params": {}})
     else:

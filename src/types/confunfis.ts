@@ -82,7 +82,7 @@ export interface RowDetail extends PositionRow {
   parents: PositionRow[];
   children: PositionRow[];
   chains: ChainStep[][];
-  history: { id: string; at: string; action: string; user: string | null }[];
+  history: { id: string; at: string; action: string; user: string | null; authorization: string | null; baseline: number | null }[];
   /** The distinct AL of its hueco (E14). */
   hueco_als: string[];
   /** E14: what hangs from the row, and its article's parts with their total in the CUF. */

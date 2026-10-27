@@ -27,7 +27,7 @@ from typing import Any
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -36,6 +36,7 @@ from app.models import (
     Article,
     ArticleLifeControl,
     ArticleReference,
+    Baseline,
     Material,
     PhysicalPosition,
     RolePermission,
@@ -233,9 +234,18 @@ async def _cuf_of_material(db: AsyncSession, article: Article, user: User) -> li
 
 
 async def where_used(db: AsyncSession, article: Article, user: User) -> list[dict[str, Any]]:
+    """Every use, each with `baseline`: the number of the latest reviewed baseline
+    of its CUF (E17: articles are global, so changing one changes a CUF under a
+    baseline without an authorization; the screen warns), or None."""
     out: list[dict[str, Any]] = []
     for _name, provider in USAGE_PROVIDERS:
         out += await provider(db, article, user)
+    ids = {uuid.UUID(u["material_id"]) for u in out if u.get("material_id")}
+    reviewed = dict((await db.execute(
+        select(Baseline.material_id, func.max(Baseline.number)).where(Baseline.material_id.in_(ids), Baseline.state == "revisada").group_by(Baseline.material_id)
+    )).all()) if ids else {}
+    for u in out:
+        u["baseline"] = reviewed.get(uuid.UUID(u["material_id"])) if u.get("material_id") else None
     return out
 
 

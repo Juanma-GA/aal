@@ -220,6 +220,29 @@ def _table_range(code: str, count: int) -> str:
     return f"'{TABLES_SHEET}'!${col}$2:${col}${max(count, 1) + 1}"
 
 
+async def anexo_rows(db: AsyncSession, material: Material, rows: list[PhysicalPosition]) -> dict[str, list[list[Any]]]:
+    """The Anexo XI's sheets as rows of cells (E17: what a baseline keeps to deliver)."""
+    return {
+        "CON_FUN_FIS": await confunfis_rows(db, material, rows),
+        "TABLA PRODUCTOS FUNCIONALES": await product_rows(db, material),
+        "TABLA DE PARTES": await part_rows(db, rows),
+    }
+
+
+def render_book(sheets: dict[str, list[list[Any]]], status_lines: list[tuple[str, str]] | None = None) -> bytes:
+    """An Anexo XI from rows already made (E17: a baseline's snapshot), with an ESTADO DE VALIDACIÓN sheet if given."""
+    book = openpyxl.Workbook()
+    book.remove(book.active)
+    specs = {spec.name: spec for spec in SHEETS}
+    for name, values in sheets.items():
+        _sheet(book, specs[name], values)
+    if status_lines:
+        validation_report.status_sheet(book, status_lines)
+    out = io.BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
 async def build_book(db: AsyncSession, material: Material, kind: str, status: bool = True) -> bytes:
     """`status`: a working export starts with ESTADO DE VALIDACIÓN (E16); the delivery and the empty template do not."""
     book = openpyxl.Workbook()
@@ -243,9 +266,8 @@ async def build_book(db: AsyncSession, material: Material, kind: str, status: bo
         _list(products, 8, _table_range("D155", sizes["D155"]), n)
         _list(products, 10, _table_range(extras.UNIT_TABLE, sizes[extras.UNIT_TABLE]), n)
     else:
-        _sheet(book, specs["CON_FUN_FIS"], await confunfis_rows(db, material, rows))
-        _sheet(book, specs["TABLA PRODUCTOS FUNCIONALES"], await product_rows(db, material))
-        _sheet(book, specs["TABLA DE PARTES"], await part_rows(db, rows))
+        for name, values in (await anexo_rows(db, material, rows)).items():
+            _sheet(book, specs[name], values)
         if kind == AAL:
             _sheet(book, specs[EXTRA_SHEET], await extra_rows(db, material, rows))
             _sheet(book, specs[INCOMPATIBILITY_SHEET], await incompatibility_rows(db, material, rows))

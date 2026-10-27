@@ -51,6 +51,11 @@ the functional products, extra functions and incompatibilities.
 The validations a check ran (E16) and the warnings it accepted go too:
 
     python scripts/purge_verify_data.py --accepted-findings <finding id> --validation-runs <run id>
+
+And (E17) the baselines and change authorizations it made, before the
+validations they hold (an authorization takes its list of changes with it):
+
+    python scripts/purge_verify_data.py --baselines <id> --authorizations <id> --validation-runs <run id>
 """
 
 import argparse
@@ -74,7 +79,9 @@ from app.models import (
     ArticlePart,
     ArticleReference,
     ArticleRevalidation,
+    Baseline,
     CatalogVersion,
+    ChangeAuthorization,
     ExtraFunction,
     FindingAcceptance,
     FunctionalProduct,
@@ -306,9 +313,15 @@ async def purge_catalog_versions(db, versions: list[uuid.UUID]) -> int:
 
 async def purge(
     emails: list[str], materials: list[str], jobs: list[uuid.UUID], versions: list[uuid.UUID], requests: list[uuid.UUID],
-    runs: list[uuid.UUID] = (), accepted: list[uuid.UUID] = (),
+    runs: list[uuid.UUID] = (), accepted: list[uuid.UUID] = (), baselines: list[uuid.UUID] = (), authorizations: list[uuid.UUID] = (),
 ) -> int:
     async with async_session_factory() as db:
+        if authorizations:
+            deleted = await db.execute(delete(ChangeAuthorization).where(ChangeAuthorization.id.in_(authorizations)))
+            print(f"Autorizaciones de cambio eliminadas: {deleted.rowcount}")
+        if baselines:
+            deleted = await db.execute(delete(Baseline).where(Baseline.id.in_(baselines)))
+            print(f"Baselines eliminadas: {deleted.rowcount}")
         if accepted:
             # The acceptances given to these findings (E16), before their runs go.
             ids = [a for a in (await db.execute(select(ValidationFinding.acceptance_id).where(ValidationFinding.id.in_(accepted)))).scalars() if a]
@@ -356,6 +369,8 @@ def main() -> int:
     parser.add_argument("--restore-confunfis", action="store_true", help="devuelve las filas de CONFUNFIS guardadas")
     parser.add_argument("--validation-runs", nargs="*", default=[], type=uuid.UUID, help="ids de validaciones (E16)")
     parser.add_argument("--accepted-findings", nargs="*", default=[], type=uuid.UUID, help="hallazgos cuya aceptación quitar (E16)")
+    parser.add_argument("--baselines", nargs="*", default=[], type=uuid.UUID, help="ids de baselines (E17)")
+    parser.add_argument("--authorizations", nargs="*", default=[], type=uuid.UUID, help="ids de autorizaciones de cambio (E17)")
     parser.add_argument("--snapshot", type=Path, help="fichero de --save-* / --restore-*")
     args = parser.parse_args()
     if get_settings().environment == "production":
@@ -382,7 +397,8 @@ def main() -> int:
         return asyncio.run(save_reference(args.save_reference, args.snapshot))
     if args.restore_reference:
         return asyncio.run(restore_reference(args.snapshot))
-    return asyncio.run(purge(emails, args.materials, args.import_jobs, args.catalog_versions, args.sns_requests, args.validation_runs, args.accepted_findings))
+    return asyncio.run(purge(emails, args.materials, args.import_jobs, args.catalog_versions, args.sns_requests, args.validation_runs, args.accepted_findings,
+                             args.baselines, args.authorizations))
 
 
 if __name__ == "__main__":

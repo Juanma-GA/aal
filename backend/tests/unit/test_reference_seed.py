@@ -11,7 +11,7 @@ from app.services.reference_seed import SeedValue, check_seed, read_seed
 COUNTS = {
     "D106": 18, "D107": 15, "D112": 82, "D113": 12, "D114": 13, "D155": 161, "POL": 161, "NIVEL_FUNCIONAL": 6,
     "M101": 13, "OPERATIVIDAD": 3, "CRITICIDAD": 3, "ESCALON": 4, "TIPO_MANTENIMIENTO": 2, "MODO_EJECUCION": 3, "NAE": 3,
-    "CRITERIO_MULTIFUNCION": 3, "UNIDAD_MEDIDA_PF": 88,
+    "CRITERIO_MULTIFUNCION": 3, "UNIDAD_MEDIDA_PF": 88, "TIPO_AUTORIZACION": 4,
 }
 
 

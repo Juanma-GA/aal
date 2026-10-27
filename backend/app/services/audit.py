@@ -22,6 +22,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AuditLog
+from app.services import changes
 
 _ORIGIN: ContextVar[dict[str, Any] | None] = ContextVar("audit_origin", default=None)
 
@@ -70,6 +71,10 @@ def record(
     for name, value in (("action", action), ("entity_type", entity_type), ("entity_id", entity_id)):
         if not value or not value.strip():
             raise ValueError(f"audit.record needs a non-empty {name}")
+    # E17: a change made under an authorization says which (app/services/changes.py).
+    note = changes.audit_note()
+    if note is not None and (isinstance(after, dict) or (after is None and before is None)):
+        after = {**(after or {}), **note}
     source = _ORIGIN.get()
     if source is not None:
         if isinstance(after, dict) or (after is None and before is None):

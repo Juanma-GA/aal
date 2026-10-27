@@ -8,6 +8,7 @@ import { FieldHelp } from '@/components/articles/FieldHelp';
 import { FieldInput } from '@/components/articles/FieldInput';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ConfirmDialog } from '@/components/settings/ConfirmDialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -115,6 +116,8 @@ export function ArticlePage(): React.JSX.Element {
   }
   if (!article.data || !fieldList.data || !draft) return <div className="flex flex-col gap-6">{header}<Skeleton className="h-96 w-full" /></div>;
   const a = article.data;
+  // E17: an article is global; changing it changes these CUF under a reviewed baseline (shown in their diff).
+  const underBaseline = [...new Set(a.where_used.filter((u) => u.baseline).map((u) => `${u.material_name ?? ''} v${u.baseline}`))];
   const changes = changesOf(a, draft, defs);
   const dirty = Object.keys(changes).length > 0;
   const serverProblems = update.error instanceof ApiError && update.error.detail.code === 'article_invalid'
@@ -318,6 +321,11 @@ export function ArticlePage(): React.JSX.Element {
             </CardHeader>
             <CardContent className="text-sm">
               {a.where_used.length === 0 ? <p className="text-muted-foreground">{t('articles.notUsed')}</p> : null}
+              {underBaseline.length > 0 ? (
+                <Alert className="mb-2" data-testid="where-used-baseline">
+                  <AlertDescription>{t('articles.usageBaseline', { cufs: underBaseline.join(', ') })}</AlertDescription>
+                </Alert>
+              ) : null}
               <ul className="flex flex-col gap-1">
                 {a.where_used.map((u, i) => (
                   <li key={`${u.kind}-${i}`}>

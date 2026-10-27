@@ -151,7 +151,23 @@
     "validation_finding_not_found": "Ese hallazgo ya no está en la última validación: vuelve a cargar el informe.",
     "finding_blocking_cannot_be_accepted": "Un error bloqueante no se puede aceptar: hay que corregirlo.",
     "finding_already_accepted": "Ese aviso ya estaba aceptado.",
-    "validation_rule_param_invalid": "Valor no válido para estos parámetros: {{params}} (el tipo del valor por defecto, como mucho 200 caracteres)."
+    "validation_rule_param_invalid": "Valor no válido para estos parámetros: {{params}} (el tipo del valor por defecto, como mucho 200 caracteres).",
+    "baseline_in_review": "La CONFUNFIS está en revisión (baseline pendiente): es de solo lectura hasta que se apruebe, se rechace o se retire.",
+    "authorization_required": "La CONFUNFIS tiene una baseline revisada: hace falta una autorización de cambio aprobada para modificarla. Elige la autorización activa.",
+    "authorization_not_usable": "La autorización {{authorization}} no sirve para este cambio: tiene que ser de este CUF y estar aprobada y abierta.",
+    "baseline_not_found": "Esa baseline no existe.",
+    "baseline_already_in_review": "Ya hay una baseline en revisión de este CUF: apruébala, recházala o retírala antes de crear otra.",
+    "baseline_not_valid": "No se puede crear la baseline: la última validación tiene que estar al día y sin bloqueantes.",
+    "baseline_state_invalid": "La baseline está {{state}}: ya no admite ese paso.",
+    "baseline_review_own": "Nadie revisa su propia baseline (cuatro ojos): tiene que aprobarla o rechazarla otra persona.",
+    "baseline_reject_needs_comment": "Para rechazar una baseline hace falta un comentario.",
+    "baseline_withdraw_not_author": "Solo quien creó la baseline (o un administrador) puede retirarla.",
+    "authorization_not_found": "Esa autorización de cambio no existe.",
+    "authorization_kind_invalid": "El tipo de autorización «{{kind}}» no está en la tabla TIPO_AUTORIZACION.",
+    "authorization_state_invalid": "La autorización está {{state}}: ya no admite ese paso.",
+    "authorization_decide_own": "Nadie aprueba ni rechaza su propia autorización: tiene que decidirla otra persona.",
+    "authorization_reject_needs_comment": "Para rechazar una autorización hace falta un comentario.",
+    "authorization_close_not_requester": "Solo quien la solicitó (o un administrador) puede cerrar la autorización."
   },
   "actions": {
     "retry": "Reintentar",
@@ -476,12 +492,14 @@
       "draftOutdated": "BORRADOR — validación desactualizada (la última: {{at}})",
       "notValidated": "BORRADOR — sin validar",
       "ready": "Validado el {{at}}: sin errores bloqueantes ({{warnings}} avisos)",
-      "note": "Exportación de trabajo. Para entregar, usa «Exportar para entrega», que exige una validación al día sin errores bloqueantes."
+      "note": "Exportación de trabajo. Para entregar, usa «Exportar para entrega», que exige una validación al día sin errores bloqueantes.",
+      "delivery": "ENTREGA — baseline v{{number}} revisada por {{by}} el {{at}}, validación sin bloqueantes"
     },
     "delivery": {
       "delivery_not_validated": "Falta validar el CUF.",
       "delivery_outdated": "La validación está desactualizada: hay cambios posteriores o han cambiado las reglas.",
-      "delivery_blocking": "Hay {{count}} errores bloqueantes."
+      "delivery_blocking": "Hay {{count}} errores bloqueantes.",
+      "delivery_no_baseline": "Falta una baseline revisada: la entrega exporta la última baseline aprobada."
     },
     "page": {
       "title": "Validación NT 10/17",
@@ -857,6 +875,7 @@
       "confunfis.row_deleted": "Fila de la CONFUNFIS quitada",
       "confunfis.copied": "CONFUNFIS copiada",
       "confunfis.seeded": "CONFUNFIS de demo cargada",
+      "confunfis.reset": "CONFUNFIS de demo borrada para volver a cargarla",
       "article.part_added": "Parte añadida",
       "article.part_updated": "Parte editada",
       "article.part_removed": "Parte quitada",
@@ -876,7 +895,15 @@
       "validation.finding_accepted": "Aviso de validación aceptado",
       "validation.rule_updated": "Regla de validación cambiada",
       "confunfis.delivery_exported": "Exportación para entrega",
-      "validation.runs_purged": "Validaciones antiguas purgadas"
+      "validation.runs_purged": "Validaciones antiguas purgadas",
+      "baseline.created": "Baseline creada (en revisión)",
+      "baseline.withdrawn": "Baseline retirada",
+      "baseline.approved": "Baseline aprobada",
+      "baseline.rejected": "Baseline rechazada",
+      "authorization.requested": "Autorización de cambio solicitada",
+      "authorization.approved": "Autorización de cambio aprobada",
+      "authorization.rejected": "Autorización de cambio rechazada",
+      "authorization.closed": "Autorización de cambio cerrada"
     },
     "entities": {
       "article": "Artículo",
@@ -899,7 +926,9 @@
       "extra_function": "Función adicional",
       "incompatibility": "Incompatibilidad",
       "validation_rule": "Regla de validación",
-      "validation_finding": "Hallazgo de validación"
+      "validation_finding": "Hallazgo de validación",
+      "baseline": "Baseline",
+      "change_authorization": "Autorización de cambio"
     }
   },
   "nav": {
@@ -1416,6 +1445,7 @@
     "goToField": "Ir a «{{field}}»",
     "whereUsed": "Dónde se usa",
     "notUsed": "Todavía no se usa en ningún material.",
+    "usageBaseline": "Afecta a CUF con baseline: {{cufs}}. Los cambios del artículo no necesitan autorización, pero saldrán en su comparación con la baseline.",
     "usage": {
       "material_cuf": "Es el CUF del material",
       "confunfis_position": "Posición de la CONFUNFIS",
@@ -1711,6 +1741,8 @@
       "children_other": "Cuelgan {{count}} filas",
       "observations": "Hallazgos de la validación NT",
       "history": "Historial",
+      "historyAuthorization": "con la autorización {{code}}",
+      "historyBaseline": "incluido en la baseline v{{number}}",
       "orphan": {
         "malformed": "{{cs}} (mal formado)",
         "not_found": "{{cs}} (no encontrado)"
@@ -1918,6 +1950,32 @@
       "TABLA DE PARTES": "Clave: artículo padre (NOC o P/N) · COP/ALP de la parte.",
       "FUNCIONES ADICIONALES": "Clave: fila (SNS CO AL ← conjunto superior) · SNS de la función adicional.",
       "INCOMPATIBILIDADES": "Clave: fila A · tipo · fila B."
+    }
+  },
+  "baselines": {
+    "current": "actual",
+    "diffSheet": "COMPARACIÓN",
+    "diffColumns": {
+      "entity": "Entidad",
+      "label": "Registro",
+      "change": "Cambio",
+      "field": "Campo",
+      "before": "Antes",
+      "after": "Después",
+      "authorization": "Autorización"
+    },
+    "entities": {
+      "row": "Fila",
+      "product": "Producto funcional",
+      "extra": "Función adicional",
+      "incompatibility": "Incompatibilidad",
+      "article": "Artículo",
+      "part": "Parte"
+    },
+    "changes": {
+      "added": "Añadido",
+      "removed": "Eliminado",
+      "modified": "Modificado"
     }
   }
 }

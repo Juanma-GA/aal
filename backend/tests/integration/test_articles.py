@@ -125,7 +125,7 @@ async def test_where_used_and_the_summary(client, factory, people):
         await factory.material(name=f"{name} (prueba)", noc=noc)
     tramontana = await find(client, people["observador"], "232033X900001")
     card = (await client.get(f"/api/articles/{tramontana['id']}", headers=people["admin"])).json()
-    assert card["where_used"] == [{"kind": "material_cuf", "material_id": card["where_used"][0]["material_id"], "material_name": "VTL 4X4 TRAMONTANA (prueba)"}]
+    assert card["where_used"] == [{"kind": "material_cuf", "material_id": card["where_used"][0]["material_id"], "material_name": "VTL 4X4 TRAMONTANA (prueba)", "baseline": None}]
     # A material the user is not in stays unknown to them (as its 404 does).
     assert (await client.get(f"/api/articles/{tramontana['id']}", headers=people["observador"])).json()["where_used"] == []
     used = 0

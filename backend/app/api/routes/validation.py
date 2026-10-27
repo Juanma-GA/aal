@@ -26,12 +26,13 @@ from app.api.deps import current_user, require_admin, require_material_permissio
 from app.api.routes.catalog import XLSX
 from app.core.errors import error_detail
 from app.db.base import get_db
-from app.models import Article, ArticleFieldDefinition, FindingAcceptance, Material, User, ValidationFinding, ValidationRule
+from app.models import ArticleFieldDefinition, FindingAcceptance, Material, User, ValidationFinding, ValidationRule
 from app.schemas.validation import AcceptIn, FindingOut, RuleCount, RuleOut, RuleUpdate, ValidationOut
-from app.services import audit, validation, validation_report
+from app.core.texts import text
+from app.services import audit, baselines, validation, validation_report
 from app.io_excel.writer import write_workbook
-from app.services.anexo_xi_export import ANEXO, build_book
-from app.services.article_import import FICHERO_CARGA, build_template, export_values
+from app.services.anexo_xi_export import render_book
+from app.services.article_import import FICHERO_CARGA, build_template
 from app.services.articles import Checker
 from app.services.permissions import MaterialAccess
 from app.services.snapshots import client_ip
@@ -207,27 +208,35 @@ async def validation_report_file(
 async def delivery(
     request: Request, access: MaterialAccess = Depends(require_material_permission(DELIVER)), user: User = Depends(current_user), db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """The CUF's Anexo XI and the Fichero Carga of its articles (the rows' and their parts'), in a zip."""
+    """The CUF's Anexo XI and the Fichero Carga of its articles (the rows' and their parts'), in a zip:
+    (E17) those of the latest reviewed baseline, exactly as approved -- never the live data. The changes
+    made since go in a header (X-Changes-Not-Included), not in the files."""
     material = access.material
     problems = await validation.delivery_problems(db, material)
-    if problems:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("delivery_blocked", problems=problems))
-    ctx = await validation.context(db, material)
-    ids = set(ctx.cuf_articles) | {p.part_article_id for p in ctx.parts if p.part_article_id}
-    articles = (await db.execute(select(Article).where(Article.id.in_(ids), Article.deleted_at.is_(None)).order_by(Article.nombre, Article.noc, Article.id))).scalars().all() if ids else []
+    baseline = await validation.delivery_source(db, material)
+    if problems or baseline is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail("delivery_blocked", problems=problems or [{"code": "delivery_no_baseline", "params": {}}]))
+    frozen = baselines.decode(baseline.snapshot)
+    by = await baselines.reviewer_name(db, baseline)
+    line = text("validation.status.delivery", number=baseline.number, by=by, at=validation_report.when(baseline.reviewed_at))
+    anexo = render_book(frozen["book"], [(material.name, line)])
     checker = await Checker.load(db)
-    carga = write_workbook(build_template(checker.defs, FICHERO_CARGA), [export_values(a, FICHERO_CARGA) for a in articles], [])
-    anexo = await build_book(db, material, ANEXO, status=False)
+    carga = write_workbook(build_template(checker.defs, FICHERO_CARGA), frozen["fichero_carga"], [])
+    pending = len(baselines.diff(baseline.snapshot, await baselines.snapshot(db, material, book=False)))
     out = io.BytesIO()
     stem = _safe(material.name)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr(f"ANEXO_XI_{stem}.xlsx", anexo)
-        z.writestr(f"FICHERO_CARGA_{stem}.xlsx", carga)
-    run = await validation.latest(db, material)
+        z.writestr(f"ANEXO_XI_{stem}_v{baseline.number}.xlsx", anexo)
+        z.writestr(f"FICHERO_CARGA_{stem}_v{baseline.number}.xlsx", carga)
     audit.record(
         db, action="confunfis.delivery_exported", entity_type="material", entity_id=str(material.id), user_id=user.id, material_id=material.id,
-        after={"run": str(run.id) if run else None, "articles": len(articles)}, ip=client_ip(request),
+        after={"baseline": baseline.number, "baseline_id": str(baseline.id), "articles": len(frozen["fichero_carga"]), "changes_not_included": pending},
+        ip=client_ip(request),
     )
     await db.commit()
-    return Response(content=out.getvalue(), media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="ENTREGA_{stem}_{date.today():%Y%m%d}.zip"'})
-
+    headers = {
+        "Content-Disposition": f'attachment; filename="ENTREGA_{stem}_v{baseline.number}_{date.today():%Y%m%d}.zip"',
+        "X-Changes-Not-Included": str(pending), "X-Baseline": str(baseline.number),
+        "Access-Control-Expose-Headers": "X-Changes-Not-Included, X-Baseline, Content-Disposition",
+    }
+    return Response(content=out.getvalue(), media_type="application/zip", headers=headers)

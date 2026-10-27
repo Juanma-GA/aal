@@ -13,6 +13,8 @@
 #   llevarlos a columnas de Excel.
 # - El código 09 de D114 va entre comillas: los códigos son siempre texto
 #   (la carga rechaza cualquier código que no lo sea).
+# - E17: tabla TIPO_AUTORIZACION (tipos de autorización de cambio de la CONFUNFIS:
+#   diseño, LSA, mantenimiento preventivo, desviación), configurable por el admin.
 # - E15: tabla UNIDAD_MEDIDA_PF (unidad de medida de los productos funcionales:
 #   L, ML, KG, G, M, M2, M3, UD y los códigos D112, con su equivalencia D112).
 # - E14: tabla CRITERIO_MULTIFUNCION (criterio de ubicación de un componente
@@ -2130,6 +2132,19 @@ tablas:
     descripcion: 'Yard'
     atributos:
       equivalencia_d112: YD
+- codigo: TIPO_AUTORIZACION
+  nombre: Tipos de autorización de cambio
+  fuente: S3000L cap. 4, gestión de cambios (E17)
+  nota: El motivo de una autorización de cambio de la CONFUNFIS tras una baseline revisada.
+  valores:
+  - codigo: diseno
+    descripcion: Cambio de diseño
+  - codigo: lsa
+    descripcion: LSA (análisis de apoyo logístico)
+  - codigo: mantenimiento_preventivo
+    descripcion: Mantenimiento preventivo
+  - codigo: desviacion
+    descripcion: Desviación o concesión (waiver)
 campos_articulo:
 - codigo_prisma: cdART
   cabecera: 'NOC del artículo'
