@@ -726,3 +726,6 @@ casos del §9.1.8, las cifras del §2.3, la entrega bloqueada y en verde, el an�
 - **Para que no se repita:** `tests/unit/test_timezone.py` simula Windows (sin base de zonas del sistema, y también sin
   `tzdata`) y un job nuevo de la CI en `windows-latest` instala el lockfile, importa `app.main` y pasa los tests
   unitarios. Los unitarios ya no limpian `login_failure` al acabar (no tocan la base), así que corren sin ella.
+
+**Commit:** `9f84447`, con la CI en verde en sus tres jobs (`secrets`, `windows` y `check`). `npm run check:all` pasó
+en verde, con 428 tests de backend. En `windows-latest`, el backend arranca y pasan los 217 tests unitarios.
